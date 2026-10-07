@@ -87,6 +87,10 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .bar.re .cell::after { right: 2px; }
 .bar.on .cell { background: var(--hl); }
 .bar.from .cell { box-shadow: inset 0 -4px var(--accent); }
+.bar.rng .cell { background: var(--hl); box-shadow: inset 0 -4px var(--accent); }
+.bar.rng.on .cell { background: var(--accent); color: var(--on-accent); }
+.bar.rng0 .cell { outline: 2px dashed var(--accent); outline-offset: -2px; }
+#chart { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 #chart .cell { cursor: pointer; }
 .shared { padding: 4px 0 8px; }
 .shared b { display: block; font-size: 1.2rem; }

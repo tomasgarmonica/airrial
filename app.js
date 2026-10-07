@@ -39,6 +39,8 @@
   let songs = load(SONGS, null);
   if (!songs) { songs = DEMOS.map(d => ({ ...d })); store(SONGS, songs); }
   const settings = Object.assign({ theme: 'dark', choruses: 3, countIn: true }, load(SETTINGS, {}));
+  if (typeof settings.choruses !== 'number') settings.choruses = 3;
+  settings.hints = settings.hints || {};
   settings.vol = Object.assign({ bass: 0.8, keys: 0.6, drums: 0.7, click: 0 }, settings.vol);
   const saveSongs = () => store(SONGS, songs);
   const saveSettings = () => store(SETTINGS, settings);
@@ -268,7 +270,7 @@
         </div>
         <div class="r">
           <select id="style" aria-label="Estilo">${STYLES.map(s => `<option value="${s[0]}"${s[0] === song.style ? ' selected' : ''}>${s[1]}</option>`).join('')}</select>
-          <select id="reps" aria-label="Vueltas">${[1, 2, 3, 4, 6, 999, 'part'].map(n => `<option value="${n}"${n === settings.choruses ? ' selected' : ''}>${n === 'part' ? 'Repetir la parte' : n === 999 ? 'Sin fin' : n + (n === 1 ? ' vuelta' : ' vueltas')}</option>`).join('')}</select>
+          <select id="reps" aria-label="Vueltas">${[1, 2, 3, 4, 6, 999].map(n => `<option value="${n}"${n === settings.choruses ? ' selected' : ''}>${n === 999 ? 'Sin fin' : n + (n === 1 ? ' vuelta' : ' vueltas')}</option>`).join('')}</select>
           <button class="tx" data-a="mix">Mezcla</button>
         </div>
       </footer>
@@ -279,11 +281,22 @@
       </div></dialog>`;
 
     const chart = $('#chart');
-    let bars = [], from = null;
+    // from: compás desde el que arranca. range: tramo [a, b] a repetir; b queda en null hasta que se toca el final.
+    let bars = [], from = null, range = null;
     const markFrom = () => {
-      chart.querySelectorAll('.bar.from').forEach(el => el.classList.remove('from'));
-      const el = from == null ? null : chart.querySelector(`.bar[data-i="${from}"]`);
-      if (el) el.classList.add('from');
+      chart.querySelectorAll('.bar').forEach(el => {
+        const i = +el.dataset.i;
+        el.classList.toggle('from', i === from);
+        el.classList.toggle('rng', !!range && range.b != null && i >= range.a && i <= range.b);
+        el.classList.toggle('rng0', !!range && range.b == null && i === range.a);
+      });
+    };
+    // Los carteles de ayuda se muestran una sola vez.
+    const hint = (key, msg) => {
+      if (settings.hints[key]) return;
+      settings.hints[key] = true;
+      saveSettings();
+      toast(msg);
     };
     const draw = () => {
       bars = Music.parseChart(song.chart, tsOf(song));
@@ -303,13 +316,9 @@
     const start = () => {
       const semis = song.transpose || 0;
       let seq, choruses = settings.choruses, finalChord = null;
-      if (choruses === 'part') {
-        // La parte va desde su letra de ensayo hasta la siguiente.
-        let a = from || 0, b = a + 1;
-        while (a > 0 && !bars[a].section) a--;
-        while (b < bars.length && !bars[b].section) b++;
-        seq = Music.unfold(bars.slice(a, b)).map(i => i + a);
-        choruses = 999;
+      if (range && range.b != null) {
+        // El tramo suena de corrido, sin las repeticiones ni casillas que tenga adentro.
+        seq = bars.slice(range.a, range.b + 1).map((_, i) => i + range.a);
       } else {
         seq = Music.unfold(bars);
         const k = Music.parseChord(song.key || '');
@@ -372,15 +381,48 @@
       mix: () => $('#mix').showModal(),
       closemix: () => $('#mix').close(),
     });
-    // Tocar un compás lo marca como punto de partida; tocarlo otra vez quita la marca.
+    // Toque corto: empezar desde ese compás (o cerrar el tramo que se está marcando).
+    // Toque largo: empezar a marcar un tramo, que termina en el próximo compás que se toque.
+    const tapBar = i => {
+      if (range && range.b == null) {
+        range = { a: Math.min(range.a, i), b: Math.max(range.a, i) };
+        from = null;
+      } else {
+        const same = from === i && !range;
+        range = null;
+        from = same ? null : i;
+        if (from != null) hint('from', 'Va a empezar desde este compás. Tocalo de nuevo para quitar la marca.');
+      }
+      markFrom();
+      restart();
+    };
+    const holdBar = i => {
+      range = { a: i, b: null };
+      from = null;
+      markFrom();
+      if (navigator.vibrate) navigator.vibrate(30);
+      hint('range', 'Ahora tocá el compás donde termina el tramo.');
+    };
+    let hold = null, held = false, down = null;
+    const cancelHold = () => { clearTimeout(hold); hold = null; };
+    chart.onpointerdown = e => {
+      const el = e.target.closest('.bar');
+      cancelHold();
+      held = false;
+      if (!el) return;
+      down = [e.clientX, e.clientY];
+      hold = setTimeout(() => { held = true; hold = null; holdBar(+el.dataset.i); }, 500);
+    };
+    chart.onpointermove = e => {
+      if (hold && down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 10) cancelHold();
+    };
+    chart.onpointerup = chart.onpointercancel = chart.onpointerleave = cancelHold;
+    chart.onscroll = cancelHold;
+    chart.oncontextmenu = e => e.preventDefault();
     chart.onclick = e => {
       const el = e.target.closest('.bar');
-      if (!el) return;
-      const i = +el.dataset.i;
-      from = from === i ? null : i;
-      markFrom();
-      if (Engine.isPlaying()) start();
-      else if (from != null) toast('Va a empezar desde este compás. Tocalo de nuevo para quitar la marca.');
+      if (held) { held = false; return; }
+      if (el) tapBar(+el.dataset.i);
     };
     app.oninput = e => {
       const k = e.target.dataset.vol;
@@ -390,7 +432,7 @@
       const t = e.target;
       if (t.id === 'tempo') setTempo(+t.value);
       else if (t.id === 'style') { song.style = t.value; saveSongs(); restart(); }
-      else if (t.id === 'reps') { settings.choruses = t.value === 'part' ? 'part' : +t.value; saveSettings(); restart(); }
+      else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
     };
   }

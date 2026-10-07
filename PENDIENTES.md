@@ -16,7 +16,7 @@ grabaciones (ver `GRABACION.md`).
 
 ## 2. Reproducción
 - [x] Empezar a reproducir desde el compás que se toca
-- [x] Repetir en bucle una parte para practicarla
+- [x] Repetir un tramo: toque largo en el primer compás y toque corto en el último
 - [x] Final de tema: terminar en un acorde largo (necesita la tonalidad cargada)
 - [x] Seguir sonando bien con la app en segundo plano
 - [ ] Que la reproducción siga D.C., D.S. y Coda
