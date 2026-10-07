@@ -1,35 +1,44 @@
 # Airrial: lista de mejoras
 
-Lista de trabajo. El orden dentro de cada bloque es el sugerido; los bloques 1 y 2 son la prioridad.
-Marcar con `[x]` lo que se vaya terminando.
+Lista de trabajo. El orden dentro de cada bloque es el sugerido.
+Prioridad actual: primero la funcionalidad (bloques 1 a 3); el audio grabado depende de las
+grabaciones (ver `GRABACION.md`).
 
-## 1. Audio y pistas
-- [ ] Instrumentos grabados (contrabajo, piano, batería) en lugar de sonidos sintetizados
+## 1. Escritura
+- [x] Editor por botones (acordes, modos, partes, repeticiones, casillas, anotaciones)
+- [x] Deshacer y rehacer
+- [x] Copiar y pegar un compás o una parte entera (también de una canción a otra)
+- [x] Duplicar una canción (para hacer versiones)
+- [ ] Mover compases o partes de lugar
+- [ ] Repartir los tiempos de un compás de forma desigual con un control propio (hoy: "Alargar el anterior")
+- [ ] Sugerir la tonalidad a partir de los acordes escritos
+- [ ] Símbolos propios para Segno y Coda en lugar de texto
+
+## 2. Reproducción
+- [x] Empezar a reproducir desde el compás que se toca
+- [x] Repetir en bucle una parte para practicarla
+- [x] Final de tema: terminar en un acorde largo (necesita la tonalidad cargada)
+- [x] Seguir sonando bien con la app en segundo plano
+- [ ] Que la reproducción siga D.C., D.S. y Coda
+- [ ] Modo práctica: subir el tempo o cambiar de tono en cada vuelta
+- [ ] Silenciar instrumentos sueltos con un toque
+- [ ] Elegir instrumento armónico (piano o guitarra)
+
+## 3. Guardado y compartir
+- [x] Compartir una canción por enlace (WhatsApp, mail) y abrirla directo en la app
+- [x] Pedirle al navegador que no borre las canciones; aviso de hace cuánto fue la última copia
+- [ ] Importar canciones desde iReal Pro
+- [ ] Copia de seguridad automática y sincronización entre celular y PC (necesita servidor)
+- [ ] Catálogo público para subir y buscar canciones (necesita servidor, cuentas y moderación)
+
+## 4. Audio y pistas
+- [ ] Instrumentos grabados en lugar de sonidos sintetizados (ver `GRABACION.md`)
 - [ ] Patrones más musicales por estilo, con variaciones y remates al final de cada parte
 - [ ] Patrones propios para 3/4 y 6/8 (hoy suenan con un acompañamiento genérico)
 - [ ] Más ritmos: blues/shuffle, funk, latin, reggae, vals de jazz
 - [ ] Ritmos de acá: chacarera, zamba, tango, milonga, cumbia, candombe
-- [ ] Final de tema: terminar en un acorde largo en vez de cortar
-- [ ] Que la reproducción siga D.C., D.S. y Coda
-- [ ] Elegir instrumento armónico (piano o guitarra) y silenciar instrumentos sueltos
-- [ ] Empezar a reproducir desde el compás que se toca
-- [ ] Repetir en bucle una parte para practicarla
-- [ ] Modo práctica: subir el tempo o cambiar de tono en cada vuelta
 
-## 2. Compartir y comunidad
-- [ ] Compartir una canción por enlace o archivo (WhatsApp, mail) y abrirla directo en la app
-- [ ] Importar canciones desde iReal Pro
-- [ ] Copia de seguridad automática y sincronización entre celular y PC
-- [ ] Catálogo público para subir y buscar canciones (necesita servidor, cuentas y moderación)
-
-## 3. Editor
-- [ ] Deshacer y rehacer
-- [ ] Copiar, pegar y mover compases o partes enteras
-- [ ] Duplicar una canción (para hacer versiones)
-- [ ] Repartir los tiempos de un compás de forma desigual sin pasar por el modo texto
-- [ ] Sugerir la tonalidad a partir de los acordes escritos
-
-## 4. Para tocar en vivo
+## 5. Para tocar en vivo
 - [ ] Listas de temas para recitales, con orden y botón para pasar al siguiente
 - [ ] Tamaño de letra y cantidad de compases por renglón ajustables
 - [ ] Notas por tema (letra, forma, indicaciones)
@@ -37,10 +46,35 @@ Marcar con `[x]` lo que se vaya terminando.
 - [ ] Exportar a PDF prolijo para imprimir
 - [ ] Carpetas o etiquetas en la biblioteca
 
-## 5. Proyecto
-- [ ] Botón de donaciones (falta definir servicio y enlace)
+## 6. Servidores, sistemas y seguridad
+Hoy no hay servidor: la app son archivos fijos en GitHub Pages y cada canción vive en el teléfono de
+quien la escribe. Eso es barato y seguro, pero casi todo lo de abajo aparece cuando haya cuentas o
+catálogo público.
+
+**Infraestructura**
+- [ ] Dirección propia (dominio) y dónde registrarla
+- [ ] Elegir servidor y base de datos para cuentas, sincronización y catálogo; estimar costo mensual
+- [ ] Dónde alojar los sonidos grabados y cuánto pesan en el teléfono
+- [ ] Límite de espacio en el teléfono: cuántas canciones entran y qué pasa cuando se llena
+- [ ] Aviso de "hay una versión nueva" dentro de la app y número de versión visible
+- [ ] Pruebas automáticas antes de publicar, para no romper lo que ya anda
+
+**Seguridad de los usuarios**
+- [ ] Inicio de sesión sin guardar contraseñas propias (con Google o enlace por mail)
+- [ ] Qué datos se guardan de cada persona, y que puedan bajarlos o borrarlos
+- [ ] Política de privacidad y términos de uso
+- [ ] Moderación y denuncias en el catálogo; límites contra spam y abuso
+- [ ] Revisar que una canción recibida por enlace o importada no pueda dañar la app de quien la abre
+
+**Seguridad del proyecto (la tuya)**
+- [ ] Verificación en dos pasos en GitHub y en el mail asociado
+- [ ] Copia del proyecto fuera de GitHub y de Google Drive
+- [ ] Claves y contraseñas del servidor fuera del repositorio (que es público)
+- [ ] Derechos de autor de las canciones que suban los usuarios: qué se permite y cómo se da de baja
+- [ ] Licencia del código y de los sonidos grabados; registro del nombre
 - [ ] Estadísticas de uso que respeten la privacidad
-- [ ] Dirección propia (dominio)
+- [ ] Botón de donaciones (falta definir servicio y enlace)
 
 ## Problemas conocidos
 - [ ] Probar en celular real: lectura del cifrado, tamaño de los botones del editor y sonido por el parlante
+- [ ] En iPhone, un enlace compartido se abre en Safari y la canción queda ahí, no en la app instalada

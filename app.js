@@ -48,6 +48,44 @@
 
   document.documentElement.dataset.theme = settings.theme;
   for (const k in settings.vol) Engine.setVol(k, settings.vol[k]);
+  // Le pide al navegador que no borre las canciones cuando el teléfono se queda sin espacio.
+  if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
+
+  const cleanSong = s => ({
+    id: String(s.id || newId()), title: String(s.title || 'Sin título'), composer: String(s.composer || ''),
+    style: STYLES.some(x => x[0] === s.style) ? s.style : 'swing', key: String(s.key || ''),
+    tempo: Math.min(360, Math.max(30, +s.tempo || 120)), ts: METERS.includes(s.ts) ? s.ts : '4/4',
+    transpose: Math.round(+s.transpose || 0) % 12, chart: String(s.chart || ''),
+  });
+
+  // Una canción entera viaja dentro del enlace que se comparte.
+  const packSong = s => {
+    const bytes = new TextEncoder().encode(JSON.stringify([1, s.title, s.composer, s.style, s.key, s.tempo, s.ts, s.chart]));
+    let bin = '';
+    bytes.forEach(b => { bin += String.fromCharCode(b); });
+    return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  };
+  const unpackSong = code => {
+    const bin = atob(code.replace(/-/g, '+').replace(/_/g, '/'));
+    const a = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, ch => ch.charCodeAt(0))));
+    if (!Array.isArray(a) || a[0] !== 1) throw new Error('formato');
+    return cleanSong({ title: a[1], composer: a[2], style: a[3], key: a[4], tempo: a[5], ts: a[6], chart: a[7] });
+  };
+
+  function toast(msg) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    document.body.appendChild(t);
+    setTimeout(() => t.remove(), 2400);
+  }
+  const backupAge = () => {
+    if (!settings.lastExport) return 'Todavía no hiciste ninguna copia.';
+    const d = Math.floor((Date.now() - settings.lastExport) / 864e5);
+    return 'Última copia: ' + (d === 0 ? 'hoy' : d === 1 ? 'ayer' : `hace ${d} días`) + '.';
+  };
+  // Compases copiados en el editor; se conservan al pasar de una canción a otra.
+  let clip = null;
 
   // --- dibujo del cifrado ---
   function tokHtml(tk, semis, flats) {
@@ -136,6 +174,7 @@
       <button class="fab" data-a="new" aria-label="Nueva canción">+</button>
       <dialog id="menu"><div class="sheet">
         <button data-a="export">Exportar todas (copia de seguridad)</button>
+        <p class="hint" id="age">${backupAge()}</p>
         <button data-a="import">Importar canciones</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="close">Cerrar</button>
@@ -169,6 +208,9 @@
         a.download = 'airrial-canciones.json';
         a.click();
         setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        settings.lastExport = Date.now();
+        saveSettings();
+        $('#age').textContent = backupAge();
       },
       import: () => $('#file').click(),
     });
@@ -179,12 +221,7 @@
         const data = JSON.parse(await e.target.files[0].text());
         const incoming = (Array.isArray(data) ? data : data.songs).filter(s => s && typeof s.chart === 'string');
         for (const s of incoming) {
-          const song = {
-            id: String(s.id || newId()), title: String(s.title || 'Sin título'), composer: String(s.composer || ''),
-            style: STYLES.some(x => x[0] === s.style) ? s.style : 'swing', key: String(s.key || ''),
-            tempo: Math.min(360, Math.max(30, +s.tempo || 120)), ts: METERS.includes(s.ts) ? s.ts : '4/4',
-            transpose: Math.round(+s.transpose || 0) % 12, chart: s.chart,
-          };
+          const song = cleanSong(s);
           const i = songs.findIndex(x => x.id === song.id);
           if (i >= 0) songs[i] = song; else songs.push(song);
         }
@@ -202,6 +239,10 @@
   // --- canción ---
   const PLAY = '<svg viewBox="0 0 24 24" width="26" height="26"><path d="M7 4v16l14-8z" fill="currentColor"/></svg>';
   const STOP = '<svg viewBox="0 0 24 24" width="26" height="26"><path d="M6 6h12v12H6z" fill="currentColor"/></svg>';
+  const line = d => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
+  const SHARE = line('M12 15V3M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7');
+  const UNDO = line('M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3');
+  const REDO = line('m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3');
 
   function songView(song) {
     const vol = settings.vol;
@@ -210,6 +251,7 @@
       <header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
         <div class="ttl"><h1>${esc(song.title)}</h1>
         <p>${esc([song.composer, song.ts].filter(Boolean).join(' · '))}</p></div>
+        <button class="ic2" data-a="share" aria-label="Compartir">${SHARE}</button>
         <button class="tx" data-a="edit">Editar</button></header>
       <main class="chart" id="chart"></main>
       <footer class="ctl">
@@ -226,7 +268,7 @@
         </div>
         <div class="r">
           <select id="style" aria-label="Estilo">${STYLES.map(s => `<option value="${s[0]}"${s[0] === song.style ? ' selected' : ''}>${s[1]}</option>`).join('')}</select>
-          <select id="reps" aria-label="Vueltas">${[1, 2, 3, 4, 6, 999].map(n => `<option value="${n}"${n === settings.choruses ? ' selected' : ''}>${n === 999 ? 'Sin fin' : n + (n === 1 ? ' vuelta' : ' vueltas')}</option>`).join('')}</select>
+          <select id="reps" aria-label="Vueltas">${[1, 2, 3, 4, 6, 999, 'part'].map(n => `<option value="${n}"${n === settings.choruses ? ' selected' : ''}>${n === 'part' ? 'Repetir la parte' : n === 999 ? 'Sin fin' : n + (n === 1 ? ' vuelta' : ' vueltas')}</option>`).join('')}</select>
           <button class="tx" data-a="mix">Mezcla</button>
         </div>
       </footer>
@@ -237,13 +279,19 @@
       </div></dialog>`;
 
     const chart = $('#chart');
-    let bars = [];
+    let bars = [], from = null;
+    const markFrom = () => {
+      chart.querySelectorAll('.bar.from').forEach(el => el.classList.remove('from'));
+      const el = from == null ? null : chart.querySelector(`.bar[data-i="${from}"]`);
+      if (el) el.classList.add('from');
+    };
     const draw = () => {
       bars = Music.parseChart(song.chart, tsOf(song));
       const semis = song.transpose || 0;
       const key = keyOf(song, bars);
       const flats = Music.useFlats(key, semis);
       chart.innerHTML = chartHtml(bars, semis, flats);
+      markFrom();
       $('#key').textContent = song.key ? Music.transposeName(song.key, semis, flats) : (semis > 0 ? '+' : '') + semis;
     };
     const setPlaying = on => {
@@ -253,12 +301,31 @@
     };
     const restart = () => { if (Engine.isPlaying()) start(); };
     const start = () => {
+      const semis = song.transpose || 0;
+      let seq, choruses = settings.choruses, finalChord = null;
+      if (choruses === 'part') {
+        // La parte va desde su letra de ensayo hasta la siguiente.
+        let a = from || 0, b = a + 1;
+        while (a > 0 && !bars[a].section) a--;
+        while (b < bars.length && !bars[b].section) b++;
+        seq = Music.unfold(bars.slice(a, b)).map(i => i + a);
+        choruses = 999;
+      } else {
+        seq = Music.unfold(bars);
+        const k = Music.parseChord(song.key || '');
+        if (k && choruses !== 999) {
+          const root = (k.num + semis + 120) % 12;
+          finalChord = { root, bass: root, iv: Music.intervals(k.qual) };
+        }
+      }
       const ok = Engine.play({
-        seq: Music.unfold(bars),
-        bars: Music.resolve(bars, song.transpose || 0),
+        seq,
+        startPos: from == null ? 0 : Math.max(0, seq.indexOf(from)),
+        finalChord,
+        bars: Music.resolve(bars, semis),
         getTempo: () => song.tempo,
         style: song.style,
-        choruses: settings.choruses,
+        choruses,
         countIn: settings.countIn,
         onBar: i => {
           chart.querySelectorAll('.bar.on').forEach(el => el.classList.remove('on'));
@@ -286,6 +353,16 @@
     bind({
       back: () => { location.hash = '#/'; },
       edit: () => { location.hash = '#/e/' + song.id; },
+      share: async () => {
+        const url = location.origin + location.pathname + '#/i/' + packSong(song);
+        try {
+          if (navigator.share) { await navigator.share({ title: song.title, text: `${song.title} (cifrado en Airrial)`, url }); return; }
+        } catch (e) {
+          if (e.name === 'AbortError') return;
+        }
+        try { await navigator.clipboard.writeText(url); toast('Enlace copiado. Pegalo donde quieras compartirlo.'); }
+        catch { prompt('Copiá este enlace para compartir la canción:', url); }
+      },
       play: () => { if (Engine.isPlaying()) { Engine.stop(); setPlaying(false); } else start(); },
       slower: () => setTempo(song.tempo - 4),
       faster: () => setTempo(song.tempo + 4),
@@ -295,6 +372,16 @@
       mix: () => $('#mix').showModal(),
       closemix: () => $('#mix').close(),
     });
+    // Tocar un compás lo marca como punto de partida; tocarlo otra vez quita la marca.
+    chart.onclick = e => {
+      const el = e.target.closest('.bar');
+      if (!el) return;
+      const i = +el.dataset.i;
+      from = from === i ? null : i;
+      markFrom();
+      if (Engine.isPlaying()) start();
+      else if (from != null) toast('Va a empezar desde este compás. Tocalo de nuevo para quitar la marca.');
+    };
     app.oninput = e => {
       const k = e.target.dataset.vol;
       if (k) { vol[k] = +e.target.value; Engine.setVol(k, vol[k]); saveSettings(); }
@@ -303,9 +390,34 @@
       const t = e.target;
       if (t.id === 'tempo') setTempo(+t.value);
       else if (t.id === 'style') { song.style = t.value; saveSongs(); restart(); }
-      else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
+      else if (t.id === 'reps') { settings.choruses = t.value === 'part' ? 'part' : +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
     };
+  }
+
+  // --- canción recibida por enlace ---
+  function importView(code) {
+    let song = null;
+    try { song = unpackSong(code || ''); } catch { /* enlace roto */ }
+    const head = (title, save) => `<header class="top"><button class="tx" data-a="cancel">Cancelar</button>
+      <div class="ttl"><h1>${title}</h1></div>${save ? '<button class="tx pri" data-a="save">Guardar</button>' : ''}</header>`;
+    const actions = { cancel: () => { location.hash = '#/'; } };
+    if (!song) {
+      app.innerHTML = head('Enlace no válido') + '<main><p class="empty">Este enlace está incompleto o no es de Airrial. Pedí que te lo manden de nuevo.</p></main>';
+      bind(actions);
+      return;
+    }
+    const bars = Music.parseChart(song.chart, tsOf(song));
+    app.innerHTML = head('Canción compartida', true) + `<main class="chart">
+      <div class="shared"><b>${esc(song.title)}</b>
+      <span>${esc([song.composer, styleName(song.style), song.key, song.ts, song.tempo + ' bpm'].filter(Boolean).join(' · '))}</span></div>
+      ${chartHtml(bars, 0, true)}</main>`;
+    actions.save = () => {
+      const same = songs.find(s => s.title === song.title && s.chart === song.chart);
+      if (!same) { song.id = newId(); songs.push(song); saveSongs(); }
+      location.replace('#/s/' + (same || song).id);
+    };
+    bind(actions);
   }
 
   // --- editor ---
@@ -357,12 +469,12 @@
         </div></details>
         <div class="seg"><button data-a="mode" data-v="grid">Botones</button><button data-a="mode" data-v="text">Texto</button></div>
         <div id="body"></div>
-        ${existing ? '<button class="danger" data-a="delete">Borrar esta canción</button>' : ''}
+        ${existing ? '<button class="ghost" data-a="dup">Duplicar esta canción</button><button class="danger" data-a="delete">Borrar esta canción</button>' : ''}
       </main>
       <footer class="pad" id="pad"></footer>`;
 
     const body = $('#body'), pad = $('#pad');
-    let bars = [], cur = { b: 0, k: 0, fresh: true }, target = 'root', tab = 'chords', mode = 'grid';
+    let bars = [], cur = { b: 0, k: 0, fresh: true }, target = 'root', tab = 'chords', mode = 'grid', undo = [], redo = [];
 
     const blank = row => ({ items: ['_'], row, ts: [4, 4] });
     const isEmpty = b => b.items.every(x => x === '_') &&
@@ -380,6 +492,8 @@
       if (!bars.length) bars = [blank(0)];
       cur = { b: 0, k: 0, fresh: true };
       target = 'root';
+      undo = [];
+      redo = [];
     };
     const item = () => bars[cur.b].items[cur.k];
     const setItem = v => { bars[cur.b].items[cur.k] = v; };
@@ -425,7 +539,9 @@
           btn('txt', '?', 'Otra…', !!b.text && !NOTES.includes(b.text))) +
         group('Cambio de compás', METERS.map(m => btn('ts', m, m, meter === m)).join('')) +
         group('Compases', btn('insb', '', '+ Antes') + btn('insa', '', '+ Después') + btn('brk', '', 'Pasar a renglón nuevo') +
-          btn('join', '', 'Subir al renglón anterior') + btn('delbar', '', 'Borrar compás')) +
+          btn('join', '', 'Subir al renglón anterior') + btn('delbar', '', 'Borrar compás') +
+          btn('copy', '', 'Copiar compás') + btn('copypart', '', 'Copiar parte') +
+          (clip ? btn('paste', '', clip.length === 1 ? 'Pegar compás' : `Pegar ${clip.length} compases`) : '')) +
         '</div>';
     };
 
@@ -441,7 +557,8 @@
       $('#grid').innerHTML = html + '</div>';
       const old = $('.scroll', pad), keep = old && old.dataset.tab === tab ? old.scrollTop : 0;
       pad.innerHTML = `<div class="ptabs">${btn('tab', 'chords', 'Acordes', tab === 'chords')}${btn('tab', 'other', 'Otros', tab === 'other')}
-        <span class="sp"></span>${btn('prev', '', '‹')}${btn('next', '', '›')}</div>` +
+        <span class="sp"></span><button type="button" data-a="undo" aria-label="Deshacer"${undo.length ? '' : ' disabled'}>${UNDO}</button>
+        <button type="button" data-a="redo" aria-label="Rehacer"${redo.length ? '' : ' disabled'}>${REDO}</button>${btn('prev', '', '‹')}${btn('next', '', '›')}</div>` +
         (tab === 'chords' ? chordsPad(Music.parseChord(item())) : otherPad());
       const sc = $('.scroll', pad);
       if (sc) { sc.dataset.tab = tab; sc.scrollTop = keep; }
@@ -580,6 +697,34 @@
         const d = bars[cur.b].row - bars[cur.b - 1].row;
         for (let j = cur.b; j < bars.length; j++) bars[j].row -= d;
       },
+      copy: () => { clip = JSON.parse(JSON.stringify([bars[cur.b]])); toast('Compás copiado.'); },
+      copypart: () => {
+        let a = cur.b, b = a + 1;
+        while (a > 0 && !bars[a].section) a--;
+        while (b < bars.length && !bars[b].section) b++;
+        clip = JSON.parse(JSON.stringify(bars.slice(a, b)));
+        toast(`Parte copiada (${clip.length} compases).`);
+      },
+      // Un compás se pega al lado; una parte se pega en renglones nuevos, al terminar la parte actual.
+      paste: () => {
+        if (!clip) return;
+        const copies = JSON.parse(JSON.stringify(clip));
+        if (copies.length === 1) {
+          copies[0].row = bars[cur.b].row;
+          bars.splice(cur.b + 1, 0, copies[0]);
+          go(cur.b + 1, 0);
+          return;
+        }
+        let end = cur.b;
+        while (end + 1 < bars.length && !bars[end + 1].section) end++;
+        const here = bars[end].row, first = copies[0].row;
+        copies.forEach(c => { c.row += here + 1 - first; });
+        const split = end + 1 < bars.length && bars[end + 1].row === here ? 1 : 0;
+        const span = copies[copies.length - 1].row - here + split;
+        for (let j = end + 1; j < bars.length; j++) bars[j].row += span;
+        bars.splice(end + 1, 0, ...copies);
+        go(end + 1, 0);
+      },
       delbar: () => {
         if (bars.length > 1) bars.splice(cur.b, 1); else bars = [blank(0)];
         go(Math.min(cur.b, bars.length - 1), 0);
@@ -611,8 +756,37 @@
         saveSongs();
         location.hash = '#/';
       },
+      // La copia lleva lo que hay en pantalla; la original queda como estaba guardada.
+      dup: () => {
+        readFields();
+        const chart = mode === 'grid' ? Music.serialize(bars) : $('#f-chart').value;
+        const copy = { ...song, id: newId(), title: (song.title || 'Sin título') + ' (copia)', chart };
+        songs.push(copy);
+        saveSongs();
+        location.hash = '#/e/' + copy.id;
+      },
     };
-    for (const k in edits) actions[k] = el => { edits[k](el); draw(); };
+    for (const k in edits) actions[k] = el => {
+      const before = JSON.stringify(bars), at = { ...cur };
+      edits[k](el);
+      if (JSON.stringify(bars) !== before) {
+        undo.push({ bars: before, cur: at });
+        if (undo.length > 100) undo.shift();
+        redo = [];
+      }
+      draw();
+    };
+    const restore = (from, to) => {
+      if (!from.length) return;
+      to.push({ bars: JSON.stringify(bars), cur: { ...cur } });
+      const s = from.pop();
+      bars = JSON.parse(s.bars);
+      cur = { ...s.cur, fresh: true };
+      target = 'root';
+      draw();
+    };
+    actions.undo = () => restore(undo, redo);
+    actions.redo = () => restore(redo, undo);
     bind(actions);
 
     body.onclick = e => {
@@ -638,6 +812,7 @@
     const song = findSong(id);
     if (kind === 's' && song) songView(song);
     else if (kind === 'e') editView(id);
+    else if (kind === 'i') importView(id);
     else libraryView();
     window.scrollTo(0, 0);
   }

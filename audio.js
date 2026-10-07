@@ -245,16 +245,29 @@ const Engine = (() => {
     S.last = at(B);
   }
 
+  // Con la app en segundo plano el navegador frena los relojes: ahí se programa con más anticipación.
   function tick() {
+    if (!flush() || S.done) return;
     const { o } = S;
-    while (S.t < ctx.currentTime + 0.2) {
+    while (S.t < ctx.currentTime + (document.hidden ? 1.5 : 0.2)) {
       if (S.pos >= o.seq.length) {
         S.pos = 0;
         S.chorus++;
         if (S.chorus >= o.choruses) {
-          S.q.push({ t: S.t, end: true });
-          clearInterval(timer);
-          timer = null;
+          // Cierre: un acorde largo sobre la tónica en lugar de cortar en seco.
+          let tail = 0;
+          const c = o.finalChord;
+          if (c && o.style !== 'click') {
+            const bd = 60 / o.getTempo();
+            chordHit(S.t, voice(c), bd * 4, 1);
+            bass(S.t, rootOf(c), bd * 4, 0.9);
+            kick(S.t, 0.8);
+            ride(S.t, 0.3);
+            tail = bd * 4 + 0.3;
+          }
+          S.q.push({ t: S.t, i: -1 });
+          S.q.push({ t: S.t + tail, end: true });
+          S.done = true;
           return;
         }
       }
@@ -272,30 +285,34 @@ const Engine = (() => {
     }
   }
 
-  function frame() {
-    if (!S) return;
+  // Avisa a la pantalla qué compás está sonando. Devuelve false si el tema terminó.
+  function flush() {
     while (S.q.length && S.q[0].t <= ctx.currentTime) {
       const e = S.q.shift();
       if (e.end) {
         const cb = S.o.onEnd;
         stop();
         if (cb) cb();
-        return;
+        return false;
       }
       S.o.onBar(e.i);
     }
-    raf = requestAnimationFrame(frame);
+    return true;
   }
 
-  // o: { seq, bars, getTempo, style, choruses, countIn, onBar, onEnd }
+  function frame() {
+    if (S && flush()) raf = requestAnimationFrame(frame);
+  }
+
+  // o: { seq, startPos, finalChord, bars, getTempo, style, choruses, countIn, onBar, onEnd }
   function play(o) {
     stop();
     if (!o.seq.length) return false;
     ensure();
     makeBuses();
-    S = { o, pos: 0, chorus: 0, t: ctx.currentTime + 0.1, barNo: 0, last: null, lb: 38, q: [] };
+    S = { o, pos: o.startPos || 0, chorus: 0, t: ctx.currentTime + 0.1, barNo: 0, last: null, lb: 38, q: [] };
     if (o.countIn) {
-      const b = o.bars[o.seq[0]];
+      const b = o.bars[o.seq[S.pos]];
       const bd = 60 / o.getTempo() * 4 / b.den;
       for (let i = 0; i < b.beats; i++) click(S.t + i * bd, i === 0, bus.fixed);
       S.t += b.beats * bd;
