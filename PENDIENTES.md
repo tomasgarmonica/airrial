@@ -39,6 +39,7 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Ritmos de acá: chacarera, zamba, tango, milonga, cumbia, candombe
 
 ## 5. Para tocar en vivo
+- [x] Encabezado y panel de reproducción fijos; panel deslizable con estilo, vueltas y mezcla
 - [ ] Listas de temas para recitales, con orden y botón para pasar al siguiente
 - [ ] Tamaño de letra y cantidad de compases por renglón ajustables
 - [ ] Notas por tema (letra, forma, indicaciones)
@@ -56,7 +57,7 @@ catálogo público.
 - [ ] Elegir servidor y base de datos para cuentas, sincronización y catálogo; estimar costo mensual
 - [ ] Dónde alojar los sonidos grabados y cuánto pesan en el teléfono
 - [ ] Límite de espacio en el teléfono: cuántas canciones entran y qué pasa cuando se llena
-- [ ] Aviso de "hay una versión nueva" dentro de la app y número de versión visible
+- [x] Número de versión visible y recarga automática cuando hay una versión nueva
 - [ ] Pruebas automáticas antes de publicar, para no romper lo que ya anda
 
 **Seguridad de los usuarios**

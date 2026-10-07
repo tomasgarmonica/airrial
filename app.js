@@ -2,7 +2,7 @@
   'use strict';
 
   // Subir este número en cada publicación: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = 6;
+  const VERSION = 7;
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -258,7 +258,9 @@
         <button class="ic2" data-a="share" aria-label="Compartir">${SHARE}</button>
         <button class="tx" data-a="edit">Editar</button></header>
       <main class="chart" id="chart"></main>
-      <footer class="ctl">
+      <footer class="ctl${settings.sheetOpen ? ' open' : ''}" id="sheet">
+        <button class="grab" data-a="sheet" aria-label="Mostrar u ocultar más opciones" aria-expanded="${!!settings.sheetOpen}">
+          <i></i><span>Estilo, vueltas y mezcla</span></button>
         <div class="r">
           <button class="play" data-a="play" id="play" aria-label="Reproducir o detener">${PLAY}</button>
           <div class="grp"><span>Tempo</span><div class="st">
@@ -270,19 +272,26 @@
             <button id="key" class="val" data-a="reset" aria-label="Volver al tono original"></button>
             <button data-a="up" aria-label="Subir medio tono">+</button></div></div>
         </div>
-        <div class="r">
-          <select id="style" aria-label="Estilo">${STYLES.map(s => `<option value="${s[0]}"${s[0] === song.style ? ' selected' : ''}>${s[1]}</option>`).join('')}</select>
-          <select id="reps" aria-label="Vueltas">${[1, 2, 3, 4, 6, 999].map(n => `<option value="${n}"${n === settings.choruses ? ' selected' : ''}>${n === 999 ? 'Sin fin' : n + (n === 1 ? ' vuelta' : ' vueltas')}</option>`).join('')}</select>
-          <button class="tx" data-a="mix">Mezcla</button>
-        </div>
-      </footer>
-      <dialog id="mix"><div class="sheet">
-        ${slider('bass', 'Bajo')}${slider('keys', 'Teclado')}${slider('drums', 'Batería')}${slider('click', 'Claqueta')}
-        <label class="chk"><input type="checkbox" id="countin"${settings.countIn ? ' checked' : ''}> Un compás de cuenta previa</label>
-        <button data-a="closemix">Cerrar</button>
-      </div></dialog>`;
+        <div class="more"><div class="in">
+          <div class="r">
+            <label class="fld">Estilo<select id="style" aria-label="Estilo">${STYLES.map(s => `<option value="${s[0]}"${s[0] === song.style ? ' selected' : ''}>${s[1]}</option>`).join('')}</select></label>
+            <label class="fld">Vueltas<select id="reps" aria-label="Vueltas">${[1, 2, 3, 4, 6, 999].map(n => `<option value="${n}"${n === settings.choruses ? ' selected' : ''}>${n === 999 ? 'Sin fin' : n + (n === 1 ? ' vuelta' : ' vueltas')}</option>`).join('')}</select></label>
+          </div>
+          <div class="mixer">
+            ${slider('bass', 'Bajo')}${slider('keys', 'Teclado')}${slider('drums', 'Batería')}${slider('click', 'Claqueta')}
+            <label class="chk"><input type="checkbox" id="countin"${settings.countIn ? ' checked' : ''}> Un compás de cuenta previa</label>
+          </div>
+        </div></div>
+      </footer>`;
 
-    const chart = $('#chart');
+    const chart = $('#chart'), sheet = $('#sheet'), grab = $('.grab', sheet);
+    let grabY = null, swiped = false;
+    const setSheet = on => {
+      settings.sheetOpen = on;
+      saveSettings();
+      sheet.classList.toggle('open', on);
+      grab.setAttribute('aria-expanded', on);
+    };
     // from: compás desde el que arranca. range: tramo [a, b] a repetir; b queda en null hasta que se toca el final.
     let bars = [], from = null, range = null;
     const markFrom = () => {
@@ -380,9 +389,20 @@
       down: () => shift(-1),
       up: () => shift(1),
       reset: () => shift(0),
-      mix: () => $('#mix').showModal(),
-      closemix: () => $('#mix').close(),
+      sheet: () => {
+        if (swiped) { swiped = false; return; }
+        setSheet(!settings.sheetOpen);
+      },
     });
+    // La manija del panel responde al toque y también a deslizar hacia arriba o hacia abajo.
+    grab.onpointerdown = e => { grabY = e.clientY; swiped = false; grab.setPointerCapture(e.pointerId); };
+    grab.onpointermove = e => {
+      if (grabY == null || Math.abs(e.clientY - grabY) < 24) return;
+      setSheet(e.clientY < grabY);
+      swiped = true;
+      grabY = null;
+    };
+    grab.onpointerup = grab.onpointercancel = () => { grabY = null; };
     // Toque corto: empezar desde ese compás (o cerrar el tramo que se está marcando).
     // Toque largo: empezar a marcar un tramo, que termina en el próximo compás que se toque.
     const tapBar = i => {
