@@ -1,10 +1,10 @@
 // Guarda la app en el teléfono para que funcione sin conexión.
-const CACHE = 'airrial-v2';
+const CACHE = 'airrial-v3';
 const FILES = ['./', 'index.html', 'style.css', 'music.js', 'audio.js', 'app.js',
   'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png'];
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES)).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
 });
 
 self.addEventListener('activate', e => {
@@ -18,7 +18,8 @@ self.addEventListener('fetch', e => {
   if (e.request.method !== 'GET' || !e.request.url.startsWith(self.location.origin)) return;
   e.respondWith(caches.open(CACHE).then(async cache => {
     const cached = await cache.match(e.request, { ignoreSearch: true });
-    const fresh = fetch(e.request).then(res => {
+    // 'no-cache': siempre consulta al servidor; si no, el navegador reutiliza archivos viejos hasta 10 minutos.
+    const fresh = fetch(e.request.url, { cache: 'no-cache' }).then(res => {
       if (res.ok) cache.put(e.request, res.clone());
       return res;
     });

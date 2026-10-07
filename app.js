@@ -1,6 +1,8 @@
 (() => {
   'use strict';
 
+  // Subir este número en cada publicación: se muestra en la biblioteca para saber qué versión corre el teléfono.
+  const VERSION = 6;
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -169,7 +171,7 @@
   // --- biblioteca ---
   function libraryView() {
     app.innerHTML = `
-      <header class="top"><div class="ttl"><h1>Airrial</h1><p>Mis cifrados</p></div>
+      <header class="top"><div class="ttl"><h1>Airrial</h1><p>Mis cifrados · versión ${VERSION}</p></div>
         <button class="tx" data-a="menu">Menú</button></header>
       <div class="search"><input id="q" type="search" placeholder="Buscar canción o autor…" autocomplete="off"></div>
       <main class="list" id="list"></main>
@@ -414,7 +416,7 @@
       hold = setTimeout(() => { held = true; hold = null; holdBar(+el.dataset.i); }, 500);
     };
     chart.onpointermove = e => {
-      if (hold && down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 10) cancelHold();
+      if (hold && down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 14) cancelHold();
     };
     chart.onpointerup = chart.onpointercancel = chart.onpointerleave = cancelHold;
     chart.onscroll = cancelHold;
@@ -862,6 +864,11 @@
   route();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+    // Cuando llega una versión nueva mientras se mira la biblioteca, se recarga sola para mostrarla.
+    const hadWorker = !!navigator.serviceWorker.controller;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (hadWorker && location.hash.length < 3) location.reload();
+    });
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
 })();
