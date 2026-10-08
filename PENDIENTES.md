@@ -28,7 +28,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Compartir una canción por enlace (WhatsApp, mail) y abrirla directo en la app
 - [x] Pedirle al navegador que no borre las canciones; aviso de hace cuánto fue la última copia
 - [x] Enlaces de canción más cortos (comprimidos)
-- [ ] Enlaces realmente cortos (del tipo airrial/c/abc123): necesitan servidor que guarde la canción
+- [ ] Compartir "con enlace": la canción o lista se sube al servidor sin aparecer en el catálogo y se abre solo con un enlace corto (como un video no listado). Tres niveles: solo en mi celular / con enlace / pública. Definir vencimiento, cómo la borra quien la subió y qué pasa con denuncias
 - [ ] Importar canciones desde iReal Pro
 - [ ] Copia de seguridad automática y sincronización entre celular y PC (necesita servidor)
 - [ ] Catálogo público para subir y buscar canciones (necesita servidor, cuentas y moderación)
