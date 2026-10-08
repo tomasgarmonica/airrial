@@ -35,6 +35,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Mecanismo de canciones incluidas (`incluidas.json`): aparecen en Canciones con la marca "incluida", sin pestaña aparte
 - [ ] Cargar la selección inicial: armar en la app una lista llamada "Iniciales", exportar y dejar el archivo en la carpeta
 - [ ] Enlace corto para las canciones incluidas
+- [ ] Compartir como archivo (además del enlace) y que Airrial aparezca en el menú Compartir de Android para abrir archivos recibidos
 - [ ] Comunidad: secuencias subidas por usuarios, separadas del catálogo curado. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento
 
 ## 4. Audio y pistas
@@ -65,7 +66,7 @@ quien la escribe. Eso es barato y seguro, pero casi todo lo de abajo aparece cua
 catálogo público.
 
 **Infraestructura**
-- [ ] Dominio propio `airrial.ar` (registrado el 2026-10-08): falta delegarlo a un servicio de DNS y apuntarlo a GitHub Pages
+- [x] Dominio propio: la app vive en https://airrial.ar (NIC Argentina → DNS en Cloudflare → GitHub Pages). La dirección vieja redirige
 - [ ] Elegir servidor y base de datos para cuentas, sincronización y catálogo; estimar costo mensual
 - [ ] Dónde alojar los sonidos grabados y cuánto pesan en el teléfono
 - [ ] Límite de espacio en el teléfono: cuántas canciones entran y qué pasa cuando se llena
