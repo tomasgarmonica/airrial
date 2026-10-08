@@ -295,8 +295,16 @@ const Engine = (() => {
         const tb = t + b * bd;
         shaker(tb, 0.3, 0.09); shaker(tb + 2 * s, 0.18, 0.04); shaker(tb + 3 * s, 0.18, 0.04);
         wood(tb, 0.15);
-        const c = x.at(b);
-        if (c && b !== 1) bass(tb, b === 2 && c === x.at(0) ? fifthOf(c) : rootOf(c), bd * (b ? 0.9 : 1.4), b ? 0.85 : 1);
+      }
+      // Bajo: fundamental, tercera y quinta en negra, corchea, corchea; dos veces por compás.
+      for (const h of [0, 2]) {
+        const c = x.at(h), c1 = x.at(h + 1);
+        if (c) bass(t + h * bd, rootOf(c), bd * 0.9, 1);
+        if (!c1) continue;
+        const r = c1 === c ? S.lb : rootOf(c1);
+        const up = iv => near((c1.root + iv) % 12, r + iv);
+        bass(t + (h + 1) * bd, c1 === c ? up(c1.iv[0]) : r, e * 0.9, 0.85);
+        bass(t + (h + 1.5) * bd, up(c1.iv[1]), e * 0.9, 0.9);
       }
       kick(t, 0.8); kick(t + 2 * bd, 0.7);
       tom(t + 1.5 * bd, 200, 0.35, 0.12); tom(t + 3.5 * bd, 200, 0.35, 0.12); tom(t + 3.75 * bd, 240, 0.3, 0.1);

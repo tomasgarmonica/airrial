@@ -2,7 +2,7 @@
   'use strict';
 
   // Subir este número en cada publicación: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = 8;
+  const VERSION = 9;
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
