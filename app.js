@@ -1,8 +1,8 @@
 (() => {
   'use strict';
 
-  // Subir este número en cada publicación: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = 10;
+  // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
+  const VERSION = '0.11';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -68,19 +68,48 @@
     transpose: Math.round(+s.transpose || 0) % 12, chart: String(s.chart || ''),
   });
 
-  // Una canción entera viaja dentro del enlace que se comparte.
-  const packSong = s => {
-    const bytes = new TextEncoder().encode(JSON.stringify([1, s.title, s.composer, s.style, s.key, s.tempo, s.ts, s.chart]));
+  // Las canciones viajan dentro del enlace que se comparte: una sola, o una lista entera (comprimida).
+  const b64 = bytes => {
     let bin = '';
     bytes.forEach(b => { bin += String.fromCharCode(b); });
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   };
-  const unpackSong = code => {
-    const bin = atob(code.replace(/-/g, '+').replace(/_/g, '/'));
-    const a = JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, ch => ch.charCodeAt(0))));
-    if (!Array.isArray(a) || a[0] !== 1) throw new Error('formato');
-    return cleanSong({ title: a[1], composer: a[2], style: a[3], key: a[4], tempo: a[5], ts: a[6], chart: a[7] });
+  const unb64 = code => Uint8Array.from(atob(code.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0));
+  const pipe = async (bytes, stream) =>
+    new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
+  const songRow = s => [s.title, s.composer, s.style, s.key, s.tempo, s.ts, s.chart];
+  const rowSong = a => cleanSong({ title: a[0], composer: a[1], style: a[2], key: a[3], tempo: a[4], ts: a[5], chart: a[6] });
+  const packSong = s => b64(new TextEncoder().encode(JSON.stringify([1, ...songRow(s)])));
+  const packList = async l => {
+    const bytes = new TextEncoder().encode(JSON.stringify([2, l.name, l.songs.map(findSong).filter(Boolean).map(songRow)]));
+    try { return 'z.' + b64(await pipe(bytes, new CompressionStream('deflate-raw'))); }
+    catch { return 'j.' + b64(bytes); }
   };
+  // Devuelve { song } o { name, songs }.
+  const unpack = async code => {
+    const bytes = code.startsWith('z.') ? await pipe(unb64(code.slice(2)), new DecompressionStream('deflate-raw'))
+      : unb64(code.startsWith('j.') ? code.slice(2) : code);
+    const a = JSON.parse(new TextDecoder().decode(bytes));
+    if (a[0] === 1) return { song: rowSong(a.slice(1)) };
+    if (a[0] === 2 && Array.isArray(a[2])) return { name: String(a[1] || 'Lista'), songs: a[2].map(rowSong) };
+    throw new Error('formato');
+  };
+  async function shareUrl(title, text, url) {
+    try {
+      if (navigator.share) { await navigator.share({ title, text, url }); return; }
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+    try { await navigator.clipboard.writeText(url); toast('Enlace copiado. Pegalo donde quieras compartirlo.'); }
+    catch { prompt('Copiá este enlace para compartir:', url); }
+  }
+  function download(name, data) {
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
 
   function toast(msg) {
     const t = document.createElement('div');
@@ -175,16 +204,17 @@
   }
 
   // --- biblioteca ---
-  let libTab = 'songs';
+  let libTab = 'songs', libStyle = '';
   const songMeta = s => [s.composer, styleName(s.style), s.key, s.ts].filter(Boolean).join(' · ');
   const count = n => n + (n === 1 ? ' tema' : ' temas');
 
   function libraryView() {
     app.innerHTML = `
-      <header class="top"><div class="ttl"><h1>Airrial</h1><p>Mis cifrados · versión ${VERSION}</p></div>
+      <header class="top"><div class="ttl"><h1>Airrial</h1><p>Mis cifrados · beta ${VERSION}</p></div>
         <button class="tx" data-a="menu">Menú</button></header>
       <div class="seg tabs"><button data-a="tab" data-v="songs">Canciones</button><button data-a="tab" data-v="lists">Listas</button></div>
       <div class="search"><input id="q" type="search" autocomplete="off"></div>
+      <div class="filt" id="filt"></div>
       <main class="list" id="list"></main>
       <button class="fab" data-a="new" aria-label="Agregar">+</button>
       <dialog id="menu"><div class="sheet">
@@ -199,7 +229,13 @@
     const draw = () => {
       const f = q.value.trim().toLowerCase(), onLists = libTab === 'lists';
       app.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === libTab));
-      q.placeholder = onLists ? 'Buscar lista…' : 'Buscar canción o autor…';
+      q.placeholder = onLists ? 'Buscar lista…' : 'Buscar canción, autor o género…';
+      // Filtro por género: solo aparecen los géneros que hay en la biblioteca.
+      const used = STYLES.filter(st => songs.some(s => s.style === st[0]));
+      if (!used.some(st => st[0] === libStyle)) libStyle = '';
+      $('#filt').hidden = onLists || used.length < 2;
+      $('#filt').innerHTML = [['', 'Todos'], ...used].map(st =>
+        `<button data-a="style" data-v="${st[0]}"${st[0] === libStyle ? ' class="on"' : ''}>${esc(st[1].replace(/ \(.*/, ''))}</button>`).join('');
       if (onLists) {
         const shown = lists.filter(l => !f || l.name.toLowerCase().includes(f));
         list.innerHTML = shown.length ? shown.map(l => `
@@ -209,7 +245,8 @@
         return;
       }
       const shown = songs
-        .filter(s => !f || (s.title + ' ' + (s.composer || '')).toLowerCase().includes(f))
+        .filter(s => !libStyle || s.style === libStyle)
+        .filter(s => !f || (s.title + ' ' + (s.composer || '') + ' ' + styleName(s.style)).toLowerCase().includes(f))
         .sort((a, b) => a.title.localeCompare(b.title, 'es'));
       list.innerHTML = shown.length ? shown.map(s => `
         <a class="item" href="#/s/${esc(s.id)}"><b>${esc(s.title)}</b>
@@ -219,6 +256,7 @@
     draw();
     bind({
       tab: el => { libTab = el.dataset.v; q.value = ''; draw(); },
+      style: el => { libStyle = el.dataset.v; draw(); },
       new: () => {
         if (libTab !== 'lists') { location.hash = '#/e/new'; return; }
         const name = (prompt('Nombre de la lista:', '') || '').trim();
@@ -236,12 +274,7 @@
         saveSettings();
       },
       export: () => {
-        const blob = new Blob([JSON.stringify({ app: 'airrial', version: 1, songs, lists }, null, 1)], { type: 'application/json' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = 'airrial-canciones.json';
-        a.click();
-        setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+        download('airrial-canciones.json', { app: 'airrial', version: 1, songs, lists });
         settings.lastExport = Date.now();
         saveSettings();
         $('#age').textContent = backupAge();
@@ -282,6 +315,7 @@
     app.innerHTML = `
       <header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
         <div class="ttl"><h1 id="lname"></h1><p id="lcount"></p></div>
+        <button class="ic2" data-a="share" aria-label="Compartir la lista">${SHARE}</button>
         <button class="tx" data-a="rename">Nombre</button></header>
       <main class="list">
         <div id="rows"></div>
@@ -289,7 +323,9 @@
         <button class="danger" data-a="dellist">Borrar esta lista</button>
       </main>
       <dialog id="pick"><div class="sheet">
+        <input id="pq" type="search" placeholder="Buscar canción, autor o género…" autocomplete="off">
         <div class="picklist" id="picklist"></div>
+        <p class="hint" id="picknone" hidden>Ninguna canción coincide.</p>
         <button class="pri" data-a="pickok">Listo</button>
       </div></dialog>`;
     const draw = () => {
@@ -299,30 +335,72 @@
       $('#lcount').textContent = count(n);
       $('#rows').innerHTML = n ? list.songs.map((id, i) => {
         const s = findSong(id);
-        return `<div class="lrow"><a class="item" href="#/s/${esc(id)}/${esc(list.id)}"><b>${i + 1}. ${esc(s.title)}</b>
+        return `<div class="lrow" data-id="${esc(id)}"><button class="hdl" aria-label="Arrastrar para ordenar">${GRIP}</button>
+          <a class="item" href="#/s/${esc(id)}/${esc(list.id)}"><b>${i + 1}. ${esc(s.title)}</b>
           <span>${esc(songMeta(s))}</span></a>
-          <button data-a="up" data-v="${i}" aria-label="Subir"${i ? '' : ' disabled'}>↑</button>
-          <button data-a="down" data-v="${i}" aria-label="Bajar"${i < n - 1 ? '' : ' disabled'}>↓</button>
           <button data-a="rm" data-v="${i}" aria-label="Quitar de la lista">×</button></div>`;
       }).join('') : '<p class="empty">La lista está vacía. Tocá "Agregar o quitar temas".</p>';
     };
     const change = fn => { fn(); saveLists(); draw(); };
-    const swap = (i, j) => change(() => { [list.songs[i], list.songs[j]] = [list.songs[j], list.songs[i]]; });
     draw();
+
+    // Ordenar arrastrando de la manija: la fila se va acomodando bajo el dedo y al soltar se guarda el orden.
+    const rows = $('#rows'), main = rows.parentElement;
+    let drag = null;
+    const onMove = e => {
+      const box = main.getBoundingClientRect();
+      if (e.clientY < box.top + 50) main.scrollTop -= 12;
+      else if (e.clientY > box.bottom - 50) main.scrollTop += 12;
+      const next = [...rows.children].find(el => {
+        if (el === drag) return false;
+        const b = el.getBoundingClientRect();
+        return e.clientY < b.top + b.height / 2;
+      });
+      if (next) { if (drag.nextElementSibling !== next) rows.insertBefore(drag, next); }
+      else if (rows.lastElementChild !== drag) rows.appendChild(drag);
+    };
+    const onEnd = () => {
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onEnd);
+      document.removeEventListener('pointercancel', onEnd);
+      if (!drag) return;
+      drag = null;
+      const order = [...rows.children].map(el => el.dataset.id);
+      change(() => { list.songs = order; });
+    };
+    rows.onpointerdown = e => {
+      const h = e.target.closest('.hdl');
+      if (!h || drag) return;
+      e.preventDefault();
+      drag = h.closest('.lrow');
+      drag.classList.add('drag');
+      document.addEventListener('pointermove', onMove);
+      document.addEventListener('pointerup', onEnd);
+      document.addEventListener('pointercancel', onEnd);
+    };
     bind({
       back: () => { libTab = 'lists'; location.hash = '#/'; },
       rename: () => {
         const name = (prompt('Nombre de la lista:', list.name) || '').trim();
         if (name) change(() => { list.name = name; });
       },
-      up: el => swap(+el.dataset.v, +el.dataset.v - 1),
-      down: el => swap(+el.dataset.v, +el.dataset.v + 1),
+      share: async () => {
+        const mine = list.songs.map(findSong).filter(Boolean);
+        if (!mine.length) { toast('La lista está vacía: agregale temas antes de compartirla.'); return; }
+        const url = location.origin + location.pathname + '#/i/' + await packList(list);
+        if (url.length <= 8000) { shareUrl(list.name, `${list.name} (lista de temas en Airrial)`, url); return; }
+        // Demasiado larga para un enlace: va como archivo.
+        download(`lista-${list.name.replace(/[^\w\-áéíóúñ ]/gi, '').trim() || 'airrial'}.json`, { app: 'airrial', version: 1, songs: mine, lists: [list] });
+        alert('La lista es muy larga para mandarla en un enlace, así que se descargó como archivo. Envialo, y quien lo reciba lo abre con Menú → Importar.');
+      },
       rm: el => change(() => { list.songs.splice(+el.dataset.v, 1); }),
       add: () => {
         const sorted = songs.slice().sort((a, b) => a.title.localeCompare(b.title, 'es'));
-        $('#picklist').innerHTML = sorted.length ? sorted.map(s => `<label class="pick">
-          <input type="checkbox" value="${esc(s.id)}"${list.songs.includes(s.id) ? ' checked' : ''}> ${esc(s.title)}</label>`).join('')
+        $('#picklist').innerHTML = sorted.length ? sorted.map(s => `<label class="pick" data-f="${esc((s.title + ' ' + (s.composer || '') + ' ' + styleName(s.style)).toLowerCase())}">
+          <input type="checkbox" value="${esc(s.id)}"${list.songs.includes(s.id) ? ' checked' : ''}>
+          <span><b>${esc(s.title)}</b>${s.composer ? `<small>${esc(s.composer)}</small>` : ''}</span></label>`).join('')
           : '<p class="hint">Todavía no hay canciones escritas.</p>';
+        $('#pq').value = '';
         $('#pick').showModal();
       },
       // Los que ya estaban conservan su orden; los nuevos se agregan al final.
@@ -339,6 +417,14 @@
         location.hash = '#/';
       },
     });
+    // El buscador solo oculta filas: lo que ya estaba tildado se conserva aunque no se vea.
+    const filterPick = () => {
+      const f = $('#pq').value.trim().toLowerCase();
+      let shown = 0;
+      app.querySelectorAll('#picklist .pick').forEach(el => { el.hidden = !!f && !el.dataset.f.includes(f); if (!el.hidden) shown++; });
+      $('#picknone').hidden = shown > 0;
+    };
+    app.oninput = e => { if (e.target.id === 'pq') filterPick(); };
   }
 
   // --- canción ---
@@ -347,6 +433,7 @@
   const line = d => `<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${d}"/></svg>`;
   const SHARE = line('M12 15V3M8 7l4-4 4 4M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-7');
   const UNDO = line('M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3');
+  const GRIP = line('M5 8h14M5 12h14M5 16h14');
   const REDO = line('m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3');
 
   function songView(song, list) {
@@ -482,16 +569,8 @@
       prevsong: () => goList(-1),
       nextsong: () => goList(1),
       edit: () => { location.hash = '#/e/' + song.id; },
-      share: async () => {
-        const url = location.origin + location.pathname + '#/i/' + packSong(song);
-        try {
-          if (navigator.share) { await navigator.share({ title: song.title, text: `${song.title} (cifrado en Airrial)`, url }); return; }
-        } catch (e) {
-          if (e.name === 'AbortError') return;
-        }
-        try { await navigator.clipboard.writeText(url); toast('Enlace copiado. Pegalo donde quieras compartirlo.'); }
-        catch { prompt('Copiá este enlace para compartir la canción:', url); }
-      },
+      share: () => shareUrl(song.title, `${song.title} (cifrado en Airrial)`,
+        location.origin + location.pathname + '#/i/' + packSong(song)),
       play: () => { if (Engine.isPlaying()) { Engine.stop(); setPlaying(false); } else start(); },
       slower: () => setTempo(song.tempo - 4),
       faster: () => setTempo(song.tempo + 4),
@@ -580,28 +659,47 @@
     };
   }
 
-  // --- canción recibida por enlace ---
-  function importView(code) {
-    let song = null;
-    try { song = unpackSong(code || ''); } catch { /* enlace roto */ }
+  // --- canción o lista recibida por enlace ---
+  async function importView(code) {
+    let data = null;
+    try { data = await unpack(code || ''); } catch { /* enlace roto */ }
+    if (location.hash !== '#/i/' + (code || '')) return;
     const head = (title, save) => `<header class="top"><button class="tx" data-a="cancel">Cancelar</button>
       <div class="ttl"><h1>${title}</h1></div>${save ? '<button class="tx pri" data-a="save">Guardar</button>' : ''}</header>`;
     const actions = { cancel: () => { location.hash = '#/'; } };
-    if (!song) {
-      app.innerHTML = head('Enlace no válido') + '<main><p class="empty">Este enlace está incompleto o no es de Airrial. Pedí que te lo manden de nuevo.</p></main>';
-      bind(actions);
-      return;
-    }
-    const bars = Music.parseChart(song.chart, tsOf(song));
-    app.innerHTML = head('Canción compartida', true) + `<main class="chart">
-      <div class="shared"><b>${esc(song.title)}</b>
-      <span>${esc([song.composer, styleName(song.style), song.key, song.ts, song.tempo + ' bpm'].filter(Boolean).join(' · '))}</span></div>
-      ${chartHtml(bars, 0, true)}</main>`;
-    actions.save = () => {
-      const same = songs.find(s => s.title === song.title && s.chart === song.chart);
-      if (!same) { song.id = newId(); songs.push(song); saveSongs(); }
-      location.replace('#/s/' + (same || song).id);
+    // Si ya tengo una canción idéntica, uso esa en lugar de duplicarla.
+    const keep = s => {
+      const same = songs.find(x => x.title === s.title && x.chart === s.chart);
+      if (same) return same.id;
+      s.id = newId();
+      songs.push(s);
+      return s.id;
     };
+    if (!data) {
+      app.innerHTML = head('Enlace no válido') + '<main><p class="empty">Este enlace está incompleto o no es de Airrial. Pedí que te lo manden de nuevo.</p></main>';
+    } else if (data.song) {
+      const song = data.song;
+      app.innerHTML = head('Canción compartida', true) + `<main class="chart">
+        <div class="shared"><b>${esc(song.title)}</b>
+        <span>${esc([songMeta(song), song.tempo + ' bpm'].join(' · '))}</span></div>
+        ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true)}</main>`;
+      actions.save = () => {
+        const id = keep(song);
+        saveSongs();
+        location.replace('#/s/' + id);
+      };
+    } else {
+      app.innerHTML = head('Lista compartida', true) + `<main class="list">
+        <div class="shared"><b>${esc(data.name)}</b><span>${count(data.songs.length)}</span></div>
+        ${data.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`;
+      actions.save = () => {
+        const l = { id: newId(), name: data.name, songs: data.songs.map(keep) };
+        saveSongs();
+        lists.push(l);
+        saveLists();
+        location.replace('#/l/' + l.id);
+      };
+    }
     bind(actions);
   }
 

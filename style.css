@@ -49,6 +49,11 @@ main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; p
 .search input:focus, .fields input:focus, .fields select:focus, textarea:focus, .ctl select:focus {
   outline: none; border-color: var(--accent);
 }
+.filt { display: flex; gap: 6px; overflow-x: auto; padding: 0 16px 8px; scrollbar-width: none; }
+.filt[hidden] { display: none; }
+.filt::-webkit-scrollbar { display: none; }
+.filt button { flex: none; min-height: 36px; padding: 0 14px; border: 0; border-radius: 18px; background: var(--surface); color: var(--muted); white-space: nowrap; }
+.filt button.on { background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .list { padding-bottom: 96px; }
 .item { display: block; padding: 12px 0; border-bottom: 1px solid var(--surface); color: inherit; text-decoration: none; }
 .item b { display: block; font-size: 1.05rem; }
@@ -72,10 +77,19 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .seg.tabs { margin: 0 16px 8px; }
 .lrow { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--surface); }
 .lrow .item { flex: 1; min-width: 0; border: 0; }
+.lrow.drag { background: var(--hl); border-radius: 8px; }
+.lrow .hdl { background: none; color: var(--muted); touch-action: none; cursor: grab; display: grid; place-items: center; }
+#rows { user-select: none; -webkit-user-select: none; }
 .lrow button { flex: none; width: 40px; height: 44px; border: 0; border-radius: 8px; background: var(--surface); font-size: 1.1rem; }
 .lrow button:disabled { opacity: .3; }
 .picklist { max-height: 55dvh; overflow-y: auto; }
 .sheet .pick { justify-content: flex-start; min-height: 44px; }
+.sheet .pick[hidden] { display: none; }
+.pick span { min-width: 0; }
+.pick b { display: block; font-weight: 500; }
+.pick small { color: var(--muted); }
+#pq { width: 100%; background: var(--bg); border: 1px solid transparent; border-radius: 10px; padding: 10px 12px; }
+#pq:focus { outline: none; border-color: var(--accent); }
 .pick input { flex: none; width: 20px; height: 20px; accent-color: var(--accent); }
 .sheet button.pri { background: var(--accent); color: var(--on-accent); font-weight: 600; text-align: center; }
 .setnav { display: flex; align-items: center; gap: 8px; padding: 0 8px 2px; font-size: .8rem; color: var(--muted); }
