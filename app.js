@@ -2,16 +2,19 @@
   'use strict';
 
   // Subir este número en cada publicación: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = 7;
+  const VERSION = 8;
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const STYLES = [
-    ['swing', 'Swing'], ['bossa', 'Bossa'], ['pop', 'Pop / Rock'],
-    ['balada', 'Balada'], ['click', 'Solo metrónomo'],
+    ['swing', 'Swing'], ['bossa', 'Bossa'], ['samba', 'Samba'], ['pop', 'Pop / Rock'], ['balada', 'Balada'],
+    ['tango', 'Tango'], ['milonga', 'Milonga'], ['candombe', 'Candombe'], ['cumbia', 'Cumbia'],
+    ['chacarera', 'Chacarera (6/8)'], ['zamba', 'Zamba (6/8)'], ['vals', 'Vals (3/4)'], ['click', 'Solo metrónomo'],
   ];
+  // Estilos que necesitan un compás distinto de 4/4.
+  const STYLE_METER = { chacarera: '6/8', zamba: '6/8', vals: '3/4' };
   const METERS = ['4/4', '3/4', '2/4', '6/8', '5/4', '7/8', '12/8'];
   const styleName = id => (STYLES.find(s => s[0] === id) || STYLES[0])[1];
 
@@ -861,9 +864,15 @@
       draw();
     };
     app.oninput = e => {
+      // Al elegir un estilo que no se toca en 4/4, el compás de la canción lo acompaña.
+      const need = e.target.id === 'f-style' && STYLE_METER[e.target.value];
+      if (need && $('#f-ts').value === '4/4') {
+        $('#f-ts').value = need;
+        toast(`Compás cambiado a ${need}, que es el de este estilo.`);
+      }
       readFields();
       if (mode === 'text') preview();
-      else if (e.target.id === 'f-ts') draw();
+      else if (e.target.id === 'f-ts' || need) draw();
     };
     drawBody();
   }

@@ -84,6 +84,24 @@ const Engine = (() => {
   const hat = (t, v) => nz(t, 0.04, 'highpass', 7500, v);
   const ride = (t, v) => nz(t, 0.3, 'bandpass', 8500, v, 1.2);
   const rim = (t, v) => nz(t, 0.03, 'bandpass', 1900, v, 4);
+  const shaker = (t, v, dur) => nz(t, dur, 'bandpass', 6500, v, 0.8);
+  // Parche: tambores de candombe, surdo, bombo legüero (según la altura).
+  function tom(t, f, v, dur) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(v, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+    g.connect(bus.drums);
+    const o = osc('sine', f * 1.5, t, t + dur + 0.02, g);
+    o.frequency.exponentialRampToValueAtTime(f, t + 0.04);
+  }
+  // Madera: clave, tamborim, cencerro.
+  function wood(t, v) {
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(v, t);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
+    g.connect(bus.drums);
+    osc('triangle', 2300, t, t + 0.08, g);
+  }
   function click(t, accent, dest) {
     const g = env(dest, t, 0.7, 0.03, 0.02);
     osc('sine', accent ? 1760 : 1175, t, t + 0.08, g);
@@ -206,7 +224,132 @@ const Engine = (() => {
         if (s.len >= 4) chordHit(t + (s.beat + 2) * bd, voice(s.chord), bd * 1.8, 0.5);
       }
     },
+    samba(t, bd, x) {
+      const s = bd / 4;
+      for (let i = 0; i < 16; i++) shaker(t + i * s, i % 4 === 0 ? 0.22 : i % 4 === 3 ? 0.18 : 0.1, 0.035);
+      for (let b = 0; b < 4; b++) tom(t + b * bd, b % 2 ? 80 : 85, b % 2 ? 0.8 : 0.35, b % 2 ? 0.3 : 0.08);
+      for (const i of [0, 2, 3, 5, 7, 9, 10, 12, 14]) wood(t + i * s, 0.2);
+      const c0 = x.at(0), c2 = x.at(2);
+      if (c0) bass(t, rootOf(c0), s * 6, 0.95);
+      if (c2) {
+        const m = c2 !== c0 ? rootOf(c2) : fifthOf(c2);
+        bassNote(t + 7 * s, m, s * 0.8, 0.5);
+        bass(t + 8 * s, m, s * 6, 0.9);
+      }
+      if (x.next) bass(t + 15 * s, rootOf(x.next), s * 0.8, 0.55);
+      for (const i of [0, 3, 6, 10, 13]) {
+        const c = x.at(i / 4);
+        if (c) chordHit(t + i * s, voice(c), s * 2, 0.8);
+      }
+    },
+    // Marcato en cuatro, con una síncopa cada cuatro compases y arrastre hacia el compás siguiente.
+    tango(t, bd, x) {
+      for (let b = 0; b < 4; b++) {
+        const c = x.at(b);
+        if (!c) continue;
+        const strong = b % 2 === 0 || c !== x.at(b - 1);
+        bass(t + b * bd, strong ? rootOf(c) : fifthOf(c), bd * 0.55, strong ? 1 : 0.7);
+      }
+      const hits = x.barNo % 4 === 3
+        ? [[0, 0.3, 0.9], [0.5, 1.2, 1], [2, 0.4, 0.9], [3, 0.4, 0.8]]
+        : [[0, 0.35, 1], [1, 0.3, 0.7], [2, 0.35, 0.95], [3, 0.3, 0.7]];
+      for (const [b, d, v] of hits) {
+        const c = x.at(b);
+        if (c) chordHit(t + b * bd, voice(c), bd * d, v);
+      }
+      if (x.next) bass(t + 3.5 * bd, rootOf(x.next) - 1, bd * 0.4, 0.6);
+    },
+    // Bajo de habanera (3-3-2).
+    milonga(t, bd, x) {
+      const e = bd / 2, c0 = x.at(0);
+      for (const [i, fifth, d, v] of [[0, 0, 1.4, 1], [3, 1, 0.45, 0.7], [4, 0, 0.9, 0.9], [6, 1, 0.9, 0.85]]) {
+        const c = x.at(i / 2);
+        if (c) bass(t + i * e, fifth && c === c0 ? fifthOf(c) : rootOf(c), e * d, v);
+      }
+      for (const [i, v] of [[0, 0.8], [3, 0.9], [6, 0.9], [7, 0.6]]) {
+        const c = x.at(i / 2);
+        if (c) chordHit(t + i * e, voice(c), e * 0.5, v);
+      }
+      for (const i of [0, 3, 6]) rim(t + i * e, 0.2);
+    },
+    // Madera con la clave, y los tres tambores: chico, piano y repique.
+    candombe(t, bd, x) {
+      const s = bd / 4;
+      for (const i of [0, 3, 6, 10, 12]) wood(t + i * s, 0.45);
+      for (let i = 0; i < 16; i++) if (i % 4) tom(t + i * s, 340, i % 4 === 2 ? 0.3 : 0.2, 0.07);
+      for (const i of [0, 3, 6, 8, 11, 14]) tom(t + i * s, 95, i % 8 ? 0.5 : 0.75, 0.22);
+      if (x.barNo % 2) for (const i of [10, 13, 15]) tom(t + i * s, 190, 0.4, 0.12);
+      for (const [i, fifth, d] of [[0, 0, 3], [3, 1, 3], [6, 0, 2], [8, 0, 3], [11, 1, 3], [14, 0, 2]]) {
+        const c = x.at(i / 4);
+        if (c) bass(t + i * s, fifth ? fifthOf(c) : rootOf(c), s * d * 0.9, fifth ? 0.75 : 0.95);
+      }
+      for (const i of [2, 6, 10, 14]) {
+        const c = x.at(i / 4);
+        if (c) chordHit(t + i * s, voice(c), s * 1.5, 0.8);
+      }
+    },
+    // Güiro en "chiqui-chiqui", bombo en 1 y 3 y acordes a contratiempo.
+    cumbia(t, bd, x) {
+      const e = bd / 2, s = bd / 4;
+      for (let b = 0; b < 4; b++) {
+        const tb = t + b * bd;
+        shaker(tb, 0.3, 0.09); shaker(tb + 2 * s, 0.18, 0.04); shaker(tb + 3 * s, 0.18, 0.04);
+        wood(tb, 0.15);
+        const c = x.at(b);
+        if (c && b !== 1) bass(tb, b === 2 && c === x.at(0) ? fifthOf(c) : rootOf(c), bd * (b ? 0.9 : 1.4), b ? 0.85 : 1);
+      }
+      kick(t, 0.8); kick(t + 2 * bd, 0.7);
+      tom(t + 1.5 * bd, 200, 0.35, 0.12); tom(t + 3.5 * bd, 200, 0.35, 0.12); tom(t + 3.75 * bd, 240, 0.3, 0.1);
+      for (const i of [1, 3, 5, 7]) {
+        const c = x.at(i / 2);
+        if (c) chordHit(t + i * e, voice(c), e * 0.6, 0.85);
+      }
+    },
+    // Seis corcheas por compás (6/8 o 3/4): bombo legüero con el parche en 2 y 3, bajo en negras.
+    chacarera(t, bd, x, B) {
+      const e = bd * B / 6, at = i => x.at(i * B / 6);
+      for (const [i, v] of [[0, 0.4], [3, 0.3], [5, 0.3]]) rim(t + i * e, v);
+      tom(t + 2 * e, 85, 0.7, 0.25); tom(t + 4 * e, 80, 0.85, 0.3);
+      for (const i of [0, 2, 4]) {
+        const c = at(i);
+        if (c) bass(t + i * e, i === 2 && c === at(0) ? fifthOf(c) : rootOf(c), e * 1.8, i ? 0.8 : 1);
+      }
+      for (const [i, d, v] of [[0, 1.6, 1], [2, 0.5, 0.6], [3, 0.5, 0.9], [5, 0.5, 0.7]]) {
+        const c = at(i);
+        if (c) chordHit(t + i * e, voice(c), e * d, v);
+      }
+    },
+    // Más lenta y en dos pulsos: parche en 1, bajo en negras con puntillo.
+    zamba(t, bd, x, B) {
+      const e = bd * B / 6, at = i => x.at(i * B / 6);
+      tom(t, 80, 0.8, 0.35); tom(t + 4 * e, 85, 0.55, 0.3);
+      for (const [i, v] of [[2, 0.3], [3, 0.35], [5, 0.25]]) rim(t + i * e, v);
+      const c0 = at(0), c3 = at(3);
+      if (c0) bass(t, rootOf(c0), e * 2.8, 1);
+      if (c3) bass(t + 3 * e, c3 === c0 ? fifthOf(c3) : rootOf(c3), e * 1.8, 0.8);
+      if (x.next) bass(t + 5 * e, rootOf(x.next), e * 0.8, 0.55);
+      for (const [i, d, v] of [[0, 2.6, 0.95], [3, 0.9, 0.75], [4, 0.8, 0.6], [5, 0.8, 0.6]]) {
+        const c = at(i);
+        if (c) chordHit(t + i * e, voice(c), e * d, v);
+      }
+    },
+    // Bajo en el 1 (alterna fundamental y quinta) y acordes en 2 y 3.
+    vals(t, bd, x) {
+      kick(t, 0.55); hat(t + bd, 0.14); hat(t + 2 * bd, 0.14);
+      for (let b = 0; b < 3; b++) {
+        const c = x.at(b);
+        if (!c) continue;
+        const same = x.prev && x.prev.root === c.root;
+        if (b === 0) bass(t, x.barNo % 2 && same ? fifthOf(c) : rootOf(c), bd * 2.6, 1);
+        else {
+          if (c !== x.at(b - 1)) bass(t + b * bd, rootOf(c), bd * 0.9, 0.85);
+          chordHit(t + b * bd, voice(c), bd * 0.6, b === 1 ? 0.75 : 0.65);
+        }
+      }
+    },
   };
+  // Compases que cada estilo sabe tocar; en cualquier otro suena el acompañamiento genérico.
+  const METER = { chacarera: '6/8 3/4', zamba: '6/8 3/4', vals: '3/4' };
 
   // Compases que no son 4/4: bajo en los acentos, acordes en el resto.
   function generic(t, bd, x, B) {
@@ -238,8 +381,9 @@ const Engine = (() => {
       if (!slots.length || slots[0].beat > 0) segs.push({ beat: 0, chord: carried });
       for (const s of slots) segs.push({ beat: s.beat, chord: s.chord });
       segs.forEach((s, i) => { s.len = (i + 1 < segs.length ? segs[i + 1].beat : B) - s.beat; });
-      const x = { at, segs, next, barNo: S.barNo };
-      if (B === 4 && bar.den === 4 && patterns[style]) patterns[style](t, bd, x);
+      const x = { at, segs, next, prev: carried, barNo: S.barNo };
+      const fits = (METER[style] || '4/4').split(' ').includes(B + '/' + bar.den);
+      if (fits && patterns[style]) patterns[style](t, bd, x, B);
       else generic(t, bd, x, B);
     }
     S.last = at(B);
