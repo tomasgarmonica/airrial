@@ -35,7 +35,8 @@ grabaciones (ver `GRABACION.md`).
 - [x] Mecanismo de canciones incluidas (`incluidas.json`): aparecen en Canciones con la marca "incluida", sin pestaña aparte
 - [ ] Cargar la selección inicial: armar en la app una lista llamada "Iniciales", exportar y dejar el archivo en la carpeta
 - [ ] Enlace corto para las canciones incluidas
-- [ ] Compartir como archivo (además del enlace) y que Airrial aparezca en el menú Compartir de Android para abrir archivos recibidos
+- [x] Compartir como archivo (además del enlace); Airrial aparece en el menú Compartir de Android para abrir archivos recibidos
+- [ ] Probar en celular real el archivo compartido: enviar, y recibir con Compartir → Airrial
 - [ ] Comunidad: secuencias subidas por usuarios, separadas del catálogo curado. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento
 
 ## 4. Audio y pistas

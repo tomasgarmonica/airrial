@@ -69,6 +69,9 @@ dialog { border: 0; padding: 0; background: var(--surface); color: var(--text); 
 dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .sheet { display: flex; flex-direction: column; gap: 6px; padding: 14px; }
 .sheet button { background: var(--bg); border: 0; border-radius: 10px; min-height: 48px; padding: 0 14px; text-align: left; }
+.sheet button b { display: block; }
+.sheet button small { color: var(--muted); }
+.sheet button:has(small) { padding-top: 8px; padding-bottom: 8px; }
 .sheet label { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 4px; }
 .sheet input[type=range] { flex: 0 0 62%; accent-color: var(--accent); }
 .sheet .chk { justify-content: flex-start; }

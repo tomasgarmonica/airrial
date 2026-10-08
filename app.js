@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.15';
+  const VERSION = '0.16';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -143,6 +143,53 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
+  // Canciones y listas de un archivo exportado o recibido, ya revisadas.
+  const readData = data => ({
+    songs: (Array.isArray(data) ? data : (data && data.songs) || []).filter(s => s && typeof s.chart === 'string').map(cleanSong),
+    lists: (data && Array.isArray(data.lists) ? data.lists : []).filter(l => l && Array.isArray(l.songs))
+      .map(l => ({ id: String(l.id || newId()), name: String(l.name || 'Lista'), songs: l.songs.map(String) })),
+  });
+  // Las suma a la biblioteca; lo que tiene el mismo id se reemplaza.
+  function mergeData(incoming) {
+    for (const song of incoming.songs) {
+      const i = songs.findIndex(x => x.id === song.id);
+      if (i >= 0) songs[i] = song; else songs.push(song);
+    }
+    for (const set of incoming.lists) {
+      const i = lists.findIndex(x => x.id === set.id);
+      if (i >= 0) lists[i] = set; else lists.push(set);
+    }
+    saveSongs();
+    saveLists();
+  }
+  // Cuadro con opciones; devuelve la clave elegida o null.
+  function choose(title, options) {
+    return new Promise(done => {
+      const d = document.createElement('dialog');
+      d.innerHTML = `<div class="sheet"><p class="hint">${esc(title)}</p>${options.map(o =>
+        `<button data-k="${o[0]}"><b>${esc(o[1])}</b><small>${esc(o[2])}</small></button>`).join('')}<button data-k="">Cancelar</button></div>`;
+      document.body.appendChild(d);
+      d.onclick = e => {
+        const b = e.target.closest('button');
+        if (b) { done(b.dataset.k || null); d.close(); }
+      };
+      d.onclose = () => { d.remove(); done(null); };
+      d.showModal();
+    });
+  }
+  // Comparte un archivo de texto con los datos; quien lo recibe lo abre con Airrial o con Menú → Importar.
+  async function shareFile(name, data) {
+    const safe = (name.replace(/[\\/:*?"<>|]/g, '').trim() || 'airrial') + '.airrial.txt';
+    const file = new File([JSON.stringify(data)], safe, { type: 'text/plain' });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+    download(safe, data);
+    toast('Archivo descargado. Quien lo reciba lo abre con Menú → Importar.');
+  }
+
   function toast(msg) {
     const t = document.createElement('div');
     t.className = 'toast';
@@ -255,7 +302,7 @@
         <button data-a="import">Importar canciones y listas</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="close">Cerrar</button>
-        <input type="file" id="file" accept=".json,application/json" hidden>
+        <input type="file" id="file" accept=".json,.txt,application/json,text/plain" hidden>
       </div></dialog>`;
     const list = $('#list'), q = $('#q');
     const draw = () => {
@@ -317,24 +364,12 @@
     app.onchange = async e => {
       if (e.target.id !== 'file' || !e.target.files[0]) return;
       try {
-        const data = JSON.parse(await e.target.files[0].text());
-        const incoming = (Array.isArray(data) ? data : data.songs).filter(s => s && typeof s.chart === 'string');
-        for (const s of incoming) {
-          const song = cleanSong(s);
-          const i = songs.findIndex(x => x.id === song.id);
-          if (i >= 0) songs[i] = song; else songs.push(song);
-        }
-        saveSongs();
-        const sets = (Array.isArray(data.lists) ? data.lists : []).filter(l => l && Array.isArray(l.songs));
-        for (const l of sets) {
-          const set = { id: String(l.id || newId()), name: String(l.name || 'Lista'), songs: l.songs.map(String) };
-          const i = lists.findIndex(x => x.id === set.id);
-          if (i >= 0) lists[i] = set; else lists.push(set);
-        }
-        saveLists();
+        const incoming = readData(JSON.parse(await e.target.files[0].text()));
+        mergeData(incoming);
         $('#menu').close();
         draw();
-        alert(`Se importaron ${count(incoming.length)}` + (sets.length ? ` y ${sets.length} ${sets.length === 1 ? 'lista' : 'listas'}.` : '.'));
+        const n = incoming.lists.length;
+        alert(`Se importaron ${count(incoming.songs.length)}` + (n ? ` y ${n} ${n === 1 ? 'lista' : 'listas'}.` : '.'));
       } catch {
         alert('No se pudo leer ese archivo. Tiene que ser un archivo exportado desde Airrial.');
       }
@@ -440,11 +475,17 @@
       share: async () => {
         const mine = list.songs.map(findSong).filter(Boolean);
         if (!mine.length) { toast('La lista está vacía: agregale temas antes de compartirla.'); return; }
+        const pack = { app: 'airrial', version: 1, songs: mine, lists: [list] };
+        const how = await choose('Compartir esta lista', [
+          ['link', 'Enlace', 'Se abre con un toque'],
+          ['file', 'Archivo', 'Para guardar o mandar sin enlace'],
+        ]);
+        if (how === 'file') { shareFile(list.name, pack); return; }
+        if (how !== 'link') return;
         const url = location.origin + location.pathname + '#/i/' + await packList(list);
         if (url.length <= 8000) { shareUrl(list.name, `${list.name} (lista de temas en Airrial)`, url); return; }
-        // Demasiado larga para un enlace: va como archivo.
-        download(`lista-${list.name.replace(/[^\w\-áéíóúñ ]/gi, '').trim() || 'airrial'}.json`, { app: 'airrial', version: 1, songs: mine, lists: [list] });
-        alert('La lista es muy larga para mandarla en un enlace, así que se descargó como archivo. Envialo, y quien lo reciba lo abre con Menú → Importar.');
+        toast('La lista es muy larga para un enlace: va como archivo.');
+        shareFile(list.name, pack);
       },
       rm: el => change(() => { list.songs.splice(+el.dataset.v, 1); }),
       add: () => {
@@ -622,8 +663,14 @@
       prevsong: () => goList(-1),
       nextsong: () => goList(1),
       edit: () => { location.hash = '#/e/' + song.id; },
-      share: async () => shareUrl(song.title, `${song.title} (cifrado en Airrial)`,
-        location.origin + location.pathname + '#/i/' + await packSong(song)),
+      share: async () => {
+        const how = await choose('Compartir esta canción', [
+          ['link', 'Enlace', 'Se abre con un toque'],
+          ['file', 'Archivo', 'Para guardar o mandar sin enlace'],
+        ]);
+        if (how === 'link') shareUrl(song.title, `${song.title} (cifrado en Airrial)`, location.origin + location.pathname + '#/i/' + await packSong(song));
+        else if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] });
+      },
       play: () => { if (Engine.isPlaying()) { Engine.stop(); setPlaying(false); } else start(); },
       slower: () => setTempo(song.tempo - 4),
       faster: () => setTempo(song.tempo + 4),
@@ -751,6 +798,39 @@
         lists.push(l);
         saveLists();
         swap('#/l/' + l.id);
+      };
+    }
+    bind(actions);
+  }
+
+  // --- archivo recibido (compartido hacia Airrial desde otra app) ---
+  // El service worker deja el archivo en una bandeja; acá se muestra y se guarda.
+  async function receiveView() {
+    let got = null;
+    try {
+      const box = await caches.open('airrial-inbox'), res = await box.match('recibido');
+      if (!res) { if (here() === '#/r') swap('#/'); return; }
+      await box.delete('recibido');
+      got = readData(JSON.parse(await res.text()));
+    } catch { /* archivo ilegible */ }
+    if (here() !== '#/r') return;
+    const head = (title, save) => `<header class="top"><button class="tx" data-a="cancel">${save ? 'Cancelar' : 'Volver'}</button>
+      <div class="ttl"><h1>${title}</h1></div>${save ? '<button class="tx pri" data-a="save">Guardar</button>' : ''}</header>`;
+    const actions = { cancel: () => up('#/') };
+    if (!got || !(got.songs.length + got.lists.length)) {
+      app.innerHTML = head('Archivo no reconocido') + '<main><p class="empty">Ese archivo no es de Airrial, o está dañado. Tiene que ser un archivo compartido o exportado desde la app.</p></main>';
+    } else {
+      const one = got.songs.length === 1 && !got.lists.length ? got.songs[0] : null;
+      app.innerHTML = head('Archivo recibido', true) + (one ? `<main class="chart">
+        <div class="shared"><b>${esc(one.title)}</b><span>${esc([songMeta(one), one.tempo + ' bpm'].join(' · '))}</span></div>
+        ${chartHtml(Music.parseChart(one.chart, tsOf(one)), 0, true)}</main>` : `<main class="list">
+        ${got.lists.map(l => `<div class="shared"><b>${esc(l.name)}</b><span>Lista · ${count(l.songs.length)}</span></div>`).join('')}
+        ${got.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`);
+      actions.save = () => {
+        mergeData(got);
+        if (got.lists.length === 1) swap('#/l/' + got.lists[0].id);
+        else if (one) swap('#/s/' + one.id);
+        else swap('#/');
       };
     }
     bind(actions);
@@ -1186,6 +1266,7 @@
     else if (kind === 'l' && set) listView(set);
     else if (kind === 'e') editView(id);
     else if (kind === 'i') importView(id);
+    else if (kind === 'r') receiveView();
     else libraryView();
     window.scrollTo(0, 0);
   }
