@@ -41,7 +41,10 @@ grabaciones (ver `GRABACION.md`).
 
 ## 5. Para tocar en vivo
 - [x] Encabezado y panel de reproducción fijos; panel deslizable con estilo, vueltas y mezcla
-- [ ] Listas de temas para recitales, con orden y botón para pasar al siguiente
+- [x] Listas de temas con nombre y orden; se pasa de tema deslizando hacia los costados
+- [x] La hoja no responde a los toques mientras suena la pista
+- [ ] Compartir una lista entera por enlace
+- [ ] Reordenar la lista arrastrando
 - [ ] Tamaño de letra y cantidad de compases por renglón ajustables
 - [ ] Notas por tema (letra, forma, indicaciones)
 - [ ] Otras formas de ver el cifrado: símbolos de jazz (△7, -7, ø), Do-Re-Mi, grados (I, IV, V)

@@ -68,6 +68,21 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .sheet .chk { justify-content: flex-start; }
 .sheet .chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 
+/* listas de temas */
+.seg.tabs { margin: 0 16px 8px; }
+.lrow { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--surface); }
+.lrow .item { flex: 1; min-width: 0; border: 0; }
+.lrow button { flex: none; width: 40px; height: 44px; border: 0; border-radius: 8px; background: var(--surface); font-size: 1.1rem; }
+.lrow button:disabled { opacity: .3; }
+.picklist { max-height: 55dvh; overflow-y: auto; }
+.sheet .pick { justify-content: flex-start; min-height: 44px; }
+.pick input { flex: none; width: 20px; height: 20px; accent-color: var(--accent); }
+.sheet button.pri { background: var(--accent); color: var(--on-accent); font-weight: 600; text-align: center; }
+.setnav { display: flex; align-items: center; gap: 8px; padding: 0 8px 2px; font-size: .8rem; color: var(--muted); }
+.setnav span { flex: 1; min-width: 0; text-align: center; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.setnav button { background: none; border: 0; min-height: 40px; padding: 0 8px; color: var(--accent); font-weight: 600; }
+.setnav button:disabled { opacity: .3; }
+
 /* cifrado */
 .chart { padding-top: 4px; }
 .row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); margin-top: 8px; }
@@ -91,7 +106,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .bar.rng .cell { background: var(--hl); box-shadow: inset 0 -4px var(--accent); }
 .bar.rng.on .cell { background: var(--accent); color: var(--on-accent); }
 .bar.rng0 .cell { outline: 2px dashed var(--accent); outline-offset: -2px; }
-#chart { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+#chart { touch-action: pan-y; user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 #chart .cell { cursor: pointer; }
 .shared { padding: 4px 0 8px; }
 .shared b { display: block; font-size: 1.2rem; }
@@ -213,6 +228,6 @@ textarea { display: block; font: 1rem/1.6 ui-monospace, Consolas, monospace; res
   html, body { overflow: visible; height: auto; }
   #app { position: static; max-width: none; }
   main { overflow: visible; }
-  .ctl, .top button, .fab { display: none; }
+  .ctl, .top button, .fab, .setnav { display: none; }
   .row { break-inside: avoid; }
 }

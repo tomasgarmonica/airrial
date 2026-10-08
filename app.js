@@ -2,7 +2,7 @@
   'use strict';
 
   // Subir este número en cada publicación: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = 9;
+  const VERSION = 10;
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -37,7 +37,7 @@
   ];
 
   // --- almacenamiento ---
-  const SONGS = 'airrial.songs.v1', SETTINGS = 'airrial.settings.v1';
+  const SONGS = 'airrial.songs.v1', SETTINGS = 'airrial.settings.v1', LISTS = 'airrial.lists.v1';
   const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) || def; } catch { return def; } };
   const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sin espacio */ } };
 
@@ -47,6 +47,9 @@
   if (typeof settings.choruses !== 'number') settings.choruses = 3;
   settings.hints = settings.hints || {};
   settings.vol = Object.assign({ bass: 0.8, keys: 0.6, drums: 0.7, click: 0 }, settings.vol);
+  // Listas de temas: { id, name, songs: [ids en orden] }
+  let lists = load(LISTS, []);
+  const saveLists = () => store(LISTS, lists);
   const saveSongs = () => store(SONGS, songs);
   const saveSettings = () => store(SETTINGS, settings);
   const findSong = id => songs.find(s => s.id === id);
@@ -172,35 +175,59 @@
   }
 
   // --- biblioteca ---
+  let libTab = 'songs';
+  const songMeta = s => [s.composer, styleName(s.style), s.key, s.ts].filter(Boolean).join(' · ');
+  const count = n => n + (n === 1 ? ' tema' : ' temas');
+
   function libraryView() {
     app.innerHTML = `
       <header class="top"><div class="ttl"><h1>Airrial</h1><p>Mis cifrados · versión ${VERSION}</p></div>
         <button class="tx" data-a="menu">Menú</button></header>
-      <div class="search"><input id="q" type="search" placeholder="Buscar canción o autor…" autocomplete="off"></div>
+      <div class="seg tabs"><button data-a="tab" data-v="songs">Canciones</button><button data-a="tab" data-v="lists">Listas</button></div>
+      <div class="search"><input id="q" type="search" autocomplete="off"></div>
       <main class="list" id="list"></main>
-      <button class="fab" data-a="new" aria-label="Nueva canción">+</button>
+      <button class="fab" data-a="new" aria-label="Agregar">+</button>
       <dialog id="menu"><div class="sheet">
-        <button data-a="export">Exportar todas (copia de seguridad)</button>
+        <button data-a="export">Exportar todo (copia de seguridad)</button>
         <p class="hint" id="age">${backupAge()}</p>
-        <button data-a="import">Importar canciones</button>
+        <button data-a="import">Importar canciones y listas</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="close">Cerrar</button>
         <input type="file" id="file" accept=".json,application/json" hidden>
       </div></dialog>`;
     const list = $('#list'), q = $('#q');
     const draw = () => {
-      const f = q.value.trim().toLowerCase();
+      const f = q.value.trim().toLowerCase(), onLists = libTab === 'lists';
+      app.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === libTab));
+      q.placeholder = onLists ? 'Buscar lista…' : 'Buscar canción o autor…';
+      if (onLists) {
+        const shown = lists.filter(l => !f || l.name.toLowerCase().includes(f));
+        list.innerHTML = shown.length ? shown.map(l => `
+          <a class="item" href="#/l/${esc(l.id)}"><b>${esc(l.name)}</b>
+          <span>${count(l.songs.filter(findSong).length)}</span></a>`).join('')
+          : `<p class="empty">${lists.length ? 'Ninguna lista coincide con la búsqueda.' : 'Todavía no armaste ninguna lista. Tocá + para crear una, por ejemplo para un recital.'}</p>`;
+        return;
+      }
       const shown = songs
         .filter(s => !f || (s.title + ' ' + (s.composer || '')).toLowerCase().includes(f))
         .sort((a, b) => a.title.localeCompare(b.title, 'es'));
       list.innerHTML = shown.length ? shown.map(s => `
         <a class="item" href="#/s/${esc(s.id)}"><b>${esc(s.title)}</b>
-        <span>${esc([s.composer, styleName(s.style), s.key, s.ts].filter(Boolean).join(' · '))}</span></a>`).join('')
+        <span>${esc(songMeta(s))}</span></a>`).join('')
         : `<p class="empty">${songs.length ? 'Ninguna canción coincide con la búsqueda.' : 'No hay canciones. Tocá + para escribir la primera.'}</p>`;
     };
     draw();
     bind({
-      new: () => { location.hash = '#/e/new'; },
+      tab: el => { libTab = el.dataset.v; q.value = ''; draw(); },
+      new: () => {
+        if (libTab !== 'lists') { location.hash = '#/e/new'; return; }
+        const name = (prompt('Nombre de la lista:', '') || '').trim();
+        if (!name) return;
+        const l = { id: newId(), name, songs: [] };
+        lists.push(l);
+        saveLists();
+        location.hash = '#/l/' + l.id;
+      },
       menu: () => $('#menu').showModal(),
       close: () => $('#menu').close(),
       theme: () => {
@@ -209,7 +236,7 @@
         saveSettings();
       },
       export: () => {
-        const blob = new Blob([JSON.stringify({ app: 'airrial', version: 1, songs }, null, 1)], { type: 'application/json' });
+        const blob = new Blob([JSON.stringify({ app: 'airrial', version: 1, songs, lists }, null, 1)], { type: 'application/json' });
         const a = document.createElement('a');
         a.href = URL.createObjectURL(blob);
         a.download = 'airrial-canciones.json';
@@ -233,14 +260,85 @@
           if (i >= 0) songs[i] = song; else songs.push(song);
         }
         saveSongs();
+        const sets = (Array.isArray(data.lists) ? data.lists : []).filter(l => l && Array.isArray(l.songs));
+        for (const l of sets) {
+          const set = { id: String(l.id || newId()), name: String(l.name || 'Lista'), songs: l.songs.map(String) };
+          const i = lists.findIndex(x => x.id === set.id);
+          if (i >= 0) lists[i] = set; else lists.push(set);
+        }
+        saveLists();
         $('#menu').close();
         draw();
-        alert(`Se importaron ${incoming.length} canciones.`);
+        alert(`Se importaron ${count(incoming.length)}` + (sets.length ? ` y ${sets.length} ${sets.length === 1 ? 'lista' : 'listas'}.` : '.'));
       } catch {
         alert('No se pudo leer ese archivo. Tiene que ser un archivo exportado desde Airrial.');
       }
       e.target.value = '';
     };
+  }
+
+  // --- lista de temas ---
+  function listView(list) {
+    app.innerHTML = `
+      <header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
+        <div class="ttl"><h1 id="lname"></h1><p id="lcount"></p></div>
+        <button class="tx" data-a="rename">Nombre</button></header>
+      <main class="list">
+        <div id="rows"></div>
+        <button class="ghost" data-a="add">Agregar o quitar temas</button>
+        <button class="danger" data-a="dellist">Borrar esta lista</button>
+      </main>
+      <dialog id="pick"><div class="sheet">
+        <div class="picklist" id="picklist"></div>
+        <button class="pri" data-a="pickok">Listo</button>
+      </div></dialog>`;
+    const draw = () => {
+      list.songs = list.songs.filter(findSong);
+      const n = list.songs.length;
+      $('#lname').textContent = list.name;
+      $('#lcount').textContent = count(n);
+      $('#rows').innerHTML = n ? list.songs.map((id, i) => {
+        const s = findSong(id);
+        return `<div class="lrow"><a class="item" href="#/s/${esc(id)}/${esc(list.id)}"><b>${i + 1}. ${esc(s.title)}</b>
+          <span>${esc(songMeta(s))}</span></a>
+          <button data-a="up" data-v="${i}" aria-label="Subir"${i ? '' : ' disabled'}>↑</button>
+          <button data-a="down" data-v="${i}" aria-label="Bajar"${i < n - 1 ? '' : ' disabled'}>↓</button>
+          <button data-a="rm" data-v="${i}" aria-label="Quitar de la lista">×</button></div>`;
+      }).join('') : '<p class="empty">La lista está vacía. Tocá "Agregar o quitar temas".</p>';
+    };
+    const change = fn => { fn(); saveLists(); draw(); };
+    const swap = (i, j) => change(() => { [list.songs[i], list.songs[j]] = [list.songs[j], list.songs[i]]; });
+    draw();
+    bind({
+      back: () => { libTab = 'lists'; location.hash = '#/'; },
+      rename: () => {
+        const name = (prompt('Nombre de la lista:', list.name) || '').trim();
+        if (name) change(() => { list.name = name; });
+      },
+      up: el => swap(+el.dataset.v, +el.dataset.v - 1),
+      down: el => swap(+el.dataset.v, +el.dataset.v + 1),
+      rm: el => change(() => { list.songs.splice(+el.dataset.v, 1); }),
+      add: () => {
+        const sorted = songs.slice().sort((a, b) => a.title.localeCompare(b.title, 'es'));
+        $('#picklist').innerHTML = sorted.length ? sorted.map(s => `<label class="pick">
+          <input type="checkbox" value="${esc(s.id)}"${list.songs.includes(s.id) ? ' checked' : ''}> ${esc(s.title)}</label>`).join('')
+          : '<p class="hint">Todavía no hay canciones escritas.</p>';
+        $('#pick').showModal();
+      },
+      // Los que ya estaban conservan su orden; los nuevos se agregan al final.
+      pickok: () => {
+        const chosen = [...app.querySelectorAll('#picklist input:checked')].map(i => i.value);
+        change(() => { list.songs = list.songs.filter(id => chosen.includes(id)).concat(chosen.filter(id => !list.songs.includes(id))); });
+        $('#pick').close();
+      },
+      dellist: () => {
+        if (!confirm(`¿Borrar la lista "${list.name}"? Las canciones no se borran.`)) return;
+        lists = lists.filter(l => l.id !== list.id);
+        saveLists();
+        libTab = 'lists';
+        location.hash = '#/';
+      },
+    });
   }
 
   // --- canción ---
@@ -251,8 +349,10 @@
   const UNDO = line('M9 14 4 9l5-5M4 9h10a6 6 0 0 1 0 12h-3');
   const REDO = line('m15 14 5-5-5-5M20 9H10a6 6 0 0 0 0 12h3');
 
-  function songView(song) {
+  function songView(song, list) {
     const vol = settings.vol;
+    const ids = list ? list.songs.filter(findSong) : [], at = ids.indexOf(song.id);
+    const goList = d => { if (ids[at + d]) location.replace('#/s/' + ids[at + d] + '/' + list.id); };
     const slider = (k, name) => `<label>${name}<input type="range" min="0" max="1" step="0.05" data-vol="${k}" value="${vol[k]}"></label>`;
     app.innerHTML = `
       <header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
@@ -260,6 +360,9 @@
         <p>${esc([song.composer, song.ts].filter(Boolean).join(' · '))}</p></div>
         <button class="ic2" data-a="share" aria-label="Compartir">${SHARE}</button>
         <button class="tx" data-a="edit">Editar</button></header>
+      ${list ? `<nav class="setnav"><button data-a="prevsong"${at > 0 ? '' : ' disabled'}>‹ Anterior</button>
+        <span>${esc(list.name)} · ${at + 1} de ${ids.length}</span>
+        <button data-a="nextsong"${at < ids.length - 1 ? '' : ' disabled'}>Siguiente ›</button></nav>` : ''}
       <main class="chart" id="chart"></main>
       <footer class="ctl${settings.sheetOpen ? ' open' : ''}" id="sheet">
         <button class="grab" data-a="sheet" aria-label="Mostrar u ocultar más opciones" aria-expanded="${!!settings.sheetOpen}">
@@ -373,8 +476,11 @@
 
     draw();
     wake(true);
+    if (list) hint('swipe', 'Deslizá la hoja hacia los costados para pasar de tema.');
     bind({
-      back: () => { location.hash = '#/'; },
+      back: () => { location.hash = list ? '#/l/' + list.id : '#/'; },
+      prevsong: () => goList(-1),
+      nextsong: () => goList(1),
       edit: () => { location.hash = '#/e/' + song.id; },
       share: async () => {
         const url = location.origin + location.pathname + '#/i/' + packSong(song);
@@ -408,7 +514,13 @@
     grab.onpointerup = grab.onpointercancel = () => { grabY = null; };
     // Toque corto: empezar desde ese compás (o cerrar el tramo que se está marcando).
     // Toque largo: empezar a marcar un tramo, que termina en el próximo compás que se toque.
+    const locked = () => {
+      if (!Engine.isPlaying()) return false;
+      hint('lock', 'Mientras suena, la hoja no responde a los toques. Detené la reproducción para marcar un compás.');
+      return true;
+    };
     const tapBar = i => {
+      if (locked()) return;
       if (range && range.b == null) {
         range = { a: Math.min(range.a, i), b: Math.max(range.a, i) };
         from = null;
@@ -419,7 +531,6 @@
         if (from != null) hint('from', 'Va a empezar desde este compás. Tocalo de nuevo para quitar la marca.');
       }
       markFrom();
-      restart();
     };
     const holdBar = i => {
       range = { a: i, b: null };
@@ -434,14 +545,21 @@
       const el = e.target.closest('.bar');
       cancelHold();
       held = false;
-      if (!el) return;
       down = [e.clientX, e.clientY];
+      if (!el || Engine.isPlaying()) return;
       hold = setTimeout(() => { held = true; hold = null; holdBar(+el.dataset.i); }, 500);
     };
     chart.onpointermove = e => {
       if (hold && down && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 14) cancelHold();
     };
-    chart.onpointerup = chart.onpointercancel = chart.onpointerleave = cancelHold;
+    // Dentro de una lista, deslizar hacia los costados pasa al tema siguiente o al anterior.
+    chart.onpointerup = e => {
+      cancelHold();
+      if (!list || !down || Engine.isPlaying()) return;
+      const dx = e.clientX - down[0], dy = e.clientY - down[1];
+      if (Math.abs(dx) > 60 && Math.abs(dx) > 2 * Math.abs(dy)) { held = true; goList(dx < 0 ? 1 : -1); }
+    };
+    chart.onpointercancel = chart.onpointerleave = cancelHold;
     chart.onscroll = cancelHold;
     chart.oncontextmenu = e => e.preventDefault();
     chart.onclick = e => {
@@ -821,6 +939,8 @@
         if (!confirm(`¿Borrar "${song.title}"? No se puede deshacer.`)) return;
         songs = songs.filter(s => s.id !== song.id);
         saveSongs();
+        lists.forEach(l => { l.songs = l.songs.filter(x => x !== song.id); });
+        saveLists();
         location.hash = '#/';
       },
       // La copia lleva lo que hay en pantalla; la original queda como estaba guardada.
@@ -881,9 +1001,10 @@
   function route() {
     Engine.stop();
     wake(false);
-    const [kind, id] = location.hash.slice(2).split('/');
-    const song = findSong(id);
-    if (kind === 's' && song) songView(song);
+    const [kind, id, extra] = location.hash.slice(2).split('/');
+    const song = findSong(id), set = lists.find(l => l.id === (kind === 'l' ? id : extra));
+    if (kind === 's' && song) songView(song, set);
+    else if (kind === 'l' && set) listView(set);
     else if (kind === 'e') editView(id);
     else if (kind === 'i') importView(id);
     else libraryView();
