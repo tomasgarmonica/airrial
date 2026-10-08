@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.16';
+  const VERSION = '0.17';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -178,8 +178,31 @@
     });
   }
   // Comparte un archivo de texto con los datos; quien lo recibe lo abre con Airrial o con Menú → Importar.
+  const safeName = name => name.replace(/[\\/:*?"<>|]/g, '').trim() || 'airrial';
+  // Comparte un archivo ya armado (PDF o imagen); si el teléfono no lo permite, lo descarga.
+  async function shareBlob(blob, name, title) {
+    const file = new File([blob], name, { type: blob.type });
+    try {
+      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title }); return; }
+    } catch (e) {
+      if (e.name === 'AbortError') return;
+    }
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = name;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    toast('Archivo descargado.');
+  }
+  // Páginas (o imagen larga) de una canción, tal como se ve: con su transposición actual.
+  const drawSong = (s, paged) => Exporter.render(s, paged, { before: [s.composer, styleName(s.style).replace(/ \(.*/, '')], after: [s.ts, s.tempo + ' bpm'] });
+  const SHARE_WAYS = [
+    ['link', 'Enlace', 'Se abre con un toque en Airrial'],
+    ['file', 'Archivo de Airrial', 'Se abre y se edita en Airrial'],
+    ['pdf', 'PDF', 'Para ver o imprimir, sin la app'],
+  ];
   async function shareFile(name, data) {
-    const safe = (name.replace(/[\\/:*?"<>|]/g, '').trim() || 'airrial') + '.airrial.txt';
+    const safe = safeName(name) + '.airrial.txt';
     const file = new File([JSON.stringify(data)], safe, { type: 'text/plain' });
     try {
       if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
@@ -476,11 +499,10 @@
         const mine = list.songs.map(findSong).filter(Boolean);
         if (!mine.length) { toast('La lista está vacía: agregale temas antes de compartirla.'); return; }
         const pack = { app: 'airrial', version: 1, songs: mine, lists: [list] };
-        const how = await choose('Compartir esta lista', [
-          ['link', 'Enlace', 'Se abre con un toque'],
-          ['file', 'Archivo', 'Para guardar o mandar sin enlace'],
-        ]);
+        const how = await choose('Compartir esta lista', SHARE_WAYS);
         if (how === 'file') { shareFile(list.name, pack); return; }
+        // Todas las canciones de la lista en un solo PDF, cada una empezando en hoja nueva.
+        if (how === 'pdf') { shareBlob(await Exporter.pdf(mine.flatMap(s => drawSong(s, true))), safeName(list.name) + '.pdf', list.name); return; }
         if (how !== 'link') return;
         const url = location.origin + location.pathname + '#/i/' + await packList(list);
         if (url.length <= 8000) { shareUrl(list.name, `${list.name} (lista de temas en Airrial)`, url); return; }
@@ -664,12 +686,11 @@
       nextsong: () => goList(1),
       edit: () => { location.hash = '#/e/' + song.id; },
       share: async () => {
-        const how = await choose('Compartir esta canción', [
-          ['link', 'Enlace', 'Se abre con un toque'],
-          ['file', 'Archivo', 'Para guardar o mandar sin enlace'],
-        ]);
+        const how = await choose('Compartir esta canción', [...SHARE_WAYS, ['png', 'Imagen', 'Para ver en cualquier chat']]);
         if (how === 'link') shareUrl(song.title, `${song.title} (cifrado en Airrial)`, location.origin + location.pathname + '#/i/' + await packSong(song));
         else if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] });
+        else if (how === 'pdf') shareBlob(await Exporter.pdf(drawSong(song, true)), safeName(song.title) + '.pdf', song.title);
+        else if (how === 'png') shareBlob(await Exporter.png(drawSong(song, false)[0]), safeName(song.title) + '.png', song.title);
       },
       play: () => { if (Engine.isPlaying()) { Engine.stop(); setPlaying(false); } else start(); },
       slower: () => setTempo(song.tempo - 4),
