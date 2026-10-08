@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.12';
+  const VERSION = '0.13';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -55,6 +55,37 @@
   const findSong = id => songs.find(s => s.id === id);
   const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
   const tsOf = s => (s.ts || '4/4').split('/').map(Number);
+
+  // --- recorrido ---
+  // `trail` copia el historial del navegador para que "volver" suba un nivel (canción → lista → biblioteca)
+  // en vez de repasar pantallas viejas: así el botón Atrás del teléfono hace lo mismo que la flecha de arriba.
+  const here = () => location.hash || '#/';
+  let trail = [], swapping = false, jumping = false;
+  try { trail = JSON.parse(sessionStorage.getItem('airrial.trail')) || []; } catch { /* sin recorrido guardado */ }
+  if (trail[trail.length - 1] !== here()) trail = [here()];
+  // Reemplaza la pantalla actual sin sumar un paso al historial.
+  const swap = hash => {
+    if (hash === here()) return;
+    swapping = true;
+    location.replace(hash);
+  };
+  // Vuelve a una pantalla anterior; si no está en el recorrido (se entró por un enlace), la pone en lugar de la actual.
+  const up = parent => {
+    const k = trail.lastIndexOf(parent, trail.length - 2);
+    if (k < 0) { swap(parent); return; }
+    const steps = k - (trail.length - 1);
+    jumping = true;
+    trail.length = k + 1;
+    history.go(steps);
+  };
+  function syncTrail() {
+    const h = here(), n = trail.length;
+    if (jumping) jumping = false;
+    else if (swapping) { swapping = false; trail[n - 1] = h; }
+    else if (n > 1 && trail[n - 2] === h) trail.pop();
+    else if (trail[n - 1] !== h) trail.push(h);
+    try { sessionStorage.setItem('airrial.trail', JSON.stringify(trail)); } catch { /* sin espacio */ }
+  }
 
   document.documentElement.dataset.theme = settings.theme;
   for (const k in settings.vol) Engine.setVol(k, settings.vol[k]);
@@ -414,7 +445,7 @@
       document.addEventListener('pointercancel', onEnd);
     };
     bind({
-      back: () => { libTab = 'lists'; location.hash = '#/'; },
+      back: () => { libTab = 'lists'; up('#/'); },
       rename: () => {
         const name = (prompt('Nombre de la lista:', list.name) || '').trim();
         if (name) change(() => { list.name = name; });
@@ -449,7 +480,7 @@
         lists = lists.filter(l => l.id !== list.id);
         saveLists();
         libTab = 'lists';
-        location.hash = '#/';
+        up('#/');
       },
     });
     // El buscador solo oculta filas: lo que ya estaba tildado se conserva aunque no se vea.
@@ -474,7 +505,7 @@
   function songView(song, list) {
     const vol = settings.vol;
     const ids = list ? list.songs.filter(findSong) : [], at = ids.indexOf(song.id);
-    const goList = d => { if (ids[at + d]) location.replace('#/s/' + ids[at + d] + '/' + list.id); };
+    const goList = d => { if (ids[at + d]) swap('#/s/' + ids[at + d] + '/' + list.id); };
     const slider = (k, name) => `<label>${name}<input type="range" min="0" max="1" step="0.05" data-vol="${k}" value="${vol[k]}"></label>`;
     app.innerHTML = `
       <header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
@@ -600,7 +631,7 @@
     wake(true);
     if (list) hint('swipe', 'Deslizá la hoja hacia los costados para pasar de tema.');
     bind({
-      back: () => { location.hash = list ? '#/l/' + list.id : '#/'; },
+      back: () => up(list ? '#/l/' + list.id : '#/'),
       prevsong: () => goList(-1),
       nextsong: () => goList(1),
       edit: () => { location.hash = '#/e/' + song.id; },
@@ -701,7 +732,7 @@
     if (location.hash !== '#/i/' + (code || '')) return;
     const head = (title, save) => `<header class="top"><button class="tx" data-a="cancel">Cancelar</button>
       <div class="ttl"><h1>${title}</h1></div>${save ? '<button class="tx pri" data-a="save">Guardar</button>' : ''}</header>`;
-    const actions = { cancel: () => { location.hash = '#/'; } };
+    const actions = { cancel: () => up('#/') };
     // Si ya tengo una canción idéntica, uso esa en lugar de duplicarla.
     const keep = s => {
       const same = songs.find(x => x.title === s.title && x.chart === s.chart);
@@ -721,7 +752,7 @@
       actions.save = () => {
         const id = keep(song);
         saveSongs();
-        location.replace('#/s/' + id);
+        swap('#/s/' + id);
       };
     } else {
       app.innerHTML = head('Lista compartida', true) + `<main class="list">
@@ -732,7 +763,7 @@
         saveSongs();
         lists.push(l);
         saveLists();
-        location.replace('#/l/' + l.id);
+        swap('#/l/' + l.id);
       };
     }
     bind(actions);
@@ -917,7 +948,10 @@
       preview();
     };
 
-    const leave = () => { location.hash = existing ? '#/s/' + song.id : '#/'; };
+    // Al salir del editor se vuelve a la canción tal como se había abierto (suelta o dentro de una lista).
+    const before = trail.slice(0, -1).reverse();
+    const songHash = before.find(h => h.startsWith('#/s/' + song.id)) || '#/s/' + song.id;
+    const leave = () => up(existing ? songHash : '#/');
     const ask = (msg, val, bad) => {
       const r = prompt(msg, val || '');
       return r === null ? null : r.replace(bad, '').trim();
@@ -1066,7 +1100,7 @@
         const i = songs.findIndex(s => s.id === song.id);
         if (i >= 0) songs[i] = song; else songs.push(song);
         saveSongs();
-        location.hash = '#/s/' + song.id;
+        if (existing) up(songHash); else swap('#/s/' + song.id);
       },
       delete: () => {
         if (!confirm(`¿Borrar "${song.title}"? No se puede deshacer.`)) return;
@@ -1074,7 +1108,7 @@
         saveSongs();
         lists.forEach(l => { l.songs = l.songs.filter(x => x !== song.id); });
         saveLists();
-        location.hash = '#/';
+        up(before.find(h => !h.startsWith('#/s/' + song.id) && !h.startsWith('#/e/')) || '#/');
       },
       // La copia lleva lo que hay en pantalla; la original queda como estaba guardada.
       dup: () => {
@@ -1083,7 +1117,7 @@
         const copy = { ...song, id: newId(), title: (song.title || 'Sin título') + ' (copia)', chart };
         songs.push(copy);
         saveSongs();
-        location.hash = '#/e/' + copy.id;
+        swap('#/e/' + copy.id);
       },
     };
     for (const k in edits) actions[k] = el => {
@@ -1143,7 +1177,7 @@
     else libraryView();
     window.scrollTo(0, 0);
   }
-  window.addEventListener('hashchange', route);
+  window.addEventListener('hashchange', () => { syncTrail(); route(); });
   route();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {

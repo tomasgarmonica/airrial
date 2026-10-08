@@ -85,5 +85,7 @@ catálogo público.
 - [ ] Botón de donaciones (falta definir servicio y enlace)
 
 ## Problemas conocidos
+- [x] El botón Atrás del teléfono sube un nivel, igual que la flecha de arriba
+- [ ] Salir del editor con cambios sin guardar (Cancelar o Atrás) los descarta sin preguntar
 - [ ] Probar en celular real: lectura del cifrado, tamaño de los botones del editor y sonido por el parlante
 - [ ] En iPhone, un enlace compartido se abre en Safari y la canción queda ahí, no en la app instalada
