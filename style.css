@@ -77,9 +77,13 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .seg.tabs { margin: 0 16px 8px; }
 .lrow { display: flex; align-items: center; gap: 4px; border-bottom: 1px solid var(--surface); }
 .lrow .item { flex: 1; min-width: 0; border: 0; }
-.lrow.drag { background: var(--hl); border-radius: 8px; }
+.lrow.drag {
+  position: relative; z-index: 2; background: var(--surface); border-color: transparent; border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, .5), 0 0 0 1.5px var(--accent); cursor: grabbing;
+}
+.lrow.drag .hdl { color: var(--accent); }
 .lrow .hdl { background: none; color: var(--muted); touch-action: none; cursor: grab; display: grid; place-items: center; }
-#rows { user-select: none; -webkit-user-select: none; }
+#rows { position: relative; user-select: none; -webkit-user-select: none; }
 .lrow button { flex: none; width: 40px; height: 44px; border: 0; border-radius: 8px; background: var(--surface); font-size: 1.1rem; }
 .lrow button:disabled { opacity: .3; }
 .picklist { max-height: 55dvh; overflow-y: auto; }

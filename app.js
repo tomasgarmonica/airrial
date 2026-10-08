@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.11';
+  const VERSION = '0.12';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -79,7 +79,15 @@
     new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
   const songRow = s => [s.title, s.composer, s.style, s.key, s.tempo, s.ts, s.chart];
   const rowSong = a => cleanSong({ title: a[0], composer: a[1], style: a[2], key: a[3], tempo: a[4], ts: a[5], chart: a[6] });
-  const packSong = s => b64(new TextEncoder().encode(JSON.stringify([1, ...songRow(s)])));
+  // Formato corto: los datos separados por tabulaciones y comprimidos. Si el navegador no comprime, va el formato viejo.
+  const packSong = async s => {
+    try {
+      const flat = ['3', ...songRow(s).map(v => String(v).replace(/\t/g, ' '))].join('\t');
+      return 'c.' + b64(await pipe(new TextEncoder().encode(flat), new CompressionStream('deflate-raw')));
+    } catch {
+      return b64(new TextEncoder().encode(JSON.stringify([1, ...songRow(s)])));
+    }
+  };
   const packList = async l => {
     const bytes = new TextEncoder().encode(JSON.stringify([2, l.name, l.songs.map(findSong).filter(Boolean).map(songRow)]));
     try { return 'z.' + b64(await pipe(bytes, new CompressionStream('deflate-raw'))); }
@@ -87,6 +95,12 @@
   };
   // Devuelve { song } o { name, songs }.
   const unpack = async code => {
+    if (code.startsWith('c.')) {
+      const bytes = await pipe(unb64(code.slice(2)), new DecompressionStream('deflate-raw'));
+      const f = new TextDecoder().decode(bytes).split('\t');
+      if (f[0] !== '3' || f.length < 8) throw new Error('formato');
+      return { song: rowSong([...f.slice(1, 7), f.slice(7).join('\t')]) };
+    }
     const bytes = code.startsWith('z.') ? await pipe(unb64(code.slice(2)), new DecompressionStream('deflate-raw'))
       : unb64(code.startsWith('j.') ? code.slice(2) : code);
     const a = JSON.parse(new TextDecoder().decode(bytes));
@@ -344,20 +358,37 @@
     const change = fn => { fn(); saveLists(); draw(); };
     draw();
 
-    // Ordenar arrastrando de la manija: la fila se va acomodando bajo el dedo y al soltar se guarda el orden.
+    // Ordenar arrastrando de la manija: la fila se levanta y sigue al dedo, las demás le hacen lugar,
+    // y al soltar se guarda el orden.
     const rows = $('#rows'), main = rows.parentElement;
-    let drag = null;
-    const onMove = e => {
-      const box = main.getBoundingClientRect();
-      if (e.clientY < box.top + 50) main.scrollTop -= 12;
-      else if (e.clientY > box.bottom - 50) main.scrollTop += 12;
-      const next = [...rows.children].find(el => {
-        if (el === drag) return false;
-        const b = el.getBoundingClientRect();
-        return e.clientY < b.top + b.height / 2;
+    let drag = null, grabDY = 0, lastY = 0;
+    const follow = () => {
+      const top = rows.getBoundingClientRect().top + drag.offsetTop;
+      drag.style.transform = `translateY(${lastY - grabDY - top}px) scale(1.02)`;
+    };
+    // Mueve la fila dentro de la lista y desliza a las vecinas hasta su lugar nuevo.
+    const place = next => {
+      const others = [...rows.children].filter(el => el !== drag), before = others.map(el => el.offsetTop);
+      if (next) rows.insertBefore(drag, next); else rows.appendChild(drag);
+      others.forEach((el, i) => {
+        const d = before[i] - el.offsetTop;
+        if (!d) return;
+        el.style.transition = 'none';
+        el.style.transform = `translateY(${d}px)`;
+        el.offsetHeight;
+        el.style.transition = 'transform .15s';
+        el.style.transform = '';
       });
-      if (next) { if (drag.nextElementSibling !== next) rows.insertBefore(drag, next); }
-      else if (rows.lastElementChild !== drag) rows.appendChild(drag);
+    };
+    const onMove = e => {
+      lastY = e.clientY;
+      const box = main.getBoundingClientRect();
+      if (lastY < box.top + 50) main.scrollTop -= 12;
+      else if (lastY > box.bottom - 50) main.scrollTop += 12;
+      const top = rows.getBoundingClientRect().top;
+      const next = [...rows.children].find(el => el !== drag && lastY < top + el.offsetTop + el.offsetHeight / 2);
+      if (next ? drag.nextElementSibling !== next : rows.lastElementChild !== drag) place(next);
+      follow();
     };
     const onEnd = () => {
       document.removeEventListener('pointermove', onMove);
@@ -373,7 +404,11 @@
       if (!h || drag) return;
       e.preventDefault();
       drag = h.closest('.lrow');
+      grabDY = e.clientY - drag.getBoundingClientRect().top;
+      lastY = e.clientY;
       drag.classList.add('drag');
+      follow();
+      if (navigator.vibrate) navigator.vibrate(15);
       document.addEventListener('pointermove', onMove);
       document.addEventListener('pointerup', onEnd);
       document.addEventListener('pointercancel', onEnd);
@@ -569,8 +604,8 @@
       prevsong: () => goList(-1),
       nextsong: () => goList(1),
       edit: () => { location.hash = '#/e/' + song.id; },
-      share: () => shareUrl(song.title, `${song.title} (cifrado en Airrial)`,
-        location.origin + location.pathname + '#/i/' + packSong(song)),
+      share: async () => shareUrl(song.title, `${song.title} (cifrado en Airrial)`,
+        location.origin + location.pathname + '#/i/' + await packSong(song)),
       play: () => { if (Engine.isPlaying()) { Engine.stop(); setPlaying(false); } else start(); },
       slower: () => setTempo(song.tempo - 4),
       faster: () => setTempo(song.tempo + 4),

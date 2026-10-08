@@ -27,6 +27,8 @@ grabaciones (ver `GRABACION.md`).
 ## 3. Guardado y compartir
 - [x] Compartir una canción por enlace (WhatsApp, mail) y abrirla directo en la app
 - [x] Pedirle al navegador que no borre las canciones; aviso de hace cuánto fue la última copia
+- [x] Enlaces de canción más cortos (comprimidos)
+- [ ] Enlaces realmente cortos (del tipo airrial/c/abc123): necesitan servidor que guarde la canción
 - [ ] Importar canciones desde iReal Pro
 - [ ] Copia de seguridad automática y sincronización entre celular y PC (necesita servidor)
 - [ ] Catálogo público para subir y buscar canciones (necesita servidor, cuentas y moderación)
