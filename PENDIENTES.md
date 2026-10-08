@@ -9,6 +9,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Deshacer y rehacer
 - [x] Copiar y pegar un compás o una parte entera (también de una canción a otra)
 - [x] Duplicar una canción (para hacer versiones)
+- [x] Tonalidad por botones (nota, alteración, mayor o menor) en lugar de texto
 - [ ] Mover compases o partes de lugar
 - [ ] Repartir los tiempos de un compás de forma desigual con un control propio (hoy: "Alargar el anterior")
 - [ ] Sugerir la tonalidad a partir de los acordes escritos
@@ -64,7 +65,7 @@ quien la escribe. Eso es barato y seguro, pero casi todo lo de abajo aparece cua
 catálogo público.
 
 **Infraestructura**
-- [ ] Dirección propia (dominio) y dónde registrarla
+- [ ] Dominio propio `airrial.ar` (registrado el 2026-10-08): falta delegarlo a un servicio de DNS y apuntarlo a GitHub Pages
 - [ ] Elegir servidor y base de datos para cuentas, sincronización y catálogo; estimar costo mensual
 - [ ] Dónde alojar los sonidos grabados y cuánto pesan en el teléfono
 - [ ] Límite de espacio en el teléfono: cuántas canciones entran y qué pasa cuando se llena

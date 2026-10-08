@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.14';
+  const VERSION = '0.15';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -800,8 +800,12 @@
           <label class="w">Autor<input id="f-composer" value="${esc(song.composer)}" autocomplete="off"></label>
           <label>Estilo<select id="f-style">${STYLES.map(s => `<option value="${s[0]}"${s[0] === song.style ? ' selected' : ''}>${s[1]}</option>`).join('')}</select></label>
           <label>Compás<select id="f-ts">${METERS.map(m => `<option${m === song.ts ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
-          <label>Tonalidad<input id="f-key" value="${esc(song.key)}" placeholder="C, Am, Bb…" autocomplete="off" autocapitalize="off"></label>
-          <label>Tempo<input id="f-tempo" type="number" inputmode="numeric" min="30" max="360" value="${song.tempo}"></label>
+          <label class="w">Tempo<input id="f-tempo" type="number" inputmode="numeric" min="30" max="360" value="${song.tempo}"></label>
+          <div class="w keypick"><span>Tonalidad</span><input type="hidden" id="f-key" value="${esc(song.key)}">
+            <div class="kb k7">${ROOTS.map(r => `<button type="button" data-a="knote" data-v="${r}">${r}</button>`).join('')}</div>
+            <div class="kb kmods"><button type="button" data-a="kacc" data-v="b">♭</button><button type="button" data-a="kacc" data-v="#">♯</button>
+              <button type="button" data-a="kmode" data-v="">Mayor</button><button type="button" data-a="kmode" data-v="m">Menor</button>
+              <button type="button" data-a="knone">Ninguna</button></div></div>
         </div></details>
         <div class="seg"><button data-a="mode" data-v="grid">Botones</button><button data-a="mode" data-v="text">Texto</button></div>
         <div id="body"></div>
@@ -1128,6 +1132,27 @@
     };
     actions.undo = () => restore(undo, redo);
     actions.redo = () => restore(redo, undo);
+
+    // Tonalidad por botones: nota, alteración y modo. Se guarda como texto ("Bb", "F#m") en el campo oculto.
+    const k0 = Music.parseChord(song.key || '');
+    let key = k0 ? { note: k0.letter, acc: plainAcc(k0.acc), minor: /^(m(?!aj)|min|-)/.test(k0.qual) } : null;
+    const drawKey = () => {
+      $('#f-key').value = key ? key.note + key.acc + (key.minor ? 'm' : '') : '';
+      app.querySelectorAll('.keypick button').forEach(b => {
+        const a = b.dataset.a, v = b.dataset.v;
+        b.classList.toggle('on', a === 'knone' ? !key : !!key &&
+          (a === 'knote' ? key.note === v : a === 'kacc' ? key.acc === v : key.minor === (v === 'm')));
+        if (a === 'kacc' || a === 'kmode') b.disabled = !key;
+      });
+      readFields();
+    };
+    Object.assign(actions, {
+      knote: el => { key = { note: el.dataset.v, acc: '', minor: key ? key.minor : false }; drawKey(); },
+      kacc: el => { if (key) { key.acc = key.acc === el.dataset.v ? '' : el.dataset.v; drawKey(); } },
+      kmode: el => { if (key) { key.minor = el.dataset.v === 'm'; drawKey(); } },
+      knone: () => { key = null; drawKey(); },
+    });
+    drawKey();
     bind(actions);
 
     body.onclick = e => {
