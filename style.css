@@ -58,6 +58,7 @@ main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; p
 .item { display: block; padding: 12px 0; border-bottom: 1px solid var(--surface); color: inherit; text-decoration: none; }
 .item b { display: block; font-size: 1.05rem; }
 .item span { font-size: .85rem; color: var(--muted); }
+.inc { font-style: normal; font-weight: 500; font-size: .68rem; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; vertical-align: middle; white-space: nowrap; }
 .empty { color: var(--muted); text-align: center; padding: 32px 0; }
 .fab {
   position: fixed; right: max(20px, calc(50% - 430px)); bottom: calc(20px + env(safe-area-inset-bottom));

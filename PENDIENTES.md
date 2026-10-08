@@ -31,7 +31,9 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Compartir "con enlace": la canción o lista se sube al servidor sin aparecer en el catálogo y se abre solo con un enlace corto (como un video no listado). Tres niveles: solo en mi celular / con enlace / pública. Definir vencimiento, cómo la borra quien la subió y qué pasa con denuncias
 - [ ] Importar canciones desde iReal Pro
 - [ ] Copia de seguridad automática y sincronización entre celular y PC (necesita servidor)
-- [ ] Catálogo curado de la app: canciones elegidas por el proyecto, publicadas como archivo dentro de la app (no necesita servidor; cada una tiene enlace corto)
+- [x] Mecanismo de canciones incluidas (`incluidas.json`): aparecen en Canciones con la marca "incluida", sin pestaña aparte
+- [ ] Cargar la selección inicial: armar en la app una lista llamada "Iniciales", exportar y dejar el archivo en la carpeta
+- [ ] Enlace corto para las canciones incluidas
 - [ ] Comunidad: secuencias subidas por usuarios, separadas del catálogo curado. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento
 
 ## 4. Audio y pistas

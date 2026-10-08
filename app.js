@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.13';
+  const VERSION = '0.14';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -18,34 +18,20 @@
   const METERS = ['4/4', '3/4', '2/4', '6/8', '5/4', '7/8', '12/8'];
   const styleName = id => (STYLES.find(s => s[0] === id) || STYLES[0])[1];
 
-  const DEMOS = [
-    {
-      id: 'demo-blues', title: 'Blues en Fa (ejemplo)', composer: 'Tradicional', style: 'swing',
-      key: 'F', tempo: 132, ts: '4/4', transpose: 0,
-      chart: '[A]\n| F7 | Bb7 | F7 | Cm7 F7 |\n| Bb7 | Bdim7 | F7 | Am7 D7 |\n| Gm7 | C7 | F7 D7 | Gm7 C7 |',
-    },
-    {
-      id: 'demo-bossa', title: 'Bossa con casillas (ejemplo)', composer: '', style: 'bossa',
-      key: 'C', tempo: 126, ts: '4/4', transpose: 0,
-      chart: '[A]\n|: Cmaj7 | % | D7 | % |\n| Dm7 | G7 | 1. Cmaj7 | Dm7 G7 :|\n| 2. Cmaj7 | % |\n[B]\n| Gm7 | C7 | Fmaj7 | % |\n| Fm7 | Bb7 | Em7 A7 | Dm7 G7 |',
-    },
-    {
-      id: 'demo-vals', title: 'Vals en La menor (ejemplo)', composer: '', style: 'balada',
-      key: 'Am', tempo: 140, ts: '3/4', transpose: 0,
-      chart: '[A]\n|: Am | Dm | E7 | Am |\n| F | C | E7 | Am :|',
-    },
-  ];
-
   // --- almacenamiento ---
   const SONGS = 'airrial.songs.v1', SETTINGS = 'airrial.settings.v1', LISTS = 'airrial.lists.v1';
   const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) || def; } catch { return def; } };
   const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sin espacio */ } };
 
   let songs = load(SONGS, null);
-  if (!songs) { songs = DEMOS.map(d => ({ ...d })); store(SONGS, songs); }
+  const firstRun = !songs;
+  if (firstRun) songs = [];
   const settings = Object.assign({ theme: 'dark', choruses: 3, countIn: true }, load(SETTINGS, {}));
   if (typeof settings.choruses !== 'number') settings.choruses = 3;
   settings.hints = settings.hints || {};
+  // Canciones incluidas ya entregadas a este teléfono: { id: huella del contenido }.
+  // Quien venía de una versión anterior ya tuvo los tres ejemplos: no se le vuelven a agregar si los borró.
+  if (!settings.builtins) settings.builtins = firstRun ? {} : { 'demo-blues': '', 'demo-bossa': '', 'demo-vals': '' };
   settings.vol = Object.assign({ bass: 0.8, keys: 0.6, drums: 0.7, click: 0 }, settings.vol);
   // Listas de temas: { id, name, songs: [ids en orden] }
   let lists = load(LISTS, []);
@@ -97,6 +83,7 @@
     style: STYLES.some(x => x[0] === s.style) ? s.style : 'swing', key: String(s.key || ''),
     tempo: Math.min(360, Math.max(30, +s.tempo || 120)), ts: METERS.includes(s.ts) ? s.ts : '4/4',
     transpose: Math.round(+s.transpose || 0) % 12, chart: String(s.chart || ''),
+    ...(s.builtin ? { builtin: true } : {}),
   });
 
   // Las canciones viajan dentro del enlace que se comparte: una sola, o una lista entera (comprimida).
@@ -294,7 +281,7 @@
         .filter(s => !f || (s.title + ' ' + (s.composer || '') + ' ' + styleName(s.style)).toLowerCase().includes(f))
         .sort((a, b) => a.title.localeCompare(b.title, 'es'));
       list.innerHTML = shown.length ? shown.map(s => `
-        <a class="item" href="#/s/${esc(s.id)}"><b>${esc(s.title)}</b>
+        <a class="item" href="#/s/${esc(s.id)}"><b>${esc(s.title)}${s.builtin ? ' <em class="inc">incluida</em>' : ''}</b>
         <span>${esc(songMeta(s))}</span></a>`).join('')
         : `<p class="empty">${songs.length ? 'Ninguna canción coincide con la búsqueda.' : 'No hay canciones. Tocá + para escribir la primera.'}</p>`;
     };
@@ -1179,6 +1166,38 @@
   }
   window.addEventListener('hashchange', () => { syncTrail(); route(); });
   route();
+
+  // --- canciones incluidas con la app (incluidas.json) ---
+  // Cada una se agrega una sola vez. Si el usuario la borra, no vuelve; si la edita, una versión nueva no la pisa;
+  // si no la tocó y la app trae una corrección, se actualiza.
+  const stamp = s => {
+    const t = JSON.stringify(songRow(s));
+    let h = 5381;
+    for (let i = 0; i < t.length; i++) h = (h * 33 ^ t.charCodeAt(i)) >>> 0;
+    return h.toString(36);
+  };
+  (async () => {
+    let data;
+    try { data = await (await fetch('incluidas.json')).json(); } catch { return; }
+    const seen = settings.builtins;
+    let changed = false;
+    for (const raw of Array.isArray(data.songs) ? data.songs : []) {
+      if (!raw || !raw.id || typeof raw.chart !== 'string') continue;
+      const s = { ...cleanSong(raw), transpose: 0, builtin: true }, h = stamp(s), mine = findSong(s.id);
+      if (seen[s.id] === h) continue;
+      if (!(s.id in seen)) {
+        if (!mine) { songs.push(s); changed = true; }
+      } else if (mine && stamp(mine) === seen[s.id]) {
+        songs[songs.indexOf(mine)] = s;
+        changed = true;
+      }
+      seen[s.id] = h;
+    }
+    saveSettings();
+    if (!changed) return;
+    saveSongs();
+    if (here() === '#/') route();
+  })();
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     // Cuando llega una versión nueva mientras se mira la biblioteca, se recarga sola para mostrarla.

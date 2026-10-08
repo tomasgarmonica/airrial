@@ -1,0 +1,21 @@
+{
+ "app": "airrial",
+ "version": 1,
+ "songs": [
+  {
+   "id": "demo-blues", "title": "Blues en Fa (ejemplo)", "composer": "Tradicional", "style": "swing",
+   "key": "F", "tempo": 132, "ts": "4/4",
+   "chart": "[A]\n| F7 | Bb7 | F7 | Cm7 F7 |\n| Bb7 | Bdim7 | F7 | Am7 D7 |\n| Gm7 | C7 | F7 D7 | Gm7 C7 |"
+  },
+  {
+   "id": "demo-bossa", "title": "Bossa con casillas (ejemplo)", "composer": "", "style": "bossa",
+   "key": "C", "tempo": 126, "ts": "4/4",
+   "chart": "[A]\n|: Cmaj7 | % | D7 | % |\n| Dm7 | G7 | 1. Cmaj7 | Dm7 G7 :|\n| 2. Cmaj7 | % |\n[B]\n| Gm7 | C7 | Fmaj7 | % |\n| Fm7 | Bb7 | Em7 A7 | Dm7 G7 |"
+  },
+  {
+   "id": "demo-vals", "title": "Vals en La menor (ejemplo)", "composer": "", "style": "vals",
+   "key": "Am", "tempo": 140, "ts": "3/4",
+   "chart": "[A]\n|: Am | Dm | E7 | Am |\n| F | C | E7 | Am :|"
+  }
+ ]
+}
