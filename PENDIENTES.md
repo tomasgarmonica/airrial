@@ -40,11 +40,10 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Importar canciones desde iReal Pro
 - [ ] Copia de seguridad automática y sincronización entre celular y PC (necesita servidor)
 - [x] Mecanismo de canciones incluidas (`incluidas.json`): aparecen en Canciones con la marca "incluida", sin pestaña aparte
-- [ ] Cargar la selección inicial: armar en la app una lista llamada "Iniciales", exportar y dejar el archivo en la carpeta
-- [ ] Enlace corto para las canciones incluidas
 - [x] Compartir como archivo (además del enlace); Airrial aparece en el menú Compartir de Android para abrir archivos recibidos
 - [ ] Probar en celular real el archivo compartido: enviar, y recibir con Compartir → Airrial
-- [ ] Comunidad: secuencias subidas por usuarios, separadas del catálogo curado. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento
+- [ ] Comunidad: secuencias subidas por usuarios. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento. La app no trae canciones propias (decidido el 2026-10-09, por los posibles derechos): el repertorio llega por la comunidad
+- [ ] Comunidad: destacar las canciones más completas o mejor puntuadas (fijadas o con puntaje). A definir
 
 ## 4. Audio y pistas
 - [ ] Instrumentos grabados en lugar de sonidos sintetizados (ver `GRABACION.md`)
