@@ -61,7 +61,9 @@ grabaciones (ver `GRABACION.md`).
 - [x] El archivo para compartir es una página .html: muestra el título como enlace y el enlace lleva todo el contenido
 - [x] Cartel de espera al generar imagen, PDF o archivo
 - [x] Cartel para instalar la app cuando se usa desde el navegador (botón en Android, instrucción en iPhone)
-- [ ] Probar en celulares reales cómo se abre el .html recibido (Android e iPhone) y hasta qué tamaño de lista funciona el enlace
+- [x] Probado en Android: el archivo .html abre listas de hasta 1000 temas, y Airrial aparece en el menú Compartir tras reinstalar
+- [x] Se quitó la opción de compartir como enlace suelto: queda Archivo, PDF e Imagen
+- [ ] Probar en iPhone cómo se abre el archivo .html recibido
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
 - [ ] Carpetas o etiquetas en la biblioteca
 

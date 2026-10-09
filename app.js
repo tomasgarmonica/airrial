@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.19';
+  const VERSION = '0.20';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -86,7 +86,7 @@
     ...(s.builtin ? { builtin: true } : {}),
   });
 
-  // Las canciones viajan dentro del enlace que se comparte: una sola, o una lista entera (comprimida).
+  // Las canciones viajan dentro del enlace que lleva el archivo compartido: una sola, o una lista entera (comprimida).
   const b64 = bytes => {
     let bin = '';
     bytes.forEach(b => { bin += String.fromCharCode(b); });
@@ -126,15 +126,6 @@
     if (a[0] === 2 && Array.isArray(a[2])) return { name: String(a[1] || 'Lista'), songs: a[2].map(rowSong) };
     throw new Error('formato');
   };
-  async function shareUrl(title, text, url) {
-    try {
-      if (navigator.share) { await navigator.share({ title, text, url }); return; }
-    } catch (e) {
-      if (e.name === 'AbortError') return;
-    }
-    try { await navigator.clipboard.writeText(url); toast('Enlace copiado. Pegalo donde quieras compartirlo.'); }
-    catch { prompt('Copiá este enlace para compartir:', url); }
-  }
   function download(name, data) {
     const a = document.createElement('a');
     a.href = URL.createObjectURL(new Blob([JSON.stringify(data, null, 1)], { type: 'application/json' }));
@@ -205,8 +196,7 @@
   // Páginas (o imagen larga) de una canción, tal como se ve: con su transposición actual.
   const drawSong = (s, paged) => Exporter.render(s, paged, { before: [s.composer, styleName(s.style).replace(/ \(.*/, '')], after: [s.ts, s.tempo + ' bpm'] });
   const SHARE_WAYS = [
-    ['link', 'Enlace', 'Se abre con un toque; largo si hay mucho contenido'],
-    ['file', 'Archivo', 'Sin límite de tamaño; se abre tocando el título'],
+    ['file', 'Archivo', 'Se abre en Airrial tocando el título'],
     ['pdf', 'PDF', 'Para ver o imprimir, sin la app'],
   ];
   // Archivo para compartir: una página con el título como enlace. El enlace lleva todo el contenido,
@@ -577,11 +567,6 @@ ${rows ? `<ol>${rows}</ol>` : ''}
           shareBlob(await busy('Generando el PDF…', () => Exporter.pdf(sheets())), safeName(list.name) + '.pdf', list.name);
           return;
         }
-        if (how !== 'link') return;
-        const url = location.origin + location.pathname + '#/i/' + await busy('Preparando el enlace…', () => packList(list));
-        if (url.length <= 8000) { shareUrl(list.name, `${list.name} (lista de temas en Airrial)`, url); return; }
-        toast('La lista es muy larga para un enlace suelto: va como archivo.');
-        shareFile(list.name, pack, async () => url.split('#/i/')[1]);
       },
       rm: el => change(() => { list.songs.splice(+el.dataset.v, 1); }),
       add: () => {
@@ -761,8 +746,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       edit: () => { location.hash = '#/e/' + song.id; },
       share: async () => {
         const how = await choose('Compartir esta canción', [...SHARE_WAYS, ['png', 'Imagen', 'Para ver en cualquier chat']]);
-        if (how === 'link') shareUrl(song.title, `${song.title} (cifrado en Airrial)`, location.origin + location.pathname + '#/i/' + await packSong(song));
-        else if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] }, () => packSong(song));
+        if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] }, () => packSong(song));
         else if (how === 'pdf') shareBlob(await busy('Generando el PDF…', () => Exporter.pdf(drawSong(song, true))), safeName(song.title) + '.pdf', song.title);
         else if (how === 'png') {
           // Una imagen por hoja, del mismo tamaño que las del PDF.
