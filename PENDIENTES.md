@@ -58,7 +58,6 @@ grabaciones (ver `GRABACION.md`).
 - [x] Compases por renglón ajustables por canción (2 a 6), también en PDF e imagen
 - [x] El % (repetir compás) está con los acordes y avanza solo al compás siguiente
 - [ ] Tamaño de letra ajustable
-- [ ] Notas por tema (letra, forma, indicaciones)
 - [ ] Otras formas de ver el cifrado: símbolos de jazz (△7, -7, ø), Do-Re-Mi, grados (I, IV, V)
 - [x] Exportar una canción a PDF o imagen (a tamaño hoja), y una lista entera a un solo PDF
 - [x] El archivo para compartir es una página .html: muestra el título como enlace y el enlace lleva todo el contenido
@@ -73,6 +72,7 @@ grabaciones (ver `GRABACION.md`).
 - [ ] iPhone: probar con un usuario real el copiar y pegar
 - [ ] iPhone: llevar a la app TODO lo que alguien ya guardó en Safari antes de instalarla
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
+- [x] Borrar varias canciones a la vez desde la biblioteca (modo selección)
 - [ ] Carpetas o etiquetas en la biblioteca
 
 ## 6. Servidores, sistemas y seguridad

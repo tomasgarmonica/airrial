@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.24';
+  const VERSION = '0.25';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -438,6 +438,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <div class="search"><input id="q" type="search" autocomplete="off"></div>
       <div class="filt" id="filt"></div>
       ${installHtml()}${iosOpenHtml()}
+      <div class="selbar" id="selbar" hidden><button class="tx" data-a="selcancel">Cancelar</button><span id="selcount"></span>
+        <button class="tx" data-a="selall">Todas</button><button class="tx del" data-a="seldel">Borrar</button></div>
       <main class="list" id="list"></main>
       <button class="fab" data-a="new" aria-label="Agregar">+</button>
       <dialog id="menu"><div class="sheet">
@@ -445,13 +447,22 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <p class="hint" id="age">${backupAge()}</p>
         <button data-a="import">Abrir un archivo (recibido o copia de seguridad)</button>
         <button data-a="paste">Pegar una canción o lista copiada</button>
+        <button data-a="select">Seleccionar canciones para borrar</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="close">Cerrar</button>
       </div></dialog>
       <input type="file" id="file" accept=".json,.txt,.html,.htm,application/json,text/plain,text/html" hidden>`;
     const list = $('#list'), q = $('#q');
+    // Modo selección: `sel` tiene los ids marcados (null si no se está seleccionando). `shownIds` son las canciones a la vista.
+    let sel = null, shownIds = [], held = false, hold = null, down = null;
     const draw = () => {
       const f = q.value.trim().toLowerCase(), onLists = libTab === 'lists';
+      $('.tabs').hidden = $('.fab').hidden = !!sel;
+      $('#selbar').hidden = !sel;
+      if (sel) {
+        $('#selcount').textContent = sel.size + (sel.size === 1 ? ' seleccionada' : ' seleccionadas');
+        $('[data-a="seldel"]').disabled = !sel.size;
+      }
       app.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === libTab));
       q.placeholder = onLists ? 'Buscar lista…' : 'Buscar canción, autor o género…';
       // Filtro por género: solo aparecen los géneros que hay en la biblioteca.
@@ -472,14 +483,61 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         .filter(s => !libStyle || s.style === libStyle)
         .filter(s => !f || (s.title + ' ' + (s.composer || '') + ' ' + styleName(s.style)).toLowerCase().includes(f))
         .sort((a, b) => a.title.localeCompare(b.title, 'es'));
-      list.innerHTML = shown.length ? shown.map(s => `
-        <a class="item" href="#/s/${esc(s.id)}"><b>${esc(s.title)}${s.builtin ? ' <em class="inc">incluida</em>' : ''}</b>
-        <span>${esc(songMeta(s))}</span></a>`).join('')
+      shownIds = shown.map(s => s.id);
+      list.innerHTML = shown.length ? shown.map(s => (sel
+        ? `<div class="item pick${sel.has(s.id) ? ' on' : ''}" data-a="pick" data-v="${esc(s.id)}">`
+        : `<a class="item" href="#/s/${esc(s.id)}" data-id="${esc(s.id)}">`) + `<b>${esc(s.title)}${s.builtin ? ' <em class="inc">incluida</em>' : ''}</b>
+        <span>${esc(songMeta(s))}</span>${sel ? '</div>' : '</a>'}`).join('')
         : `<p class="empty">${songs.length ? 'Ninguna canción coincide con la búsqueda.' : 'No hay canciones. Tocá + para escribir la primera.'}</p>`;
     };
     draw();
+    // Mantener apretada una canción entra al modo selección con esa marcada.
+    const cancelHold = () => { clearTimeout(hold); hold = null; };
+    list.onpointerdown = e => {
+      const el = e.target.closest('a.item[data-id]');
+      cancelHold();
+      held = false;
+      if (!el || sel) return;
+      down = [e.clientX, e.clientY];
+      hold = setTimeout(() => {
+        hold = null;
+        held = true;
+        sel = new Set([el.dataset.id]);
+        if (navigator.vibrate) navigator.vibrate(20);
+        draw();
+      }, 500);
+    };
+    list.onpointermove = e => { if (hold && Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 12) cancelHold(); };
+    list.onpointerup = list.onpointercancel = list.onpointerleave = list.onscroll = cancelHold;
+    list.oncontextmenu = e => e.preventDefault();
     bind({
       ...installActions,
+      select: () => { $('#menu').close(); libTab = 'songs'; sel = new Set(); draw(); },
+      selcancel: () => { sel = null; draw(); },
+      pick: el => {
+        // el toque que termina un "mantener apretado" no cuenta como otro toque
+        if (held) { held = false; return; }
+        const id = el.dataset.v;
+        if (sel.has(id)) sel.delete(id); else sel.add(id);
+        draw();
+      },
+      // Marca todas las que se ven (con el buscador o el filtro puestos, solo esas); si ya están todas, las desmarca.
+      selall: () => {
+        const all = shownIds.every(id => sel.has(id));
+        shownIds.forEach(id => { if (all) sel.delete(id); else sel.add(id); });
+        draw();
+      },
+      seldel: () => {
+        const n = sel.size;
+        if (!n || !confirm(`¿Borrar ${n === 1 ? 'esta canción' : 'estas ' + n + ' canciones'}? No se puede deshacer.`)) return;
+        songs = songs.filter(s => !sel.has(s.id));
+        lists.forEach(l => { l.songs = l.songs.filter(id => !sel.has(id)); });
+        saveSongs();
+        saveLists();
+        sel = null;
+        draw();
+        toast(n === 1 ? 'Canción borrada.' : n + ' canciones borradas.');
+      },
       tab: el => { libTab = el.dataset.v; q.value = ''; draw(); },
       style: el => { libStyle = el.dataset.v; draw(); },
       new: () => {

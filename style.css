@@ -72,6 +72,17 @@ main { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-
 .item b { display: block; font-size: 1.05rem; }
 .item span { font-size: .85rem; color: var(--muted); }
 .inc { font-style: normal; font-weight: 500; font-size: .68rem; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; vertical-align: middle; white-space: nowrap; }
+.seg[hidden] { display: none; }
+.selbar { display: flex; align-items: center; gap: 4px; margin: 0 16px 8px; padding: 2px 6px; background: var(--surface); border-radius: 12px; }
+.selbar[hidden] { display: none; }
+.selbar span { flex: 1; min-width: 0; text-align: center; font-size: .9rem; }
+.selbar .del { color: var(--danger); }
+.selbar button:disabled { opacity: .35; }
+.item.pick { position: relative; padding-left: 38px; cursor: pointer; }
+.item.pick::before { content: ""; position: absolute; left: 4px; top: 50%; translate: 0 -50%; width: 22px; height: 22px; border: 2px solid var(--line); border-radius: 6px; }
+.item.pick.on::before { background: var(--accent); border-color: var(--accent); }
+.item.pick.on::after { content: ""; position: absolute; left: 12px; top: 50%; translate: 0 -65%; width: 6px; height: 11px; border: solid var(--on-accent); border-width: 0 2.5px 2.5px 0; rotate: 45deg; }
+.list { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .empty { color: var(--muted); text-align: center; padding: 32px 0; }
 .fab {
   position: fixed; right: max(20px, calc(50% - 430px)); bottom: calc(20px + env(safe-area-inset-bottom));
