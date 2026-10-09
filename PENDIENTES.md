@@ -66,7 +66,9 @@ grabaciones (ver `GRABACION.md`).
 - [x] Probado en iPhone: el archivo abre en Safari, pero lo guardado no pasa a la app instalada (son espacios separados)
 - [x] iPhone: aviso al abrir algo compartido en Safari y botón "Abrir archivo recibido" en la app instalada
 - [ ] iPhone: probar con un usuario real el camino Guardar en Archivos → Abrir archivo recibido
-- [ ] iPhone: evaluar pasar lo recibido de Safari a la app por el portapapeles (copiar en Safari, pegar en la app)
+- [x] iPhone: pasar lo recibido de Safari a la app por el portapapeles (Copiar para la app → Pegar lo copiado)
+- [ ] iPhone: probar con un usuario real el copiar y pegar
+- [ ] iPhone: llevar a la app TODO lo que alguien ya guardó en Safari antes de instalarla
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
 - [ ] Carpetas o etiquetas en la biblioteca
 

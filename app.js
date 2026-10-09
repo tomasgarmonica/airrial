@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.21';
+  const VERSION = '0.22';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -218,7 +218,7 @@ a.open span{display:block;font-weight:400;font-size:.85rem;margin-top:2px}ol{pad
 <p>${esc(sub)}</p>
 ${rows ? `<ol>${rows}</ol>` : ''}
 <p>Si el botón no abre, entrá a airrial.ar, andá a Menú → Abrir un archivo y elegí este archivo.</p>
-<p><b>En iPhone con la app instalada:</b> guardá este archivo en Archivos (Compartir → Guardar en Archivos), abrí Airrial y tocá "Abrir archivo recibido".</p>
+<p><b>En iPhone con la app instalada:</b> tocá el botón de arriba, después "Copiar para la app", abrí Airrial y tocá "Pegar lo copiado".</p>
 </main>
 <script type="application/json" id="airrial-data">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>
 </body></html>`;
@@ -258,12 +258,24 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     if (isIos) return `<div class="inst"><span>Para instalar Airrial en iPhone: tocá Compartir y elegí "Agregar a inicio".</span>${close}</div>`;
     return '';
   };
-  // En iPhone, al abrir algo compartido desde Safari: aviso de que no llega solo a la app instalada.
-  const iosNote = () => (isIos && !standalone() ? `<div class="inst note"><span><b>En iPhone</b>, lo que guardes acá queda en Safari y no pasa a la app instalada.
-    Para tenerlo en la app: en WhatsApp tocá el archivo → Compartir → <b>Guardar en Archivos</b>; después abrí Airrial y tocá <b>Abrir archivo recibido</b>.</span></div>` : '');
-  // En la app instalada en iPhone: botón a la vista para abrir un archivo recibido.
+  // En iPhone, al abrir algo compartido desde Safari: se copia y se pega en la app instalada,
+  // porque el navegador y la app no comparten lo guardado.
+  const iosNote = () => (isIos && !standalone() ? `<div class="inst col"><span><b>En iPhone:</b> para tenerlo en la app instalada,
+    tocá <b>Copiar para la app</b>, abrí Airrial y tocá <b>Pegar lo copiado</b>.</span><button data-a="copyapp">Copiar para la app</button></div>` : '');
+  // En la app instalada en iPhone: botones a la vista para traer lo recibido.
   const iosOpenHtml = () => (isIos && standalone() && !settings.noOpenTip
-    ? `<div class="inst"><span>¿Te mandaron una canción o una lista?</span><button data-a="import">Abrir archivo recibido</button><button class="x" data-a="noopentip" aria-label="No mostrar más">×</button></div>` : '');
+    ? `<div class="inst col"><span>¿Te mandaron una canción o una lista?</span>
+      <div><button data-a="paste">Pegar lo copiado</button><button class="alt" data-a="import">Abrir archivo</button>
+      <button class="x" data-a="noopentip" aria-label="No mostrar más">×</button></div></div>` : '');
+  // Lee del portapapeles un enlace de Airrial y abre lo que trae. Si el teléfono no deja leerlo, pide pegarlo a mano.
+  async function pasteShared() {
+    let text = '';
+    try { text = await navigator.clipboard.readText(); } catch { /* sin permiso para leer */ }
+    if (!/#\/i\//.test(text)) text = prompt('Pegá acá lo que copiaste (mantené apretado y elegí Pegar):', '') || '';
+    const m = /#\/i\/([\w.\-]+)/.exec(text);
+    if (m) location.hash = '#/i/' + m[1];
+    else if (text) toast('Eso no es una canción ni una lista de Airrial.');
+  }
   const installActions = {
     install: async () => {
       const e = installEvent;
@@ -274,6 +286,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       hideInstall();
     },
     noinstall: () => { settings.noInstall = true; saveSettings(); hideInstall(); },
+    paste: () => { document.querySelectorAll('dialog[open]').forEach(d => d.close()); pasteShared(); },
     noopentip: el => { settings.noOpenTip = true; saveSettings(); el.closest('.inst').remove(); },
   };
 
@@ -388,6 +401,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <button data-a="export">Exportar todo (copia de seguridad)</button>
         <p class="hint" id="age">${backupAge()}</p>
         <button data-a="import">Abrir un archivo (recibido o copia de seguridad)</button>
+        <button data-a="paste">Pegar una canción o lista copiada</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="close">Cerrar</button>
       </div></dialog>
@@ -864,6 +878,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const head = (title, save) => `<header class="top"><button class="tx" data-a="cancel">Cancelar</button>
       <div class="ttl"><h1>${title}</h1></div>${save ? '<button class="tx pri" data-a="save">Guardar</button>' : ''}</header>`;
     const actions = { ...installActions, cancel: () => up('#/') };
+    actions.copyapp = async () => {
+      const url = location.origin + location.pathname + '#/i/' + code;
+      try {
+        await navigator.clipboard.writeText(url);
+        toast('Copiado. Ahora abrí la app Airrial y tocá "Pegar lo copiado".');
+      } catch {
+        prompt('No se pudo copiar solo. Mantené apretado, elegí Seleccionar todo y Copiar:', url);
+      }
+    };
     // Si ya tengo una canción idéntica, uso esa en lugar de duplicarla.
     const keep = s => {
       const same = songs.find(x => x.title === s.title && x.chart === s.chart);
