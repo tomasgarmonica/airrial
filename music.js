@@ -21,12 +21,26 @@ const Music = (() => {
   }
 
   // Nombre a mostrar de un acorde ya leído, transportado `semis` semitonos.
+  // Cómo se muestran los acordes: 'letras' (C, Dm7), 'jazz' (△7, -7, ø), 'latino' (Do, Re, Mi) o 'grados' (I, IIm7, V7).
+  // `key` es la tonalidad escrita de la canción; solo hace falta para los grados.
+  let view = { notation: 'letras', key: '' };
+  const setView = v => { view = { notation: (v && v.notation) || 'letras', key: (v && v.key) || '' }; };
+  const LATIN = { C: 'Do', D: 'Re', E: 'Mi', F: 'Fa', G: 'Sol', A: 'La', B: 'Si' };
+  const DEGREES = ['I', '♭II', 'II', '♭III', 'III', 'IV', '♯IV', 'V', '♭VI', 'VI', '♭VII', 'VII'];
+  const jazzQual = q => q.replace(/^(min|m(?!aj))/, '-').replace(/maj|Maj|M(?=7|9|11|13)/g, '△')
+    .replace(/-7b5|ø7?/, 'ø').replace(/dim/, 'o').replace(/aug/, '+');
+
+  // Nombre a mostrar de un acorde ya leído, transportado `semis` semitonos.
   function spell(c, semis, flats) {
-    const name = (letter, acc, num) =>
-      pretty(semis ? (flats ? FLATS : SHARPS)[(num + semis + 120) % 12] : letter + acc);
+    const tonic = view.notation === 'grados' ? parseChord(view.key) : null;
+    const name = (letter, acc, num) => {
+      if (tonic) return DEGREES[(num - tonic.num + 12) % 12];
+      const s = semis ? (flats ? FLATS : SHARPS)[(num + semis + 120) % 12] : letter + acc;
+      return pretty(view.notation === 'latino' ? LATIN[s[0]] + s.slice(1) : s);
+    };
     return {
       root: name(c.letter, c.acc, c.num),
-      qual: pretty(c.qual),
+      qual: pretty(view.notation === 'jazz' ? jazzQual(c.qual) : c.qual),
       bass: c.bassLetter ? name(c.bassLetter, c.bassAcc, c.bassNum) : '',
     };
   }
@@ -34,7 +48,10 @@ const Music = (() => {
   function transposeName(str, semis, flats) {
     const c = parseChord(str);
     if (!c) return str;
+    const was = view;
+    view = { notation: 'letras', key: '' };
     const d = spell(c, semis, flats);
+    view = was;
     return d.root + d.qual + (d.bass ? '/' + d.bass : '');
   }
 
@@ -159,28 +176,55 @@ const Music = (() => {
     return out;
   }
 
-  // Orden real de ejecución, con repeticiones y casillas de 1ª/2ª.
+  // Qué indica la anotación de un compás: 'segno', 'coda', 'fine', 'alcoda', 'dc', 'ds' o '' (texto libre).
+  function markOf(b) {
+    const t = (b.text || '').toLowerCase().replace(/\s+/g, ' ').trim();
+    if (/^d\.?\s?c\b/.test(t)) return 'dc';
+    if (/^d\.?\s?s\b/.test(t)) return 'ds';
+    return { segno: 'segno', coda: 'coda', fine: 'fine', 'al coda': 'alcoda' }[t] || '';
+  }
+
+  // Orden real de ejecución, con repeticiones, casillas y saltos (D.C., D.S., Fine, Coda).
+  // Después de un D.C. o D.S. no se hacen las repeticiones: se toma la última casilla, se termina en "Fine"
+  // y en "Al Coda" se salta al compás marcado "Coda".
   function unfold(bars) {
     const seq = [];
-    let i = 0, start = 0, pass = 1, checked = -1;
+    let i = 0, start = 0, pass = 1, checked = -1, jumped = false;
     const later = (from, n) => {
       for (let j = from + 1; j < bars.length && !bars[j].repStart; j++) if (bars[j].ending === n) return j;
       return -1;
     };
+    const segno = bars.findIndex(b => markOf(b) === 'segno'), coda = bars.findIndex(b => markOf(b) === 'coda');
     while (i < bars.length && seq.length < 4000) {
       const b = bars[i];
       if (b.repStart && start !== i) { start = i; pass = 1; }
-      if (b.ending && checked !== i) {
+      if (b.ending && jumped) {
+        let last = i;
+        for (let n = b.ending + 1, j; (j = later(last, n)) >= 0; n++) last = j;
+        if (last !== i) { i = last; continue; }
+      } else if (b.ending && checked !== i) {
         if (b.ending !== pass) {
           const j = later(i, pass);
           if (j >= 0) { i = j; continue; }
         } else if (pass > 1 && later(i, pass + 1) < 0) { start = i; pass = 1; checked = i; }
       }
       seq.push(i);
-      if (b.repEnd) {
-        const total = Math.max(b.times || 2, later(i, pass + 1) >= 0 ? pass + 1 : 0);
-        if (pass < total) { pass++; i = start; continue; }
-        pass = 1; start = i + 1;
+      const mark = markOf(b);
+      if (jumped) {
+        if (mark === 'fine') break;
+        if (mark === 'alcoda' && coda >= 0) { i = coda; continue; }
+      } else {
+        if (b.repEnd) {
+          const total = Math.max(b.times || 2, later(i, pass + 1) >= 0 ? pass + 1 : 0);
+          if (pass < total) { pass++; i = start; continue; }
+          pass = 1; start = i + 1;
+        }
+        if (mark === 'dc' || mark === 'ds') {
+          jumped = true;
+          i = mark === 'ds' && segno >= 0 ? segno : 0;
+          start = i; pass = 1; checked = -1;
+          continue;
+        }
       }
       i++;
     }
@@ -221,7 +265,7 @@ const Music = (() => {
     return lines.join('\n');
   }
 
-  return { normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold };
+  return { setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;

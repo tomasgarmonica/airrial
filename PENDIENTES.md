@@ -10,17 +10,17 @@ grabaciones (ver `GRABACION.md`).
 - [x] Copiar y pegar un compás o una parte entera (también de una canción a otra)
 - [x] Duplicar una canción (para hacer versiones)
 - [x] Tonalidad por botones (nota, alteración, mayor o menor) en lugar de texto
-- [ ] Mover compases o partes de lugar
+- [x] Mover un compás (← →) o una parte entera (↑ ↓)
 - [ ] Repartir los tiempos de un compás de forma desigual con un control propio (hoy: "Alargar el anterior")
 - [ ] Sugerir la tonalidad a partir de los acordes escritos
-- [ ] Símbolos propios para Segno y Coda en lugar de texto
+- [x] Símbolos propios para Segno y Coda; Fine, D.C., D.S. y "al Coda" se muestran a la derecha del compás
 
 ## 2. Reproducción
 - [x] Empezar a reproducir desde el compás que se toca
 - [x] Repetir un tramo: toque largo en el primer compás y toque corto en el último
 - [x] Final de tema: terminar en un acorde largo (necesita la tonalidad cargada)
 - [x] Seguir sonando bien con la app en segundo plano
-- [ ] Que la reproducción siga D.C., D.S. y Coda
+- [x] La reproducción sigue D.C., D.S., Fine y Coda (sin repeticiones después del salto)
 - [ ] Modo práctica: subir el tempo o cambiar de tono en cada vuelta
 - [ ] Silenciar instrumentos sueltos con un toque
 - [ ] Elegir instrumento armónico (piano o guitarra)
@@ -58,7 +58,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Compases por renglón ajustables por canción (2 a 6), también en PDF e imagen
 - [x] El % (repetir compás) está con los acordes y avanza solo al compás siguiente
 - [ ] Tamaño de letra ajustable
-- [ ] Otras formas de ver el cifrado: símbolos de jazz (△7, -7, ø), Do-Re-Mi, grados (I, IV, V)
+- [x] Otras formas de ver el cifrado: símbolos de jazz (△7, -7, ø), Do-Re-Mi y grados (I, IV, V), también en PDF e imagen
 - [x] Exportar una canción a PDF o imagen (a tamaño hoja), y una lista entera a un solo PDF
 - [x] El archivo para compartir es una página .html: muestra el título como enlace y el enlace lleva todo el contenido
 - [x] Cartel de espera al generar imagen, PDF o archivo
@@ -106,6 +106,6 @@ catálogo público.
 
 ## Problemas conocidos
 - [x] El botón Atrás del teléfono sube un nivel, igual que la flecha de arriba
-- [ ] Salir del editor con cambios sin guardar (Cancelar o Atrás) los descarta sin preguntar
+- [x] Salir del editor con cambios sin guardar (Cancelar o Atrás) ahora pregunta antes
 - [ ] Probar en celular real: lectura del cifrado, tamaño de los botones del editor y sonido por el parlante
 - [ ] En iPhone, un enlace compartido se abre en Safari y la canción queda ahí, no en la app instalada

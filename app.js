@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.25';
+  const VERSION = '0.26';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -29,6 +29,7 @@
   const settings = Object.assign({ theme: 'dark', choruses: 3, countIn: true }, load(SETTINGS, {}));
   if (typeof settings.choruses !== 'number') settings.choruses = 3;
   settings.hints = settings.hints || {};
+  if (!['letras', 'jazz', 'latino', 'grados'].includes(settings.notation)) settings.notation = 'letras';
   // Canciones incluidas ya entregadas a este teléfono: { id: huella del contenido }.
   // Quien venía de una versión anterior ya tuvo los tres ejemplos: no se le vuelven a agregar si los borró.
   if (!settings.builtins) settings.builtins = firstRun ? {} : { 'demo-blues': '', 'demo-bossa': '', 'demo-vals': '' };
@@ -46,7 +47,7 @@
   // `trail` copia el historial del navegador para que "volver" suba un nivel (canción → lista → biblioteca)
   // en vez de repasar pantallas viejas: así el botón Atrás del teléfono hace lo mismo que la flecha de arriba.
   const here = () => location.hash || '#/';
-  let trail = [], swapping = false, jumping = false;
+  let trail = [], swapping = false, jumping = false, guard = null;
   try { trail = JSON.parse(sessionStorage.getItem('airrial.trail')) || []; } catch { /* sin recorrido guardado */ }
   if (trail[trail.length - 1] !== here()) trail = [here()];
   // Reemplaza la pantalla actual sin sumar un paso al historial.
@@ -198,7 +199,14 @@
   }
   const shareBlob = async (blob, name, title) => { if (await shareBlobs([[blob, name]], title)) toast('Archivo descargado.'); };
   // Páginas (o imagen larga) de una canción, tal como se ve: con su transposición actual.
-  const drawSong = (s, paged) => Exporter.render(s, paged, { before: [s.composer, styleName(s.style).replace(/ \(.*/, '')], after: [s.ts, s.tempo + ' bpm'] });
+  const drawSong = (s, paged) => {
+    Music.setView({ notation: settings.notation, key: s.key });
+    try {
+      return Exporter.render(s, paged, { before: [s.composer, styleName(s.style).replace(/ \(.*/, '')], after: [s.ts, s.tempo + ' bpm'] });
+    } finally {
+      Music.setView(null);
+    }
+  };
   const SHARE_WAYS = [
     ['file', 'Archivo', 'Se abre en Airrial tocando el título'],
     ['pdf', 'PDF', 'Para ver o imprimir, sin la app'],
@@ -320,6 +328,19 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     return `<b>${esc(d.root)}</b>${d.qual ? `<i>${esc(d.qual)}</i>` : ''}${d.bass ? `<u>/${esc(d.bass)}</u>` : ''}`;
   }
 
+  const SEGNO = '<svg class="mk" viewBox="0 0 24 24" role="img" aria-label="Segno"><path d="M16.5 7.5c-.8-2.6-7.5-2.9-7.5 1 0 3.6 7 2.6 7 6.8 0 3.8-6.6 3.6-7.6.9"/><path d="M6 20 18 4"/><circle class="dot" cx="6" cy="10.5" r="1.3"/><circle class="dot" cx="18" cy="13.5" r="1.3"/></svg>';
+  const CODA = '<svg class="mk" viewBox="0 0 24 24" role="img" aria-label="Coda"><ellipse cx="12" cy="12" rx="5.5" ry="7.5"/><path d="M12 1.5v21M2 12h20"/></svg>';
+  // Anotación de un compás: Segno y Coda van con su símbolo; Fine, D.C., D.S. y "al Coda" van a la derecha,
+  // que es donde se leen (al terminar el compás); el texto libre queda en cursiva.
+  function markHtml(b) {
+    if (!b.text) return '';
+    const m = Music.markOf(b);
+    if (m === 'segno') return `<span class="txt mark">${SEGNO}</span>`;
+    if (m === 'coda') return `<span class="txt mark">${CODA}</span>`;
+    if (m === 'alcoda') return `<span class="txt jump">al ${CODA}</span>`;
+    return `<span class="txt${m ? ' jump' : ''}">${esc(b.text)}</span>`;
+  }
+
   // Con `sel` (lugar marcado, o -1) dibuja la versión editable: todos los lugares se pueden tocar.
   function barHtml(b, i, semis, flats, sel) {
     const edit = sel !== undefined;
@@ -344,7 +365,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const size = ['n1', 'n2', 'n3'][Math.min(2, (frac >= 1 ? 0 : frac >= 0.5 ? 1 : 2) + long)];
     const lab = (b.section ? `<span class="sec">${esc(b.section)}</span>` : '') +
       (b.ending ? `<span class="end">${b.ending}.</span>` : '') +
-      (b.text ? `<span class="txt">${esc(b.text)}</span>` : '');
+      markHtml(b);
     const cols = !edit && n <= B ? `grid-template-columns:repeat(${B},minmax(0,1fr))` : 'grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)';
     return `<div class="bar${b.repStart ? ' rs' : ''}${b.repEnd ? ' re' : ''}" data-i="${i}">` +
       `<div class="lab">${lab}</div><div class="cell ${size}">` +
@@ -768,6 +789,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
             <label class="fld">Estilo<select id="style" aria-label="Estilo">${STYLES.map(s => `<option value="${s[0]}"${s[0] === song.style ? ' selected' : ''}>${s[1]}</option>`).join('')}</select></label>
             <label class="fld">Vueltas<select id="reps" aria-label="Vueltas">${[1, 2, 3, 4, 6, 999].map(n => `<option value="${n}"${n === settings.choruses ? ' selected' : ''}>${n === 999 ? 'Sin fin' : n + (n === 1 ? ' vuelta' : ' vueltas')}</option>`).join('')}</select></label>
           </div>
+          <div class="r">
+            <label class="fld">Ver los acordes como<select id="notation">${[['letras', 'Letras: C, Dm7, Gmaj7'], ['jazz', 'Jazz: C, D-7, G△7'], ['latino', 'Do, Re, Mi: Do, Rem7, Solmaj7'], ['grados', 'Grados: I, IIm7, Vmaj7']]
+              .map(o => `<option value="${o[0]}"${o[0] === settings.notation ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
+          </div>
           <div class="mixer">
             ${slider('bass', 'Bajo')}${slider('keys', 'Teclado')}${slider('drums', 'Batería')}${slider('click', 'Claqueta')}
             <label class="chk"><input type="checkbox" id="countin"${settings.countIn ? ' checked' : ''}> Un compás de cuenta previa</label>
@@ -805,7 +830,9 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const semis = song.transpose || 0;
       const key = keyOf(song, bars);
       const flats = Music.useFlats(key, semis);
+      Music.setView({ notation: settings.notation, key: song.key });
       chart.innerHTML = chartHtml(bars, semis, flats, colsOf(song));
+      Music.setView(null);
       fitChords(chart);
       markFrom();
       $('#key').textContent = song.key ? Music.transposeName(song.key, semis, flats) : (semis > 0 ? '+' : '') + semis;
@@ -969,6 +996,12 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       else if (t.id === 'style') { song.style = t.value; saveSongs(); restart(); }
       else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
+      else if (t.id === 'notation') {
+        settings.notation = t.value;
+        saveSettings();
+        draw();
+        if (t.value === 'grados' && !song.key) toast('Para ver los grados, cargá la tonalidad de la canción en Editar.');
+      }
     };
   }
 
@@ -1073,7 +1106,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     'sus2', '7#5', '7b5', '7#11', '11', 'm11', 'mMaj7', '6/9', '7alt', '5',
   ];
   const PARTS = ['A', 'B', 'C', 'D', 'Intro', 'Estribillo', 'Puente', 'Solo', 'Final'];
-  const NOTES = ['Fine', 'D.C.', 'D.S.', 'Segno', 'Coda', 'Al Coda'];
+  const NOTES = ['Segno', 'Coda', 'Al Coda', 'Fine', 'D.C.', 'D.C. al Fine', 'D.C. al Coda', 'D.S.', 'D.S. al Fine', 'D.S. al Coda'];
   const plainAcc = a => (a === '♯' ? '#' : a === '♭' ? 'b' : a);
   const chordText = c => c.letter + plainAcc(c.acc) + c.qual +
     (c.bassLetter ? '/' + c.bassLetter + plainAcc(c.bassAcc) : '');
@@ -1181,11 +1214,13 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         group('Casilla', [1, 2, 3].map(n => btn('end', n, n + '.', b.ending === n)).join('')) +
         group('En el lugar marcado',
           btn('sym', 'N.C.', 'N.C. Silencio', it === 'N.C.') + btn('sym', '.', '· Alargar el anterior', it === '.')) +
-        group('Anotación', NOTES.map(s => btn('txt', s, s, b.text === s)).join('') +
+        group('Saltos y anotaciones', NOTES.map(s => btn('txt', s, s, b.text === s)).join('') +
           btn('txt', '?', 'Otra…', !!b.text && !NOTES.includes(b.text))) +
         group('Cambio de compás', METERS.map(m => btn('ts', m, m, meter === m)).join('')) +
         group('Compases', btn('insb', '', '+ Antes') + btn('insa', '', '+ Después') + btn('brk', '', 'Pasar a renglón nuevo') +
           btn('join', '', 'Subir al renglón anterior') + btn('delbar', '', 'Borrar compás') +
+          btn('movl', '', '← Mover compás') + btn('movr', '', 'Mover compás →') +
+          btn('partup', '', '↑ Subir parte') + btn('partdn', '', '↓ Bajar parte') +
           btn('copy', '', 'Copiar compás') + btn('copypart', '', 'Copiar parte') +
           (clip ? btn('paste', '', clip.length === 1 ? 'Pegar compás' : `Pegar ${clip.length} compases`) : '')) +
         '</div>';
@@ -1245,10 +1280,51 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     // Al salir del editor se vuelve a la canción tal como se había abierto (suelta o dentro de una lista).
     const before = trail.slice(0, -1).reverse();
     const songHash = before.find(h => h.startsWith('#/s/' + song.id)) || '#/s/' + song.id;
-    const leave = () => up(existing ? songHash : '#/');
+    // Lo que hay ahora en el editor, para saber si cambió algo desde que se abrió.
+    let clean = '';
+    const snapshot = () => {
+      readFields();
+      return JSON.stringify([song.title, song.composer, song.style, song.ts, song.key, song.tempo, colsOf(song),
+        mode === 'grid' ? Music.serialize(bars) : $('#f-chart').value]);
+    };
+    const mayLeave = () => snapshot() === clean || confirm('Hay cambios sin guardar. ¿Salir sin guardarlos?');
+    const leave = () => {
+      if (!mayLeave()) return;
+      guard = null;
+      up(existing ? songHash : '#/');
+    };
     const ask = (msg, val, bad) => {
       const r = prompt(msg, val || '');
       return r === null ? null : r.replace(bad, '').trim();
+    };
+    // Cambia de lugar el compás marcado con su vecino; cada uno ocupa el renglón que tenía el otro.
+    const moveBar = d => {
+      const i = cur.b, j = i + d;
+      if (j < 0 || j >= bars.length) return;
+      [bars[i].row, bars[j].row] = [bars[j].row, bars[i].row];
+      [bars[i], bars[j]] = [bars[j], bars[i]];
+      go(j, cur.k);
+    };
+    // Cambia de lugar la parte del compás marcado con la de al lado. Una parte va desde su letra de ensayo
+    // hasta la siguiente; cada una conserva sus cortes de renglón y empieza en renglón nuevo.
+    const movePart = d => {
+      const starts = [];
+      bars.forEach((b, i) => { if (i === 0 || b.section) starts.push(i); });
+      const chunks = starts.map((a, n) => bars.slice(a, n + 1 < starts.length ? starts[n + 1] : bars.length));
+      const p = chunks.findIndex(ch => ch.includes(bars[cur.b])), q = p + d;
+      if (q < 0 || q >= chunks.length) return;
+      const marked = bars[cur.b];
+      [chunks[p], chunks[q]] = [chunks[q], chunks[p]];
+      let row = -1;
+      bars = chunks.flatMap(chunk => {
+        let was = null;
+        return chunk.map(b => {
+          if (b.row !== was) { row++; was = b.row; }
+          b.row = row;
+          return b;
+        });
+      });
+      go(bars.indexOf(marked), cur.k);
     };
     // Con algo recién escrito en el lugar marcado, lo siguiente pasa al próximo lugar si está libre.
     const advance = () => {
@@ -1380,6 +1456,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         bars.splice(end + 1, 0, ...copies);
         go(end + 1, 0);
       },
+      movl: () => moveBar(-1),
+      movr: () => moveBar(1),
+      partup: () => movePart(-1),
+      partdn: () => movePart(1),
       delbar: () => {
         if (bars.length > 1) bars.splice(cur.b, 1); else bars = [blank(0)];
         go(Math.min(cur.b, bars.length - 1), 0);
@@ -1403,6 +1483,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         const i = songs.findIndex(s => s.id === song.id);
         if (i >= 0) songs[i] = song; else songs.push(song);
         saveSongs();
+        guard = null;
         if (existing) up(songHash); else swap('#/s/' + song.id);
       },
       delete: () => {
@@ -1411,6 +1492,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         saveSongs();
         lists.forEach(l => { l.songs = l.songs.filter(x => x !== song.id); });
         saveLists();
+        guard = null;
         up(before.find(h => !h.startsWith('#/s/' + song.id) && !h.startsWith('#/e/')) || '#/');
       },
       // La copia lleva lo que hay en pantalla; la original queda como estaba guardada.
@@ -1420,6 +1502,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         const copy = { ...song, id: newId(), title: (song.title || 'Sin título') + ' (copia)', chart };
         songs.push(copy);
         saveSongs();
+        guard = null;
         swap('#/e/' + copy.id);
       },
     };
@@ -1504,10 +1587,13 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       else if (e.target.id === 'f-ts' || need) draw();
     };
     drawBody();
+    clean = snapshot();
+    guard = mayLeave;
   }
 
   // --- navegación ---
   function route() {
+    guard = null;
     Engine.stop();
     wake(false);
     const [kind, id, extra] = location.hash.slice(2).split('/');
@@ -1520,7 +1606,16 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     else libraryView();
     window.scrollTo(0, 0);
   }
-  window.addEventListener('hashchange', () => { syncTrail(); route(); });
+  // `guard` lo pone el editor: con cambios sin guardar, pregunta antes de dejar salir con el botón Atrás.
+  // Si la persona se arrepiente, se vuelve a la dirección del editor sin redibujar nada.
+  let restoring = false;
+  window.addEventListener('hashchange', () => {
+    if (restoring) { restoring = false; return; }
+    const n = trail.length, back = n > 1 && trail[n - 2] === here();
+    if (guard && back && !guard()) { restoring = true; history.forward(); return; }
+    syncTrail();
+    route();
+  });
   route();
 
   // --- canciones incluidas con la app (incluidas.json) ---

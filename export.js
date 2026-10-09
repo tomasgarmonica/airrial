@@ -23,6 +23,25 @@ const Exporter = (() => {
     for (const d of [-14, 14]) { g.beginPath(); g.arc(x, mid + d, 4.5, 0, 7); g.fill(); }
   };
 
+  function drawCoda(g, cx, cy) {
+    g.save();
+    g.lineWidth = 2.5;
+    g.beginPath(); g.ellipse(cx, cy, 8, 11, 0, 0, 7); g.stroke();
+    g.fillRect(cx - 1.25, cy - 16, 2.5, 32);
+    g.fillRect(cx - 14, cy - 1.25, 28, 2.5);
+    g.restore();
+  }
+  function drawSegno(g, cx, cy) {
+    g.save();
+    g.font = `italic bold 30px Georgia, 'Times New Roman', serif`;
+    g.textAlign = 'center';
+    g.fillText('S', cx, cy + 11);
+    g.lineWidth = 2.5;
+    g.beginPath(); g.moveTo(cx - 11, cy + 14); g.lineTo(cx + 11, cy - 14); g.stroke();
+    for (const [dx, dy] of [[-11, -3], [11, 3]]) { g.beginPath(); g.arc(cx + dx, cy + dy, 2.4, 0, 7); g.fill(); }
+    g.restore();
+  }
+
   // Renglones de hasta `cols` compases, respetando los cortes de renglón del cifrado.
   function rowsOf(bars, cols) {
     const rows = [];
@@ -84,10 +103,19 @@ const Exporter = (() => {
       lx += 44;
     }
     if (b.text) {
-      g.font = `italic 22px ${FONT}`;
-      g.fillStyle = '#444';
-      g.fillText(b.text, lx, y + 30);
-      g.fillStyle = '#000';
+      const mark = Music.markOf(b);
+      if (mark === 'segno') drawSegno(g, lx + 14, y + 20);
+      else if (mark === 'coda') drawCoda(g, lx + 14, y + 20);
+      else {
+        // Fine, D.C., D.S. y "al Coda" van a la derecha; el texto libre, a la izquierda y en cursiva.
+        const label = mark === 'alcoda' ? 'al' : b.text, sign = mark === 'alcoda' ? 30 : 0;
+        g.font = `${mark ? '600' : 'italic'} 22px ${FONT}`;
+        g.fillStyle = mark ? '#000' : '#444';
+        const tw = g.measureText(label).width, tx = mark ? x + w - 12 - tw - sign : lx;
+        g.fillText(label, tx, y + 30);
+        if (sign) drawCoda(g, tx + tw + 18, y + 21);
+        g.fillStyle = '#000';
+      }
     }
     // barras de compás y repeticiones
     let left = x + 12, right = x + w - 8;
