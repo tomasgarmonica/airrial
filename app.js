@@ -9,7 +9,8 @@
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
   const STYLES = [
-    ['swing', 'Swing'], ['bossa', 'Bossa'], ['samba', 'Samba'], ['pop', 'Pop / Rock'], ['balada', 'Balada'],
+    ['swing', 'Swing'], ['shuffle', 'Blues / Shuffle'], ['bossa', 'Bossa'], ['samba', 'Samba'], ['pop', 'Pop / Rock'], ['balada', 'Balada'],
+    ['funk', 'Funk'], ['reggae', 'Reggae'], ['bolero', 'Bolero'],
     ['tango', 'Tango'], ['milonga', 'Milonga'], ['candombe', 'Candombe'], ['cumbia', 'Cumbia'],
     ['chacarera', 'Chacarera (6/8)'], ['zamba', 'Zamba (6/8)'], ['vals', 'Vals (3/4)'], ['click', 'Solo metrónomo'],
   ];

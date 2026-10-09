@@ -329,6 +329,84 @@ const Engine = (() => {
         if (c) chordHit(t + i * e, voice(c), e * 0.6, 0.85);
       }
     },
+    // Corcheas atresilladas en el platillo, redoblante en 2 y 4 y bajo de boogie: en cada tiempo un par de
+    // notas iguales que recorre fundamental, quinta, sexta y quinta (y vuelve a la fundamental al cambiar de acorde).
+    shuffle(t, bd, x) {
+      const late = bd * 2 / 3;
+      let step = 0, root = null;
+      for (let b = 0; b < 4; b++) {
+        const tb = t + b * bd, c = x.at(b);
+        hat(tb, 0.2); hat(tb + late, 0.12);
+        if (b % 2) snare(tb, 0.55); else kick(tb, b ? 0.7 : 0.9);
+        if (!c) { step = 0; continue; }
+        if (b === 0 || c !== x.at(b - 1)) { step = 0; root = rootOf(c); }
+        const iv = [0, c.iv[1], 9, c.iv[1]][step++ % 4];
+        const m = iv ? near((c.root + iv) % 12, root + iv) : root;
+        bass(tb, m, late * 0.9, 0.95);
+        bass(tb + late, m, (bd - late) * 0.9, 0.7);
+      }
+      for (const s of x.segs) if (s.chord) chordHit(t + s.beat * bd, voice(s.chord), bd * 0.5, 0.8);
+      for (const b of [1, 3]) {
+        const c = x.at(b + 2 / 3);
+        if (c) chordHit(t + b * bd + late, voice(c), bd * 0.25, 0.7);
+      }
+    },
+    // Semicorcheas: bombo sincopado, redoblante en 2 y 4 con notas fantasma, bajo entrecortado con la octava
+    // y acordes cortos a contratiempo.
+    funk(t, bd, x) {
+      const s = bd / 4;
+      for (let i = 0; i < 16; i++) hat(t + i * s, i % 4 === 0 ? 0.2 : i % 2 ? 0.07 : 0.13);
+      for (const [i, v] of [[0, 0.95], [3, 0.5], [6, 0.7], [10, 0.8]]) kick(t + i * s, v);
+      snare(t + 4 * s, 0.6); snare(t + 12 * s, 0.6);
+      for (const i of [7, 9, 15]) snare(t + i * s, 0.12);
+      // [semicorchea, nota, duración en semicorcheas, fuerza]: f = fundamental, o = octava, q = quinta
+      for (const [i, note, d, v] of [[0, 'f', 1.6, 1], [3, 'o', 0.7, 0.8], [6, 'f', 0.8, 0.9], [10, 'q', 0.8, 0.8], [11, 'f', 1.5, 0.95], [14, 'q', 0.8, 0.7]]) {
+        const c = x.at(i / 4);
+        if (!c) continue;
+        const r = rootOf(c), m = note === 'o' ? (r + 12 <= 55 ? r + 12 : r) : note === 'q' ? near((c.root + c.iv[1]) % 12, r) : r;
+        bass(t + i * s, m, s * d, v);
+      }
+      for (const i of [2, 7, 10, 13]) {
+        const c = x.at(i / 4);
+        if (c) chordHit(t + i * s, voice(c), s * 0.8, 0.8);
+      }
+    },
+    // "One drop": bombo y aro juntos en el 3, acordes cortos en 2 y 4 (el skank) y un bajo que deja libre el 1.
+    reggae(t, bd, x) {
+      const e = bd / 2;
+      for (let i = 0; i < 8; i++) hat(t + i * e, i % 2 ? 0.18 : 0.08);
+      kick(t + 2 * bd, 0.9); rim(t + 2 * bd, 0.45);
+      for (const b of [1, 3]) {
+        const c = x.at(b), late = x.at(b + 0.5);
+        if (c) chordHit(t + b * bd, voice(c), bd * 0.3, 0.9);
+        if (late) chordHit(t + (b + 0.5) * bd, voice(late), bd * 0.2, 0.4);
+      }
+      // [tiempo, nota, duración en tiempos, fuerza]: f = fundamental, t = tercera, q = quinta
+      for (const [b, note, d, v] of [[1, 'f', 0.45, 0.95], [1.5, 'f', 0.45, 0.8], [2, 't', 0.9, 0.9], [3, 'q', 0.45, 0.85], [3.5, 'f', 0.45, 0.8]]) {
+        const c = x.at(b);
+        if (!c) continue;
+        const r = rootOf(c);
+        bass(t + b * bd, note === 'f' ? r : near((c.root + c.iv[note === 't' ? 0 : 1]) % 12, r + 4), bd * d, v);
+      }
+    },
+    // Maracas en corcheas, bajo en 1, 3 y 4, y el acorde arpegiado suave, una nota por corchea.
+    bolero(t, bd, x) {
+      const e = bd / 2;
+      for (let i = 0; i < 8; i++) shaker(t + i * e, i % 2 ? 0.1 : 0.17, 0.05);
+      rim(t + bd, 0.2); rim(t + 3 * bd, 0.2);
+      tom(t + 3.5 * bd, 180, 0.25, 0.12);
+      const c0 = x.at(0), c2 = x.at(2), c3 = x.at(3);
+      if (c0) bass(t, rootOf(c0), bd * 1.9, 1);
+      if (c2) bass(t + 2 * bd, c2 === c0 ? fifthOf(c2) : rootOf(c2), bd * 0.9, 0.85);
+      if (c3) bass(t + 3 * bd, rootOf(c3), bd * 0.9, 0.8);
+      for (let i = 0; i < 8; i++) {
+        const c = x.at(i / 2);
+        if (!c) continue;
+        const v = voice(c).slice().sort((a, b) => a - b);
+        // sube y baja por las notas del acorde; la primera corchea de cada acorde suena un poco más
+        chordHit(t + i * e, [v[[0, 1, 2, 1][i % 4] % v.length]], e * 1.8, i % 4 ? 0.6 : 0.8);
+      }
+    },
     // Seis corcheas por compás (6/8 o 3/4): bombo legüero con el parche en 2 y 3, bajo en negras.
     chacarera(t, bd, x, B) {
       const e = bd * B / 6, at = i => x.at(i * B / 6);

@@ -49,8 +49,10 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Instrumentos grabados en lugar de sonidos sintetizados (ver `GRABACION.md`)
 - [ ] Patrones más musicales por estilo, con variaciones y remates al final de cada parte
 - [x] Ritmos nuevos: samba, tango, milonga, candombe, cumbia, chacarera, zamba y vals (falta afinarlos de oído)
-- [ ] Revisar de oído cada ritmo nuevo y corregir lo que no suene al género
-- [ ] Más ritmos: blues/shuffle, funk, reggae, bolero, salsa/son, chamamé, carnavalito/huayno, murga, vals peruano, afro 6/8
+- [ ] Revisar de oído cada ritmo nuevo y corregir lo que no suene al género (incluye shuffle, funk, reggae y bolero, escritos sin poder escucharlos)
+- [x] Ritmos nuevos: blues/shuffle, funk, reggae y bolero (en 4/4)
+- [ ] Más ritmos: salsa/son, chamamé, carnavalito/huayno, murga, vals peruano, afro 6/8
+- [ ] Shuffle: que un corte o una anticipación en el "y" de un tiempo caiga atresillado, como en swing
 - [ ] Milonga, samba y cumbia en 2/4 (hoy solo en 4/4)
 
 ## 5. Para tocar en vivo

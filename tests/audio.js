@@ -31,7 +31,7 @@ const charts = {
   '3/4': '| Am | Dm | E7 . Am | % |\n| F C | N.C. | E7 | Am |',
   '5/4': '| Am | Dm E7 | % | Am |',
 };
-const styles = ['swing', 'bossa', 'samba', 'pop', 'balada', 'tango', 'milonga', 'candombe', 'cumbia', 'chacarera', 'zamba', 'vals', 'click'];
+const styles = ['swing', 'shuffle', 'bossa', 'samba', 'pop', 'balada', 'funk', 'reggae', 'bolero', 'tango', 'milonga', 'candombe', 'cumbia', 'chacarera', 'zamba', 'vals', 'click'];
 let fail = 0;
 for (const style of styles) for (const ts of Object.keys(charts)) {
   const tsn = ts.split('/').map(Number);

@@ -49,7 +49,7 @@ function play(chart, style, ts = [4, 4], extra = {}) {
 }
 
 // A 120, un compás de 4/4 dura 2 segundos y cada tiempo medio segundo.
-const STYLES = ['swing', 'bossa', 'samba', 'pop', 'balada', 'tango', 'milonga', 'candombe', 'cumbia'];
+const STYLES = ['swing', 'shuffle', 'bossa', 'samba', 'pop', 'balada', 'funk', 'reggae', 'bolero', 'tango', 'milonga', 'candombe', 'cumbia'];
 
 // 1) corte en el "y" del 4, un compás vacío, y vuelve en el compás siguiente
 for (const style of STYLES) {
