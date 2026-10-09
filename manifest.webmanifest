@@ -31,6 +31,9 @@
         {
           "name": "archivo",
           "accept": [
+            "text/html",
+            ".html",
+            ".htm",
             "text/plain",
             ".txt",
             "application/json",

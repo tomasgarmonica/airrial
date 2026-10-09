@@ -57,7 +57,9 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Tamaño de letra y cantidad de compases por renglón ajustables
 - [ ] Notas por tema (letra, forma, indicaciones)
 - [ ] Otras formas de ver el cifrado: símbolos de jazz (△7, -7, ø), Do-Re-Mi, grados (I, IV, V)
-- [x] Exportar una canción a PDF o imagen, y una lista entera a un solo PDF
+- [x] Exportar una canción a PDF o imagen (a tamaño hoja), y una lista entera a un solo PDF
+- [x] El archivo para compartir es una página .html: muestra el título como enlace y el enlace lleva todo el contenido
+- [ ] Probar en celulares reales cómo se abre el .html recibido (Android e iPhone) y hasta qué tamaño de lista funciona el enlace
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
 - [ ] Carpetas o etiquetas en la biblioteca
 

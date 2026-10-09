@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.17';
+  const VERSION = '0.18';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -143,6 +143,11 @@
     setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
 
+  // Texto de un archivo de Airrial → datos. Acepta la exportación (JSON) y la página .html que se comparte.
+  const parseFile = text => {
+    const m = /<script[^>]*id="airrial-data"[^>]*>([\s\S]*?)<\/script>/.exec(text);
+    return JSON.parse(m ? m[1] : text);
+  };
   // Canciones y listas de un archivo exportado o recibido, ya revisadas.
   const readData = data => ({
     songs: (Array.isArray(data) ? data : (data && data.songs) || []).filter(s => s && typeof s.chart === 'string').map(cleanSong),
@@ -179,38 +184,56 @@
   }
   // Comparte un archivo de texto con los datos; quien lo recibe lo abre con Airrial o con Menú → Importar.
   const safeName = name => name.replace(/[\\/:*?"<>|]/g, '').trim() || 'airrial';
-  // Comparte un archivo ya armado (PDF o imagen); si el teléfono no lo permite, lo descarga.
-  async function shareBlob(blob, name, title) {
-    const file = new File([blob], name, { type: blob.type });
+  // Comparte archivos ya armados (PDF, imágenes, página); si el teléfono no lo permite, los descarga.
+  async function shareBlobs(items, title) {
+    const files = items.map(([blob, name]) => new File([blob], name, { type: blob.type }));
     try {
-      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title }); return; }
+      if (navigator.canShare && navigator.canShare({ files })) { await navigator.share({ files, title }); return false; }
     } catch (e) {
-      if (e.name === 'AbortError') return;
+      if (e.name === 'AbortError') return false;
     }
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = name;
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
-    toast('Archivo descargado.');
+    for (const [blob, name] of items) {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      a.click();
+      setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+    }
+    return true;
   }
+  const shareBlob = async (blob, name, title) => { if (await shareBlobs([[blob, name]], title)) toast('Archivo descargado.'); };
   // Páginas (o imagen larga) de una canción, tal como se ve: con su transposición actual.
   const drawSong = (s, paged) => Exporter.render(s, paged, { before: [s.composer, styleName(s.style).replace(/ \(.*/, '')], after: [s.ts, s.tempo + ' bpm'] });
   const SHARE_WAYS = [
-    ['link', 'Enlace', 'Se abre con un toque en Airrial'],
-    ['file', 'Archivo de Airrial', 'Se abre y se edita en Airrial'],
+    ['link', 'Enlace', 'Se abre con un toque; largo si hay mucho contenido'],
+    ['file', 'Archivo', 'Sin límite de tamaño; se abre tocando el título'],
     ['pdf', 'PDF', 'Para ver o imprimir, sin la app'],
   ];
-  async function shareFile(name, data) {
-    const safe = safeName(name) + '.airrial.txt';
-    const file = new File([JSON.stringify(data)], safe, { type: 'text/plain' });
-    try {
-      if (navigator.canShare && navigator.canShare({ files: [file] })) { await navigator.share({ files: [file], title: name }); return; }
-    } catch (e) {
-      if (e.name === 'AbortError') return;
+  // Archivo para compartir: una página con el título como enlace. El enlace lleva todo el contenido,
+  // así que al tocarlo la app lo importa; la página también guarda los datos para Menú → Importar.
+  async function shareFile(name, data, code) {
+    const url = location.origin + location.pathname + '#/i/' + code;
+    const isList = data.lists && data.lists.length;
+    const rows = isList ? data.songs.map((s, i) => `<li>${esc(s.title)}${s.composer ? ` <small>${esc(s.composer)}</small>` : ''}</li>`).join('') : '';
+    const sub = isList ? count(data.songs.length) : [data.songs[0].composer, styleName(data.songs[0].style).replace(/ \(.*/, ''), data.songs[0].key].filter(Boolean).join(' · ');
+    const page = `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>${esc(name)} · Airrial</title>
+<style>body{font:17px/1.5 system-ui,sans-serif;margin:0;padding:28px 20px;background:#111318;color:#f2f3f5}
+main{max-width:520px;margin:0 auto}p{color:#9aa0ab;margin:.3em 0 1.4em}small{color:#9aa0ab}
+a.open{display:block;background:#f5b942;color:#1a1300;font-weight:700;font-size:1.25rem;text-decoration:none;padding:18px 20px;border-radius:14px}
+a.open span{display:block;font-weight:400;font-size:.85rem;margin-top:2px}ol{padding-left:1.4em;color:#f2f3f5}li{margin:.25em 0}</style></head>
+<body><main>
+<a class="open" href="${esc(url)}">${esc(name)}<span>Tocá para abrir en Airrial</span></a>
+<p>${esc(sub)}</p>
+${rows ? `<ol>${rows}</ol>` : ''}
+<p>Si el enlace no abre, entrá a airrial.ar, andá a Menú → Importar y elegí este archivo.</p>
+</main>
+<script type="application/json" id="airrial-data">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>
+</body></html>`;
+    if (await shareBlobs([[new Blob([page], { type: 'text/html' }), safeName(name) + '.airrial.html']], name)) {
+      toast('Archivo descargado. Mandalo como adjunto: quien lo reciba lo abre y toca el título.');
     }
-    download(safe, data);
-    toast('Archivo descargado. Quien lo reciba lo abre con Menú → Importar.');
   }
 
   function toast(msg) {
@@ -325,7 +348,7 @@
         <button data-a="import">Importar canciones y listas</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="close">Cerrar</button>
-        <input type="file" id="file" accept=".json,.txt,application/json,text/plain" hidden>
+        <input type="file" id="file" accept=".json,.txt,.html,.htm,application/json,text/plain,text/html" hidden>
       </div></dialog>`;
     const list = $('#list'), q = $('#q');
     const draw = () => {
@@ -387,7 +410,7 @@
     app.onchange = async e => {
       if (e.target.id !== 'file' || !e.target.files[0]) return;
       try {
-        const incoming = readData(JSON.parse(await e.target.files[0].text()));
+        const incoming = readData(parseFile(await e.target.files[0].text()));
         mergeData(incoming);
         $('#menu').close();
         draw();
@@ -500,14 +523,14 @@
         if (!mine.length) { toast('La lista está vacía: agregale temas antes de compartirla.'); return; }
         const pack = { app: 'airrial', version: 1, songs: mine, lists: [list] };
         const how = await choose('Compartir esta lista', SHARE_WAYS);
-        if (how === 'file') { shareFile(list.name, pack); return; }
+        if (how === 'file') { shareFile(list.name, pack, await packList(list)); return; }
         // Todas las canciones de la lista en un solo PDF, cada una empezando en hoja nueva.
         if (how === 'pdf') { shareBlob(await Exporter.pdf(mine.flatMap(s => drawSong(s, true))), safeName(list.name) + '.pdf', list.name); return; }
         if (how !== 'link') return;
         const url = location.origin + location.pathname + '#/i/' + await packList(list);
         if (url.length <= 8000) { shareUrl(list.name, `${list.name} (lista de temas en Airrial)`, url); return; }
-        toast('La lista es muy larga para un enlace: va como archivo.');
-        shareFile(list.name, pack);
+        toast('La lista es muy larga para un enlace suelto: va como archivo.');
+        shareFile(list.name, pack, url.split('#/i/')[1]);
       },
       rm: el => change(() => { list.songs.splice(+el.dataset.v, 1); }),
       add: () => {
@@ -688,9 +711,16 @@
       share: async () => {
         const how = await choose('Compartir esta canción', [...SHARE_WAYS, ['png', 'Imagen', 'Para ver en cualquier chat']]);
         if (how === 'link') shareUrl(song.title, `${song.title} (cifrado en Airrial)`, location.origin + location.pathname + '#/i/' + await packSong(song));
-        else if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] });
+        else if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] }, await packSong(song));
         else if (how === 'pdf') shareBlob(await Exporter.pdf(drawSong(song, true)), safeName(song.title) + '.pdf', song.title);
-        else if (how === 'png') shareBlob(await Exporter.png(drawSong(song, false)[0]), safeName(song.title) + '.png', song.title);
+        else if (how === 'png') {
+          // Una imagen por hoja, del mismo tamaño que las del PDF.
+          const pages = drawSong(song, true), items = [];
+          for (let i = 0; i < pages.length; i++) {
+            items.push([await Exporter.png(pages[i]), safeName(song.title) + (pages.length > 1 ? ` (${i + 1})` : '') + '.png']);
+          }
+          if (await shareBlobs(items, song.title)) toast(items.length > 1 ? 'Imágenes descargadas.' : 'Imagen descargada.');
+        }
       },
       play: () => { if (Engine.isPlaying()) { Engine.stop(); setPlaying(false); } else start(); },
       slower: () => setTempo(song.tempo - 4),
@@ -832,7 +862,7 @@
       const box = await caches.open('airrial-inbox'), res = await box.match('recibido');
       if (!res) { if (here() === '#/r') swap('#/'); return; }
       await box.delete('recibido');
-      got = readData(JSON.parse(await res.text()));
+      got = readData(parseFile(await res.text()));
     } catch { /* archivo ilegible */ }
     if (here() !== '#/r') return;
     const head = (title, save) => `<header class="top"><button class="tx" data-a="cancel">${save ? 'Cancelar' : 'Volver'}</button>
