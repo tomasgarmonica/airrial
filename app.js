@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.22';
+  const VERSION = '0.23';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -340,7 +340,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const lab = (b.section ? `<span class="sec">${esc(b.section)}</span>` : '') +
       (b.ending ? `<span class="end">${b.ending}.</span>` : '') +
       (b.text ? `<span class="txt">${esc(b.text)}</span>` : '');
-    const cols = !edit && n <= B ? `grid-template-columns:repeat(${B},1fr)` : 'grid-auto-flow:column;grid-auto-columns:1fr';
+    const cols = !edit && n <= B ? `grid-template-columns:repeat(${B},minmax(0,1fr))` : 'grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)';
     return `<div class="bar${b.repStart ? ' rs' : ''}${b.repEnd ? ' re' : ''}" data-i="${i}">` +
       `<div class="lab">${lab}</div><div class="cell ${size}">` +
       (b.showTs ? `<span class="ts"><b>${b.ts[0]}</b><b>${b.ts[1]}</b></span>` : '') +
@@ -348,6 +348,35 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       (b.repEnd && b.times > 2 ? `<span class="tm">x${b.times}</span>` : '') +
       '</div></div>';
   }
+
+  // Ajusta la letra de cada acorde al lugar que tiene en su compás: lo más grande que entre, hasta un tope.
+  // Dentro de un compás, los acordes con el mismo espacio quedan del mismo tamaño.
+  const FIT_MAX = 30, FIT_MIN = 11;
+  function fitChords(root) {
+    const all = [...root.querySelectorAll('.cell .ch')];
+    for (const el of all) el.style.fontSize = FIT_MAX + 'px';
+    const sized = all.map(el => {
+      const room = el.clientWidth - 2;
+      return { el, room, need: el.scrollWidth || 1, size: Math.max(FIT_MIN, Math.min(FIT_MAX, Math.floor(FIT_MAX * room / (el.scrollWidth || 1)))) };
+    });
+    const bars = new Map();
+    for (const s of sized) {
+      const k = s.el.parentElement;
+      if (!bars.has(k)) bars.set(k, []);
+      bars.get(k).push(s);
+    }
+    for (const group of bars.values()) {
+      for (const s of group) s.final = Math.min(...group.filter(o => Math.abs(o.room - s.room) < 2).map(o => o.size));
+    }
+    for (const s of sized) {
+      s.el.style.fontSize = s.final + 'px';
+      // Si ni al mínimo entra y es el último del compás, se apoya contra la barra de la derecha
+      // y ocupa lugar libre hacia la izquierda, en vez de salirse del compás.
+      const spills = s.need * s.final / FIT_MAX > s.room + 2;
+      s.el.style.justifySelf = spills && !s.el.nextElementSibling && s.el.previousElementSibling ? 'end' : '';
+    }
+  }
+  window.addEventListener('resize', () => document.querySelectorAll('.chart').forEach(fitChords));
 
   function chartHtml(bars, semis, flats) {
     if (!bars.length) return '<p class="empty">Todavía no hay compases escritos.</p>';
@@ -705,6 +734,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const key = keyOf(song, bars);
       const flats = Music.useFlats(key, semis);
       chart.innerHTML = chartHtml(bars, semis, flats);
+      fitChords(chart);
       markFrom();
       $('#key').textContent = song.key ? Music.transposeName(song.key, semis, flats) : (semis > 0 ? '+' : '') + semis;
     };
@@ -920,6 +950,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         swap('#/l/' + l.id);
       };
     }
+    fitChords(app);
     bind(actions);
   }
 
@@ -953,6 +984,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         else swap('#/');
       };
     }
+    fitChords(app);
     bind(actions);
   }
 
@@ -1095,6 +1127,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         html += barHtml(b, i, 0, true, i === cur.b ? cur.k : -1);
       });
       $('#grid').innerHTML = html + '</div>';
+      fitChords($('#grid'));
       const old = $('.scroll', pad), keep = old && old.dataset.tab === tab ? old.scrollTop : 0;
       pad.innerHTML = `<div class="ptabs">${btn('tab', 'chords', 'Acordes', tab === 'chords')}${btn('tab', 'other', 'Otros', tab === 'other')}
         <span class="sp"></span><button type="button" data-a="undo" aria-label="Deshacer"${undo.length ? '' : ' disabled'}>${UNDO}</button>
@@ -1109,6 +1142,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const preview = () => {
       song.chart = $('#f-chart').value;
       $('#preview').innerHTML = chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true);
+      fitChords($('#preview'));
     };
     const drawBody = () => {
       $('.seg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === mode));

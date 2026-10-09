@@ -54,6 +54,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Compartir una lista entera por enlace (o como archivo si es muy larga)
 - [x] Reordenar la lista arrastrando
 - [x] Buscador al elegir los temas de una lista
+- [x] Los acordes se agrandan hasta ocupar el lugar que tienen en el compás (en pantalla, PDF e imagen)
 - [ ] Tamaño de letra y cantidad de compases por renglón ajustables
 - [ ] Notas por tema (letra, forma, indicaciones)
 - [ ] Otras formas de ver el cifrado: símbolos de jazz (△7, -7, ø), Do-Re-Mi, grados (I, IV, V)

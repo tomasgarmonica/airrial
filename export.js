@@ -3,6 +3,7 @@ const Exporter = (() => {
   // Medidas de una hoja A4 a 150 puntos por pulgada.
   const W = 1240, PAGE_H = 1754, M = 70, COLS = 4;
   const BAR_H = 104, LAB_H = 38, ROW_H = LAB_H + BAR_H + 14;
+  const CHORD_MAX = 50;
   const HEAD = 130, HEAD_NEXT = 64, FOOT = 56;
   const FONT = 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif';
 
@@ -33,31 +34,33 @@ const Exporter = (() => {
     return rows;
   }
 
-  // Un acorde dentro del ancho disponible; si no entra, se achica.
-  function drawToken(g, tk, x, base, room, size, semis, flats) {
-    if (tk === '_') return;
+  // Partes de un acorde (texto, fuente, desplazamiento, color) al tamaño s.
+  function pieces(tk, s, semis, flats) {
     const c = Music.parseChord(tk);
-    if (tk === '%' || !c) {
-      g.fillStyle = '#555';
-      g.font = `${tk === '%' ? Math.round(size * 0.9) : 24}px ${FONT}`;
-      g.fillText(tk, x, base);
-      g.fillStyle = '#000';
-      return;
-    }
+    if (tk === '%' || !c) return [[tk, `${Math.round(s * (tk === '%' ? 0.9 : 0.5))}px ${FONT}`, 0, '#555']];
     const d = Music.spell(c, semis, flats);
-    const parts = s => [
+    return [
       [d.root, `bold ${s}px ${FONT}`, 0],
       [d.qual, `600 ${Math.round(s * 0.6)}px ${FONT}`, -s * 0.3],
       [d.bass ? '/' + d.bass : '', `600 ${Math.round(s * 0.7)}px ${FONT}`, 0],
     ];
-    const width = s => parts(s).reduce((w, p) => { g.font = p[1]; return w + g.measureText(p[0]).width; }, 0);
-    let s = size;
-    while (s > 16 && width(s) > room) s -= 2;
-    for (const [text, font, dy] of parts(s)) {
+  }
+  // El tamaño más grande, hasta el tope, con el que el acorde entra en su lugar.
+  function fitSize(g, tk, room, semis, flats) {
+    let s = CHORD_MAX;
+    const width = () => pieces(tk, s, semis, flats).reduce((w, p) => { g.font = p[1]; return w + g.measureText(p[0]).width; }, 0);
+    while (s > 16 && width() > room) s -= 2;
+    return s;
+  }
+  function drawToken(g, tk, x, base, s, semis, flats) {
+    if (tk === '_') return;
+    for (const [text, font, dy, color] of pieces(tk, s, semis, flats)) {
       g.font = font;
+      g.fillStyle = color || '#000';
       g.fillText(text, x, base + dy);
       x += g.measureText(text).width;
     }
+    g.fillStyle = '#000';
   }
 
   function drawBar(g, b, x, y, w, last, semis, flats) {
@@ -105,15 +108,12 @@ const Exporter = (() => {
     const B = b.ts[0], n = b.items.length, pos = Music.positions(n, B), inner = right - left;
     const shown = [];
     b.items.forEach((it, k) => { if (it !== '.') shown.push(k); });
-    let minSpan = B;
-    const spans = shown.map((k, j) => {
-      const end = j + 1 < shown.length ? pos[shown[j + 1]] : B;
-      minSpan = Math.min(minSpan, end - pos[k]);
-      return end - pos[k];
-    });
-    const size = minSpan / B >= 1 ? 50 : minSpan / B >= 0.5 ? 38 : 28;
+    const rooms = shown.map((k, j) => ((j + 1 < shown.length ? pos[shown[j + 1]] : B) - pos[k]) / B * inner - 8);
+    const sizes = shown.map((k, j) => fitSize(g, b.items[k], rooms[j], semis, flats));
     shown.forEach((k, j) => {
-      drawToken(g, b.items[k], left + pos[k] / B * inner, mid + size * 0.36, spans[j] / B * inner - 6, size, semis, flats);
+      // los acordes con el mismo espacio quedan del mismo tamaño
+      const s = Math.min(...sizes.filter((_, i) => Math.abs(rooms[i] - rooms[j]) < 1));
+      drawToken(g, b.items[k], left + pos[k] / B * inner, mid + s * 0.36, s, semis, flats);
     });
   }
 

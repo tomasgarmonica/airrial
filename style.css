@@ -19,7 +19,7 @@ body {
 #app { position: fixed; inset: 0; display: flex; flex-direction: column; max-width: 900px; margin: 0 auto; }
 button, input, select, textarea { font: inherit; color: inherit; }
 button { cursor: pointer; }
-main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px 16px; }
+main { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px 16px; }
 
 /* barra superior */
 .top {
@@ -149,7 +149,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .ts { display: flex; flex-direction: column; font-size: .8rem; line-height: 1; margin-right: 4px; color: var(--muted); }
 .tm { position: absolute; right: 12px; top: 1px; font-size: .7rem; color: var(--muted); }
 .chs { flex: 1; min-width: 0; display: grid; align-items: center; }
-.ch { white-space: nowrap; font-size: clamp(.85rem, 30cqw, 1.9rem); line-height: 1; }
+.ch { min-width: 0; white-space: nowrap; font-size: clamp(.85rem, 30cqw, 1.9rem); line-height: 1; }
 .n2 .ch { font-size: clamp(.85rem, 20cqw, 1.5rem); }
 .n3 .ch { font-size: clamp(.7rem, 11cqw, 1.1rem); }
 .ch b { font-weight: 700; }
