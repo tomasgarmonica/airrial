@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.27';
+  const VERSION = '0.28';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -785,7 +785,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <main class="chart" id="chart"></main>
       <footer class="ctl${settings.sheetOpen ? ' open' : ''}" id="sheet">
         <button class="grab" data-a="sheet" aria-label="Mostrar u ocultar más opciones" aria-expanded="${!!settings.sheetOpen}">
-          <i></i><span>Estilo, vueltas y mezcla</span></button>
+          <i></i><span>Estilo, mezcla, práctica y más</span></button>
         <div class="r">
           <button class="play" data-a="play" id="play" aria-label="Reproducir o detener">${PLAY}</button>
           <div class="grp"><span>Tempo</span><div class="st">
