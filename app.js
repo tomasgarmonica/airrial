@@ -34,6 +34,9 @@
   // Quien venía de una versión anterior ya tuvo los tres ejemplos: no se le vuelven a agregar si los borró.
   if (!settings.builtins) settings.builtins = firstRun ? {} : { 'demo-blues': '', 'demo-bossa': '', 'demo-vals': '' };
   settings.vol = Object.assign({ bass: 0.8, keys: 0.6, drums: 0.7, click: 0 }, settings.vol);
+  // Instrumentos silenciados con un toque: el deslizador conserva su volumen para cuando vuelven.
+  settings.mute = Object.assign({}, settings.mute);
+  const applyVol = k => Engine.setVol(k, settings.mute[k] ? 0 : settings.vol[k]);
   // Listas de temas: { id, name, songs: [ids en orden] }
   let lists = load(LISTS, []);
   const saveLists = () => store(LISTS, lists);
@@ -75,7 +78,7 @@
   }
 
   document.documentElement.dataset.theme = settings.theme;
-  for (const k in settings.vol) Engine.setVol(k, settings.vol[k]);
+  for (const k in settings.vol) applyVol(k);
   // Le pide al navegador que no borre las canciones cuando el teléfono se queda sin espacio.
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
@@ -759,7 +762,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const vol = settings.vol;
     const ids = list ? list.songs.filter(findSong) : [], at = ids.indexOf(song.id);
     const goList = d => { if (ids[at + d]) swap('#/s/' + ids[at + d] + '/' + list.id); };
-    const slider = (k, name) => `<label>${name}<input type="range" min="0" max="1" step="0.05" data-vol="${k}" value="${vol[k]}"></label>`;
+    // Cada renglón de la mezcla: el nombre es un botón que silencia o devuelve el instrumento.
+    const slider = (k, name) => `<div class="mx${settings.mute[k] ? ' off' : ''}">
+      <button type="button" data-a="mute" data-v="${k}" aria-pressed="${!!settings.mute[k]}" aria-label="Silenciar o activar: ${name}">${name}</button>
+      <input type="range" min="0" max="1" step="0.05" data-vol="${k}" value="${vol[k]}" aria-label="Volumen: ${name}"></div>`;
     app.innerHTML = `
       <header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
         <div class="ttl"><h1>${esc(song.title)}</h1>
@@ -807,6 +813,14 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       saveSettings();
       sheet.classList.toggle('open', on);
       grab.setAttribute('aria-expanded', on);
+    };
+    const setMute = (k, on) => {
+      settings.mute[k] = on;
+      saveSettings();
+      applyVol(k);
+      const btn = $(`[data-a="mute"][data-v="${k}"]`, sheet);
+      btn.setAttribute('aria-pressed', on);
+      btn.parentElement.classList.toggle('off', on);
     };
     // from: compás desde el que arranca. range: tramo [a, b] a repetir; b queda en null hasta que se toca el final.
     let bars = [], from = null, range = null;
@@ -921,6 +935,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         if (swiped) { swiped = false; return; }
         setSheet(!settings.sheetOpen);
       },
+      mute: el => setMute(el.dataset.v, !settings.mute[el.dataset.v]),
     });
     // La manija del panel responde al toque y también a deslizar hacia arriba o hacia abajo.
     grab.onpointerdown = e => { grabY = e.clientY; swiped = false; grab.setPointerCapture(e.pointerId); };
@@ -988,7 +1003,11 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     };
     app.oninput = e => {
       const k = e.target.dataset.vol;
-      if (k) { vol[k] = +e.target.value; Engine.setVol(k, vol[k]); saveSettings(); }
+      if (!k) return;
+      vol[k] = +e.target.value;
+      // Mover el deslizador de un instrumento silenciado lo vuelve a activar.
+      if (settings.mute[k]) setMute(k, false);
+      else { applyVol(k); saveSettings(); }
     };
     app.onchange = e => {
       const t = e.target;

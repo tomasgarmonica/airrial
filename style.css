@@ -189,7 +189,11 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .fld { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: .7rem; color: var(--muted); }
 .fld select { flex: none; width: 100%; color: var(--text); font-size: 1rem; }
 .mixer { margin-top: 8px; }
-.mixer label { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; font-size: .9rem; }
+.mixer label, .mx { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; font-size: .9rem; }
+.mx button { flex: 1; min-width: 0; min-height: 44px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--bg); color: var(--text); text-align: left; }
+.mx.off button { color: var(--muted); text-decoration: line-through; }
+.mx.off button::after { content: " · silenciado"; display: inline-block; text-decoration: none; font-size: .78rem; }
+.mx.off input { opacity: .35; }
 .mixer input[type=range] { flex: 0 0 66%; accent-color: var(--accent); }
 .mixer .chk { justify-content: flex-start; }
 .mixer .chk input { width: 20px; height: 20px; accent-color: var(--accent); }

@@ -23,7 +23,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Seguir sonando bien con la app en segundo plano
 - [x] La reproducción sigue D.C., D.S., Fine y Coda (sin repeticiones después del salto)
 - [ ] Modo práctica: subir el tempo o cambiar de tono en cada vuelta
-- [ ] Silenciar instrumentos sueltos con un toque
+- [x] Silenciar instrumentos sueltos con un toque (el nombre del instrumento en la mezcla es el botón; el deslizador conserva su volumen)
 - [ ] Elegir instrumento armónico (piano o guitarra)
 
 ## 3. Guardado y compartir
