@@ -17,7 +17,8 @@ grabaciones (ver `GRABACION.md`).
 - [x] Cortes, paso 3: sonido (golpe seco de toda la banda y silencio hasta el próximo acorde escrito; el metrónomo sigue)
 - [x] Anticipación: un acorde marcado así queda escrito en su lugar y suena una corchea antes (atresillado en swing)
 - [ ] Cortes y anticipaciones: escuchar cómo suenan en cada estilo y ajustarlos de oído
-- [ ] Anticipación de semicorchea, y que el acorde anticipado no se vuelva a atacar en el tiempo siguiente
+- [x] La anticipación queda ligada: el acorde y el bajo se sostienen y no se vuelven a atacar en el tiempo escrito
+- [ ] Anticipación de semicorchea
 - [x] Swing: un corte escrito en el "y" de un tiempo cae atresillado cuando el estilo es swing
 - [x] Símbolos propios para Segno y Coda; Fine, D.C., D.S. y "al Coda" se muestran a la derecha del compás
 

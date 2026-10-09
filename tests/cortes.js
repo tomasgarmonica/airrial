@@ -53,7 +53,7 @@ const STYLES = ['swing', 'shuffle', 'bossa', 'samba', 'pop', 'balada', 'funk', '
 
 // 1) corte en el "y" del 4, un compás vacío, y vuelve en el compás siguiente
 for (const style of STYLES) {
-  const swing = style === 'swing', cut = 2 + (swing ? 3 + 2 / 3 : 3.5) * 0.5;
+  const swing = style === 'swing' || style === 'shuffle', cut = 2 + (swing ? 3 + 2 / 3 : 3.5) * 0.5;
   const r = play('| C | { F . . . . . . G! } | _ | Am |', style);
   assert(r.band(2, cut) > 3, style + ': antes del corte la banda toca');
   assert(r.hit(cut) >= 4, style + ': en el corte suena el golpe de toda la banda');
@@ -121,4 +121,26 @@ assert(r.hit(1.5 - 0.25) >= 5);
 // con repeticiones, el compás anterior es el que suena antes, no el que está escrito antes
 r = play('|: <C | G :| Am |', 'pop');
 assert(r.hit(3.75) >= plain + 5, 'al repetir, la anticipación entra al final del compás que vuelve');
+
+// --- la anticipación queda ligada: en el tiempo escrito no se vuelve a atacar el acorde ni el bajo ---
+// en pop, al empezar un compás suenan bombo, hi-hat, bajo y acorde
+r = play('| C | G | Am |', 'pop');
+const downbeat = r.hit(2);
+r = play('| C | <G | Am |', 'pop');
+assert(r.hit(2) >= 1, 'la batería sigue marcando el primer tiempo');
+assert(r.hit(2) <= downbeat - 6, 'el acorde y el bajo no se repiten en el primer tiempo');
+assert(r.hit(4) >= downbeat - 1, 'el compás siguiente, sin anticipar, ataca normal');
+// lo mismo dentro del compás: escrito en el 3, entra en el "y" del 2 y no se repite en el 3
+r = play('| { C G } | Am |', 'pop');
+const third = r.hit(1);
+r = play('| { C <G } | Am |', 'pop');
+assert(r.hit(0.75) >= 5); assert(r.hit(1) >= 1); assert(r.hit(1) <= third - 6);
+// en los demás estilos de 4/4 tampoco hay un segundo ataque de teclado en el primer tiempo
+for (const style of STYLES) {
+  const a = play('| C | G | Am |', style).hit(2), b = play('| C | <G | Am |', style).hit(2);
+  assert(b < a || a <= 2, style + ': el primer tiempo queda más liviano con la anticipación');
+}
+// con shuffle, la anticipación cae atresillada
+r = play('| C | <G | Am |', 'shuffle');
+assert(r.hit((3 + 2 / 3) * 0.5) >= 5);
 console.log('cortes: ok');
