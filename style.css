@@ -130,7 +130,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
   position: relative; display: flex; align-items: center; height: 3.5rem; padding: 0 5px;
   border-left: 1.5px solid var(--line); container-type: inline-size;
 }
-.bar:last-child .cell, .bar:nth-child(4n) .cell { border-right: 1.5px solid var(--line); }
+.bar:last-child .cell { border-right: 1.5px solid var(--line); }
 .bar.rs .cell { border-left: 5px double var(--line); padding-left: 11px; }
 .bar.re .cell { border-right: 5px double var(--line); padding-right: 11px; }
 .bar.rs .cell::before, .bar.re .cell::after { content: ":"; position: absolute; top: 50%; translate: 0 -55%; font-weight: 700; }
@@ -225,7 +225,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .kb { display: grid; gap: 6px; }
 .k7 { grid-template-columns: repeat(7, 1fr); }
 .k7 button { font-size: 1.25rem; font-weight: 700; min-width: 0; padding: 0; }
-.k5 { grid-template-columns: 1fr 1fr 1.5fr 1.9fr 1.5fr; }
+.k5 { grid-template-columns: 1fr 1fr 1.5fr 1fr 1.9fr 1.5fr; }
+.k5 [data-a=rep] { font-size: 1.2rem; }
 .k5 button { min-width: 0; padding: 0 2px; white-space: nowrap; }
 .k5 [data-a=acc] { font-size: 1.35rem; }
 .quals { grid-template-columns: repeat(5, 1fr); max-height: 9.6rem; overflow-y: auto; }
@@ -244,6 +245,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .keypick .k7 button { font-size: 1.15rem; font-weight: 700; }
 .keypick button.on { background: var(--accent); color: var(--on-accent); font-weight: 700; }
 .keypick button:disabled { opacity: .35; }
+.kcols { grid-template-columns: repeat(5, 1fr); }
 .kmods { grid-template-columns: 1fr 1fr 1.6fr 1.6fr 1.8fr; }
 .kmods [data-a=kacc] { font-size: 1.3rem; }
 .fields input, .fields select { color: var(--text); font-size: 1rem; }

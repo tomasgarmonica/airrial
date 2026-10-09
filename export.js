@@ -1,7 +1,7 @@
 // Dibuja el cifrado como imagen, siempre en negro sobre blanco, para exportarlo a PNG o PDF.
 const Exporter = (() => {
   // Medidas de una hoja A4 a 150 puntos por pulgada.
-  const W = 1240, PAGE_H = 1754, M = 70, COLS = 4;
+  const W = 1240, PAGE_H = 1754, M = 70;
   const BAR_H = 104, LAB_H = 38, ROW_H = LAB_H + BAR_H + 14;
   const CHORD_MAX = 50;
   const HEAD = 130, HEAD_NEXT = 64, FOOT = 56;
@@ -23,12 +23,12 @@ const Exporter = (() => {
     for (const d of [-14, 14]) { g.beginPath(); g.arc(x, mid + d, 4.5, 0, 7); g.fill(); }
   };
 
-  // Renglones de hasta cuatro compases, respetando los cortes de renglón del cifrado.
-  function rowsOf(bars) {
+  // Renglones de hasta `cols` compases, respetando los cortes de renglón del cifrado.
+  function rowsOf(bars, cols) {
     const rows = [];
     let cur = null, row = null;
     for (const b of bars) {
-      if (b.row !== row || cur.length === COLS) { cur = []; rows.push(cur); row = b.row; }
+      if (b.row !== row || cur.length === cols) { cur = []; rows.push(cur); row = b.row; }
       cur.push(b);
     }
     return rows;
@@ -125,7 +125,8 @@ const Exporter = (() => {
     const flats = Music.useFlats(song.key || Music.firstChord(bars), semis);
     const key = song.key ? 'Tono: ' + Music.transposeName(song.key, semis, flats) : '';
     const meta = [...(info.before || []), key, ...(info.after || [])].filter(Boolean).join('  ·  ');
-    const rows = rowsOf(bars), bw = (W - 2 * M) / COLS;
+    const cols = Math.min(6, Math.max(2, Math.round(+song.cols) || 4));
+    const rows = rowsOf(bars, cols), bw = (W - 2 * M) / cols;
 
     const pages = [];
     if (!paged) pages.push(rows);

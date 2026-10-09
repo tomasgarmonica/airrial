@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.23';
+  const VERSION = '0.24';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -78,11 +78,14 @@
   // Le pide al navegador que no borre las canciones cuando el teléfono se queda sin espacio.
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
+  // Compases por renglón de una canción (entre 2 y 6; 4 si no se eligió).
+  const colsOf = s => Math.min(6, Math.max(2, Math.round(+s.cols) || 4));
   const cleanSong = s => ({
     id: String(s.id || newId()), title: String(s.title || 'Sin título'), composer: String(s.composer || ''),
     style: STYLES.some(x => x[0] === s.style) ? s.style : 'swing', key: String(s.key || ''),
     tempo: Math.min(360, Math.max(30, +s.tempo || 120)), ts: METERS.includes(s.ts) ? s.ts : '4/4',
     transpose: Math.round(+s.transpose || 0) % 12, chart: String(s.chart || ''),
+    cols: colsOf(s),
     ...(s.builtin ? { builtin: true } : {}),
   });
 
@@ -95,12 +98,13 @@
   const unb64 = code => Uint8Array.from(atob(code.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0));
   const pipe = async (bytes, stream) =>
     new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
-  const songRow = s => [s.title, s.composer, s.style, s.key, s.tempo, s.ts, s.chart];
-  const rowSong = a => cleanSong({ title: a[0], composer: a[1], style: a[2], key: a[3], tempo: a[4], ts: a[5], chart: a[6] });
+  const songRow = s => [s.title, s.composer, s.style, s.key, s.tempo, s.ts, s.chart, colsOf(s)];
+  const rowSong = a => cleanSong({ title: a[0], composer: a[1], style: a[2], key: a[3], tempo: a[4], ts: a[5], chart: a[6], cols: a[7] });
   // Formato corto: los datos separados por tabulaciones y comprimidos. Si el navegador no comprime, va el formato viejo.
   const packSong = async s => {
     try {
-      const flat = ['3', ...songRow(s).map(v => String(v).replace(/\t/g, ' '))].join('\t');
+      const r = songRow(s).map(v => String(v).replace(/\t/g, ' '));
+      const flat = ['4', ...r.slice(0, 6), r[7], r[6]].join('\t');
       return 'c.' + b64(await pipe(new TextEncoder().encode(flat), new CompressionStream('deflate-raw')));
     } catch {
       return b64(new TextEncoder().encode(JSON.stringify([1, ...songRow(s)])));
@@ -116,8 +120,9 @@
     if (code.startsWith('c.')) {
       const bytes = await pipe(unb64(code.slice(2)), new DecompressionStream('deflate-raw'));
       const f = new TextDecoder().decode(bytes).split('\t');
-      if (f[0] !== '3' || f.length < 8) throw new Error('formato');
-      return { song: rowSong([...f.slice(1, 7), f.slice(7).join('\t')]) };
+      if (f[0] === '3' && f.length >= 8) return { song: rowSong([...f.slice(1, 7), f.slice(7).join('\t')]) };
+      if (f[0] === '4' && f.length >= 9) return { song: rowSong([...f.slice(1, 7), f.slice(8).join('\t'), f[7]]) };
+      throw new Error('formato');
     }
     const bytes = code.startsWith('z.') ? await pipe(unb64(code.slice(2)), new DecompressionStream('deflate-raw'))
       : unb64(code.startsWith('j.') ? code.slice(2) : code);
@@ -378,14 +383,23 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   }
   window.addEventListener('resize', () => document.querySelectorAll('.chart').forEach(fitChords));
 
-  function chartHtml(bars, semis, flats) {
-    if (!bars.length) return '<p class="empty">Todavía no hay compases escritos.</p>';
-    let html = '', row = null;
+  // Renglones de la hoja: respeta los cortes del cifrado y además corta cada `cols` compases.
+  function rowsHtml(bars, cols, draw) {
+    let html = '', row = null, n = 0;
     bars.forEach((b, i) => {
-      if (b.row !== row) { html += (row === null ? '' : '</div>') + '<div class="row">'; row = b.row; }
-      html += barHtml(b, i, semis, flats);
+      if (b.row !== row || n === cols) {
+        html += (row === null ? '' : '</div>') + `<div class="row" style="grid-template-columns:repeat(${cols},minmax(0,1fr))">`;
+        row = b.row;
+        n = 0;
+      }
+      html += draw(b, i);
+      n++;
     });
     return html + '</div>';
+  }
+  function chartHtml(bars, semis, flats, cols) {
+    if (!bars.length) return '<p class="empty">Todavía no hay compases escritos.</p>';
+    return rowsHtml(bars, cols || 4, (b, i) => barHtml(b, i, semis, flats));
   }
 
   const keyOf = (song, bars) => song.key || Music.firstChord(bars);
@@ -733,7 +747,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const semis = song.transpose || 0;
       const key = keyOf(song, bars);
       const flats = Music.useFlats(key, semis);
-      chart.innerHTML = chartHtml(bars, semis, flats);
+      chart.innerHTML = chartHtml(bars, semis, flats, colsOf(song));
       fitChords(chart);
       markFrom();
       $('#key').textContent = song.key ? Music.transposeName(song.key, semis, flats) : (semis > 0 ? '+' : '') + semis;
@@ -932,7 +946,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       app.innerHTML = head('Canción compartida', true) + (iosNote() || installHtml()) + `<main class="chart">
         <div class="shared"><b>${esc(song.title)}</b>
         <span>${esc([songMeta(song), song.tempo + ' bpm'].join(' · '))}</span></div>
-        ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true)}</main>`;
+        ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song))}</main>`;
       actions.save = () => {
         const id = keep(song);
         saveSongs();
@@ -974,7 +988,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const one = got.songs.length === 1 && !got.lists.length ? got.songs[0] : null;
       app.innerHTML = head('Archivo recibido', true) + (one ? `<main class="chart">
         <div class="shared"><b>${esc(one.title)}</b><span>${esc([songMeta(one), one.tempo + ' bpm'].join(' · '))}</span></div>
-        ${chartHtml(Music.parseChart(one.chart, tsOf(one)), 0, true)}</main>` : `<main class="list">
+        ${chartHtml(Music.parseChart(one.chart, tsOf(one)), 0, true, colsOf(one))}</main>` : `<main class="list">
         ${got.lists.map(l => `<div class="shared"><b>${esc(l.name)}</b><span>Lista · ${count(l.songs.length)}</span></div>`).join('')}
         ${got.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`);
       actions.save = () => {
@@ -1032,6 +1046,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
           <label class="w">Autor<input id="f-composer" value="${esc(song.composer)}" autocomplete="off"></label>
           <label>Estilo<select id="f-style">${STYLES.map(s => `<option value="${s[0]}"${s[0] === song.style ? ' selected' : ''}>${s[1]}</option>`).join('')}</select></label>
           <label>Compás<select id="f-ts">${METERS.map(m => `<option${m === song.ts ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
+          <div class="w keypick"><span>Compases por renglón</span>
+            <div class="kb kcols">${[2, 3, 4, 5, 6].map(n => `<button type="button" data-a="cols" data-v="${n}">${n}</button>`).join('')}</div></div>
           <label class="w">Tempo<input id="f-tempo" type="number" inputmode="numeric" min="30" max="360" value="${song.tempo}"></label>
           <div class="w keypick"><span>Tonalidad</span><input type="hidden" id="f-key" value="${esc(song.key)}">
             <div class="kb k7">${ROOTS.map(r => `<button type="button" data-a="knote" data-v="${r}">${r}</button>`).join('')}</div>
@@ -1077,7 +1093,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const appendBar = () => {
       const last = bars[bars.length - 1];
       const inRow = bars.filter(b => b.row === last.row).length;
-      bars.push(blank(last.row + (inRow >= 4 ? 1 : 0)));
+      bars.push(blank(last.row + (inRow >= colsOf(song) ? 1 : 0)));
       return { b: bars.length - 1, k: 0 };
     };
 
@@ -1090,7 +1106,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const acc = c ? plainAcc(bass ? c.bassAcc : c.acc) : '';
       return `<div class="kb k7">${ROOTS.map(r => btn('root', r, r, letter === r)).join('')}</div>
         <div class="kb k5">${btn('acc', 'b', '♭', acc === 'b')}${btn('acc', '#', '♯', acc === '#')}
-          ${btn('bass', '', '/ bajo', bass)}${btn('add', '', '+ acorde')}${btn('del', '', 'Borrar')}</div>
+          ${btn('bass', '', '/ bajo', bass)}${btn('rep', '', '%', item() === '%')}${btn('add', '', '+ acorde')}${btn('del', '', 'Borrar')}</div>
         ${bass ? `<p class="hint">Elegí arriba la nota del bajo. ${btn('nobass', '', 'Sin bajo')}</p>`
           : c ? `<div class="kb quals scroll">${QUALS.map(q => btn('qual', q, q ? q.replace(/b/g, '♭').replace(/#/g, '♯') : 'mayor', c.qual === q)).join('')}</div>`
           : '<p class="hint">Tocá una nota para escribir el acorde en el lugar marcado.</p>'}`;
@@ -1105,7 +1121,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         group('Repetición', btn('rs', '', '|: Inicio', b.repStart) + btn('re', '', ':| Fin', b.repEnd) +
           (b.repEnd ? [2, 3, 4].map(n => btn('times', n, 'x' + n, (b.times || 2) === n)).join('') : '')) +
         group('Casilla', [1, 2, 3].map(n => btn('end', n, n + '.', b.ending === n)).join('')) +
-        group('En el lugar marcado', btn('sym', '%', '% Repetir compás', it === '%') +
+        group('En el lugar marcado',
           btn('sym', 'N.C.', 'N.C. Silencio', it === 'N.C.') + btn('sym', '.', '· Alargar el anterior', it === '.')) +
         group('Anotación', NOTES.map(s => btn('txt', s, s, b.text === s)).join('') +
           btn('txt', '?', 'Otra…', !!b.text && !NOTES.includes(b.text))) +
@@ -1121,12 +1137,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       if (mode !== 'grid') return;
       Music.normalize(bars, tsOf(song));
       song.chart = Music.serialize(bars);
-      let html = '', row = null;
-      bars.forEach((b, i) => {
-        if (b.row !== row) { html += (row === null ? '' : '</div>') + '<div class="row">'; row = b.row; }
-        html += barHtml(b, i, 0, true, i === cur.b ? cur.k : -1);
-      });
-      $('#grid').innerHTML = html + '</div>';
+      $('#grid').innerHTML = rowsHtml(bars, colsOf(song), (b, i) => barHtml(b, i, 0, true, i === cur.b ? cur.k : -1));
       fitChords($('#grid'));
       const old = $('.scroll', pad), keep = old && old.dataset.tab === tab ? old.scrollTop : 0;
       pad.innerHTML = `<div class="ptabs">${btn('tab', 'chords', 'Acordes', tab === 'chords')}${btn('tab', 'other', 'Otros', tab === 'other')}
@@ -1141,7 +1152,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
 
     const preview = () => {
       song.chart = $('#f-chart').value;
-      $('#preview').innerHTML = chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true);
+      $('#preview').innerHTML = chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song));
       fitChords($('#preview'));
     };
     const drawBody = () => {
@@ -1181,6 +1192,13 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const r = prompt(msg, val || '');
       return r === null ? null : r.replace(bad, '').trim();
     };
+    // Con algo recién escrito en el lugar marcado, lo siguiente pasa al próximo lugar si está libre.
+    const advance = () => {
+      if (item() === '_' || cur.fresh) return;
+      const p = nextPos();
+      if (!p) cur = { ...appendBar() };
+      else if (bars[p.b].items[p.k] === '_') cur = { ...p };
+    };
     // Cada acción del panel modifica los compases; después se redibuja todo.
     const edits = {
       tab: el => { tab = el.dataset.v; target = 'root'; },
@@ -1195,13 +1213,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
           if (c) { c.bassLetter = el.dataset.v; c.bassAcc = ''; setItem(chordText(c)); }
           return;
         }
-        // Con un acorde recién escrito, la nota siguiente pasa al próximo lugar si está libre.
-        if (c && !cur.fresh) {
-          const p = nextPos();
-          if (!p) cur = { ...appendBar() };
-          else if (bars[p.b].items[p.k] === '_') cur = { ...p };
-        }
+        advance();
         setItem(el.dataset.v);
+        cur.fresh = false;
+      },
+      // Repetir el compás anterior: se escribe igual que un acorde, así se pueden encadenar varios.
+      rep: () => {
+        target = 'root';
+        advance();
+        setItem('%');
         cur.fresh = false;
       },
       acc: el => {
@@ -1367,12 +1387,30 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     actions.undo = () => restore(undo, redo);
     actions.redo = () => restore(redo, undo);
 
+    // Compases por renglón: al cambiarlo se reacomoda toda la hoja (cada parte sigue empezando en renglón nuevo).
+    const drawCols = () => app.querySelectorAll('[data-a="cols"]').forEach(b => b.classList.toggle('on', +b.dataset.v === colsOf(song)));
+    actions.cols = el => {
+      song.cols = +el.dataset.v;
+      drawCols();
+      if (mode !== 'grid') { preview(); return; }
+      const before = JSON.stringify(bars), at = { ...cur };
+      let row = -1, n = 0;
+      for (const b of bars) {
+        if (n === 0 || n >= song.cols || b.section) { row++; n = 0; }
+        b.row = row;
+        n++;
+      }
+      if (JSON.stringify(bars) !== before) { undo.push({ bars: before, cur: at }); redo = []; }
+      draw();
+    };
+    drawCols();
+
     // Tonalidad por botones: nota, alteración y modo. Se guarda como texto ("Bb", "F#m") en el campo oculto.
     const k0 = Music.parseChord(song.key || '');
     let key = k0 ? { note: k0.letter, acc: plainAcc(k0.acc), minor: /^(m(?!aj)|min|-)/.test(k0.qual) } : null;
     const drawKey = () => {
       $('#f-key').value = key ? key.note + key.acc + (key.minor ? 'm' : '') : '';
-      app.querySelectorAll('.keypick button').forEach(b => {
+      app.querySelectorAll('.keypick button[data-a^="k"]').forEach(b => {
         const a = b.dataset.a, v = b.dataset.v;
         b.classList.toggle('on', a === 'knone' ? !key : !!key &&
           (a === 'knote' ? key.note === v : a === 'kacc' ? key.acc === v : key.minor === (v === 'm')));
