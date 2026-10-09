@@ -4,7 +4,7 @@ const Music = (() => {
   const SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const FLATS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
   const CHORD = /^([A-G])([#b♯♭]?)([^/]*(?:\/(?![A-G])[^/]*)*)(?:\/([A-G])([#b♯♭]?))?$/;
-  const TOKEN = /\[[^\]]*\]|"[^"]*"|:?\|+:?|[^\s|\[\]":]+/g;
+  const TOKEN = /\[[^\]]*\]|"[^"]*"|:?\|+:?|[{}]|[^\s|\[\]":{}]+/g;
 
   const accVal = a => (a === '#' || a === '♯' ? 1 : a === 'b' || a === '♭' ? -1 : 0);
   const pretty = s => s.replace(/b/g, '♭').replace(/#/g, '♯');
@@ -76,6 +76,84 @@ const Music = (() => {
     return out;
   }
 
+  // --- tiempos dentro del compás ---
+  // Cada compás tiene `items` (acordes, '_' para un lugar vacío) y `lens`, el largo de cada uno como fracción
+  // del compás. Los lugares nacen de dividir el compás en partes iguales, y esas partes de nuevo.
+
+  // Reparte los elementos leídos de un compás. Entre llaves la grilla es pareja y exacta, y "." alarga al
+  // anterior. Sin llaves vale la regla vieja: los elementos caen sobre los tiempos (tres acordes en 4/4 van
+  // en los tiempos 1, 2 y 3).
+  function measure(items, beats, grid) {
+    const n = items.length, at = i => (grid || n > beats ? i / n : Math.floor(i * beats / n) / beats);
+    const out = { items: [], lens: [] };
+    items.forEach((it, i) => {
+      if (it === '.' && out.items.length) return;
+      let j = i + 1;
+      while (j < n && items[j] === '.') j++;
+      out.items.push(it === '.' ? '_' : it);
+      out.lens.push((j < n ? at(j) : 1) - at(i));
+    });
+    return out.items.length ? out : { items: ['_'], lens: [1] };
+  }
+  const lensOf = b => b.lens || b.items.map(() => 1 / b.items.length);
+  // Tiempo del compás en que empieza cada elemento.
+  function starts(b) {
+    let t = 0;
+    return lensOf(b).map(len => { const s = t; t += len; return s * b.ts[0]; });
+  }
+  // Grilla pareja más chica en la que entran todos los elementos: cuántas casillas tiene y cuántas ocupa cada uno.
+  function grid(b) {
+    const lens = lensOf(b), whole = n => lens.every(l => Math.round(l * n) >= 1 && Math.abs(l * n - Math.round(l * n)) < 1e-6);
+    let n = 1;
+    while (n < 96 && !whole(n)) n++;
+    const span = lens.map(l => Math.max(1, Math.round(l * n)));
+    let t = 0;
+    return { n, span, at: span.map(s => { const a = t; t += s; return a; }) };
+  }
+  // En cuántas partes se divide naturalmente un lugar que dura `beats` tiempos: por la mitad, salvo donde el
+  // compás es ternario (3/4 en sus tres tiempos, la mitad de un 6/8 en tres corcheas, 5/4 en sus cinco tiempos).
+  function natural(beats) {
+    const r = Math.round(beats);
+    return Math.abs(beats - r) < 1e-6 && r > 1 ? (r % 2 === 0 ? 2 : r % 3 === 0 ? 3 : r) : 2;
+  }
+  // Divide el elemento k en partes iguales: las naturales del compás, o las que se pidan (3 para un tresillo).
+  // El acorde queda en la primera parte. No divide más chico que una semicorchea (o un tresillo de semicorchea).
+  function split(b, k, parts) {
+    b.lens = lensOf(b).slice();
+    const len = b.lens[k], n = parts || natural(len * b.ts[0]);
+    if (len / n * b.ts[0] * 4 / b.ts[1] < (n === 3 ? 1 / 6 : 1 / 4) - 1e-6) return false;
+    b.items.splice(k, 1, b.items[k], ...Array(n - 1).fill('_'));
+    b.lens.splice(k, 1, ...Array(n).fill(len / n));
+    return true;
+  }
+  // Deshace la división que contiene al elemento k: lo une con sus vecinos iguales del mismo bloque y deja el
+  // primer acorde que haya. Devuelve el lugar resultante, o -1 si el elemento no viene de una división.
+  function join(b, k) {
+    const E = 1e-6, lens = lensOf(b), len = lens[k], st = [];
+    lens.reduce((t, l, i) => { st[i] = t; return t + l; }, 0);
+    // Se baja desde el compás entero, dividiendo cada bloque como se habría dividido al escribirlo, hasta
+    // encontrar el bloque del que el elemento k es una parte directa.
+    let from = 0, size = 1;
+    while (size > len + E) {
+      const inside = lens.map((_, i) => i).filter(i => st[i] > from - E && st[i] + lens[i] < from + size + E);
+      const part = n => size / n, cell = (x, n) => Math.floor((x - from) / part(n) + E);
+      // una división vale si ningún elemento del bloque queda partido por sus bordes
+      const n = [natural(size * b.ts[0]), 3, 2].find(m => inside.every(i => cell(st[i], m) === cell(st[i] + lens[i] - 2 * E, m)));
+      if (!n || part(n) < len - E) return -1;
+      if (Math.abs(part(n) - len) < E) {
+        if (inside.length !== n || !inside.every(i => Math.abs(lens[i] - len) < E)) return -1;
+        const keep = inside.map(i => b.items[i]).find(t => t !== '_') || '_';
+        b.items.splice(inside[0], n, keep);
+        b.lens = lens.slice();
+        b.lens.splice(inside[0], n, size);
+        return inside[0];
+      }
+      from += cell(st[k], n) * part(n);
+      size = part(n);
+    }
+    return -1;
+  }
+
   function parseChart(text, defTs) {
     const bars = [];
     let pend = {};
@@ -86,7 +164,13 @@ const Music = (() => {
         if (!cur) { cur = Object.assign({ items: [], row, ts: ts.slice() }, pend); pend = {}; }
         return cur;
       };
-      const close = () => { if (cur) { bars.push(cur); cur = null; } };
+      const close = () => {
+        if (!cur) return;
+        Object.assign(cur, measure(cur.items, cur.ts[0], cur.grid));
+        delete cur.grid;
+        bars.push(cur);
+        cur = null;
+      };
       const word = tk => {
         const e = /^(\d)\.(.*)$/.exec(tk);
         if (e) { pend.ending = +e[1]; if (e[2]) word(e[2]); return; }
@@ -111,7 +195,8 @@ const Music = (() => {
           if (tk[tk.length - 1] === ':') pend.repStart = true;
         } else if (tk[0] === '[') pend.section = tk.slice(1, -1).trim();
         else if (tk[0] === '"') pend.text = tk.slice(1, -1);
-        else word(tk);
+        else if (tk === '{') open().grid = true;
+        else if (tk !== '}') word(tk);
       }
       close();
     });
@@ -150,13 +235,12 @@ const Music = (() => {
     const out = [];
     bars.forEach((b, i) => {
       const beats = b.ts[0];
-      const real = b.items.filter(x => x !== '.');
       let slots = [];
-      if (real.length === 1 && real[0] === '%' && i > 0) slots = out[i - 1].slots;
+      if (b.items.length === 1 && b.items[0] === '%' && i > 0) slots = out[i - 1].slots;
       else {
-        const pos = positions(b.items.length, beats);
+        const pos = starts(b);
         b.items.forEach((it, k) => {
-          if (it === '.' || it === '%') return;
+          if (it === '_' || it === '%') return;
           if (/^n\.?c\.?$/i.test(it)) { slots.push({ beat: pos[k], chord: null }); return; }
           const c = parseChord(it);
           if (!c) return;
@@ -256,7 +340,14 @@ const Music = (() => {
       if (b.text) parts.push("\"" + b.text + "\"");
       if (b.tsSet) parts.push(b.ts[0] + "/" + b.ts[1]);
       if (b.ending) parts.push(b.ending + ".");
-      parts.push(...(b.items.length ? b.items : ["_"]));
+      if (b.items.length < 2) parts.push(b.items[0] || "_");
+      else {
+        // Compás dividido: se escribe sobre su grilla pareja, entre llaves, con "." donde un acorde sigue sonando.
+        const g = grid(b);
+        parts.push("{");
+        b.items.forEach((it, i) => { parts.push(it); for (let k = 1; k < g.span[i]; k++) parts.push("."); });
+        parts.push("}");
+      }
       line += (b.repStart ? "|: " : "| ") + parts.join(" ");
       open = !b.repEnd;
       if (b.repEnd) line += " :|" + (b.times > 2 ? " x" + b.times : "");
@@ -306,7 +397,7 @@ const Music = (() => {
     return name + (best.mode === 'minor' ? 'm' : '');
   }
 
-  return { guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold };
+  return { starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;
