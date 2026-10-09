@@ -34,6 +34,15 @@ main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; p
 }
 .ic { font-size: 2rem; line-height: 1; margin-left: -12px; }
 .ic2 { background: none; border: 0; min-width: 44px; min-height: 44px; border-radius: 8px; color: var(--accent); display: grid; place-items: center; }
+.busy { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; background: rgba(0, 0, 0, .55); }
+.busy div { display: flex; align-items: center; gap: 12px; background: var(--surface); color: var(--text); padding: 16px 20px; border-radius: 14px; box-shadow: 0 6px 24px rgba(0, 0, 0, .5); }
+.busy i { width: 20px; height: 20px; border-radius: 50%; border: 3px solid var(--line); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { rotate: 360deg; } }
+@media (prefers-reduced-motion: reduce) { .busy i { animation: none; } }
+.inst { display: flex; align-items: center; gap: 8px; margin: 0 16px 8px; padding: 8px 8px 8px 12px; background: var(--surface); border-radius: 12px; font-size: .88rem; }
+.inst span { flex: 1; min-width: 0; }
+.inst button { flex: none; min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-weight: 600; }
+.inst .x { background: none; color: var(--muted); font-size: 1.3rem; padding: 0 8px; font-weight: 400; }
 .toast {
   position: fixed; left: 50%; top: calc(64px + env(safe-area-inset-top)); translate: -50% 0; z-index: 10; max-width: 88vw;
   background: var(--text); color: var(--bg); padding: 10px 16px; border-radius: 10px; font-size: .9rem; text-align: center;

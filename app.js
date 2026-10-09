@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.18';
+  const VERSION = '0.19';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -211,12 +211,13 @@
   ];
   // Archivo para compartir: una página con el título como enlace. El enlace lleva todo el contenido,
   // así que al tocarlo la app lo importa; la página también guarda los datos para Menú → Importar.
-  async function shareFile(name, data, code) {
-    const url = location.origin + location.pathname + '#/i/' + code;
+  async function shareFile(name, data, pack) {
+    const page = await busy('Preparando el archivo…', async () => {
+    const url = location.origin + location.pathname + '#/i/' + await pack();
     const isList = data.lists && data.lists.length;
     const rows = isList ? data.songs.map((s, i) => `<li>${esc(s.title)}${s.composer ? ` <small>${esc(s.composer)}</small>` : ''}</li>`).join('') : '';
     const sub = isList ? count(data.songs.length) : [data.songs[0].composer, styleName(data.songs[0].style).replace(/ \(.*/, ''), data.songs[0].key].filter(Boolean).join(' · ');
-    const page = `<!doctype html>
+    return `<!doctype html>
 <html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(name)} · Airrial</title>
 <style>body{font:17px/1.5 system-ui,sans-serif;margin:0;padding:28px 20px;background:#111318;color:#f2f3f5}
@@ -231,10 +232,52 @@ ${rows ? `<ol>${rows}</ol>` : ''}
 </main>
 <script type="application/json" id="airrial-data">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>
 </body></html>`;
+    });
     if (await shareBlobs([[new Blob([page], { type: 'text/html' }), safeName(name) + '.airrial.html']], name)) {
       toast('Archivo descargado. Mandalo como adjunto: quien lo reciba lo abre y toca el título.');
     }
   }
+
+  // Cartel de espera mientras se arma algo pesado (imagen, PDF, archivo grande).
+  // La pausa inicial le da tiempo a la pantalla para mostrarlo antes de que empiece el trabajo.
+  async function busy(msg, work) {
+    const el = document.createElement('div');
+    el.className = 'busy';
+    el.innerHTML = `<div><i></i>${esc(msg)}</div>`;
+    document.body.appendChild(el);
+    await new Promise(done => setTimeout(done, 50));
+    try { return await work(); } finally { el.remove(); }
+  }
+
+  // --- instalación ---
+  // A quien usa la app desde el navegador se le ofrece instalarla.
+  let installEvent = null;
+  const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const hideInstall = () => document.querySelectorAll('.inst').forEach(el => el.remove());
+  window.addEventListener('beforeinstallprompt', e => {
+    e.preventDefault();
+    installEvent = e;
+    if (here() === '#/') route();
+  });
+  window.addEventListener('appinstalled', () => { installEvent = null; hideInstall(); });
+  const installHtml = () => {
+    const close = '<button class="x" data-a="noinstall" aria-label="No mostrar más">×</button>';
+    if (standalone() || settings.noInstall) return '';
+    if (installEvent) return `<div class="inst"><span>Instalá Airrial para tenerla a mano y usarla sin conexión.</span><button data-a="install">Instalar</button>${close}</div>`;
+    if (/iphone|ipad|ipod/i.test(navigator.userAgent)) return `<div class="inst"><span>Para instalar Airrial en iPhone: tocá Compartir y elegí "Agregar a inicio".</span>${close}</div>`;
+    return '';
+  };
+  const installActions = {
+    install: async () => {
+      const e = installEvent;
+      if (!e) return;
+      installEvent = null;
+      e.prompt();
+      await e.userChoice;
+      hideInstall();
+    },
+    noinstall: () => { settings.noInstall = true; saveSettings(); hideInstall(); },
+  };
 
   function toast(msg) {
     const t = document.createElement('div');
@@ -340,6 +383,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <div class="seg tabs"><button data-a="tab" data-v="songs">Canciones</button><button data-a="tab" data-v="lists">Listas</button></div>
       <div class="search"><input id="q" type="search" autocomplete="off"></div>
       <div class="filt" id="filt"></div>
+      ${installHtml()}
       <main class="list" id="list"></main>
       <button class="fab" data-a="new" aria-label="Agregar">+</button>
       <dialog id="menu"><div class="sheet">
@@ -380,6 +424,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     };
     draw();
     bind({
+      ...installActions,
       tab: el => { libTab = el.dataset.v; q.value = ''; draw(); },
       style: el => { libStyle = el.dataset.v; draw(); },
       new: () => {
@@ -523,14 +568,20 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         if (!mine.length) { toast('La lista está vacía: agregale temas antes de compartirla.'); return; }
         const pack = { app: 'airrial', version: 1, songs: mine, lists: [list] };
         const how = await choose('Compartir esta lista', SHARE_WAYS);
-        if (how === 'file') { shareFile(list.name, pack, await packList(list)); return; }
+        if (how === 'file') { shareFile(list.name, pack, () => packList(list)); return; }
         // Todas las canciones de la lista en un solo PDF, cada una empezando en hoja nueva.
-        if (how === 'pdf') { shareBlob(await Exporter.pdf(mine.flatMap(s => drawSong(s, true))), safeName(list.name) + '.pdf', list.name); return; }
+        if (how === 'pdf') {
+          if (mine.length > 200) { toast('Son demasiados temas para un solo PDF (máximo 200). Armá listas más cortas.'); return; }
+          // Las hojas se dibujan de a una para no llenar la memoria del teléfono.
+          const sheets = function* () { for (const s of mine) yield* drawSong(s, true); };
+          shareBlob(await busy('Generando el PDF…', () => Exporter.pdf(sheets())), safeName(list.name) + '.pdf', list.name);
+          return;
+        }
         if (how !== 'link') return;
-        const url = location.origin + location.pathname + '#/i/' + await packList(list);
+        const url = location.origin + location.pathname + '#/i/' + await busy('Preparando el enlace…', () => packList(list));
         if (url.length <= 8000) { shareUrl(list.name, `${list.name} (lista de temas en Airrial)`, url); return; }
         toast('La lista es muy larga para un enlace suelto: va como archivo.');
-        shareFile(list.name, pack, url.split('#/i/')[1]);
+        shareFile(list.name, pack, async () => url.split('#/i/')[1]);
       },
       rm: el => change(() => { list.songs.splice(+el.dataset.v, 1); }),
       add: () => {
@@ -711,14 +762,17 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       share: async () => {
         const how = await choose('Compartir esta canción', [...SHARE_WAYS, ['png', 'Imagen', 'Para ver en cualquier chat']]);
         if (how === 'link') shareUrl(song.title, `${song.title} (cifrado en Airrial)`, location.origin + location.pathname + '#/i/' + await packSong(song));
-        else if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] }, await packSong(song));
-        else if (how === 'pdf') shareBlob(await Exporter.pdf(drawSong(song, true)), safeName(song.title) + '.pdf', song.title);
+        else if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] }, () => packSong(song));
+        else if (how === 'pdf') shareBlob(await busy('Generando el PDF…', () => Exporter.pdf(drawSong(song, true))), safeName(song.title) + '.pdf', song.title);
         else if (how === 'png') {
           // Una imagen por hoja, del mismo tamaño que las del PDF.
-          const pages = drawSong(song, true), items = [];
-          for (let i = 0; i < pages.length; i++) {
-            items.push([await Exporter.png(pages[i]), safeName(song.title) + (pages.length > 1 ? ` (${i + 1})` : '') + '.png']);
-          }
+          const items = await busy('Generando la imagen…', async () => {
+            const pages = drawSong(song, true), out = [];
+            for (let i = 0; i < pages.length; i++) {
+              out.push([await Exporter.png(pages[i]), safeName(song.title) + (pages.length > 1 ? ` (${i + 1})` : '') + '.png']);
+            }
+            return out;
+          });
           if (await shareBlobs(items, song.title)) toast(items.length > 1 ? 'Imágenes descargadas.' : 'Imagen descargada.');
         }
       },
@@ -817,7 +871,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     if (location.hash !== '#/i/' + (code || '')) return;
     const head = (title, save) => `<header class="top"><button class="tx" data-a="cancel">Cancelar</button>
       <div class="ttl"><h1>${title}</h1></div>${save ? '<button class="tx pri" data-a="save">Guardar</button>' : ''}</header>`;
-    const actions = { cancel: () => up('#/') };
+    const actions = { ...installActions, cancel: () => up('#/') };
     // Si ya tengo una canción idéntica, uso esa en lugar de duplicarla.
     const keep = s => {
       const same = songs.find(x => x.title === s.title && x.chart === s.chart);
@@ -830,7 +884,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       app.innerHTML = head('Enlace no válido') + '<main><p class="empty">Este enlace está incompleto o no es de Airrial. Pedí que te lo manden de nuevo.</p></main>';
     } else if (data.song) {
       const song = data.song;
-      app.innerHTML = head('Canción compartida', true) + `<main class="chart">
+      app.innerHTML = head('Canción compartida', true) + installHtml() + `<main class="chart">
         <div class="shared"><b>${esc(song.title)}</b>
         <span>${esc([songMeta(song), song.tempo + ' bpm'].join(' · '))}</span></div>
         ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true)}</main>`;
@@ -840,7 +894,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         swap('#/s/' + id);
       };
     } else {
-      app.innerHTML = head('Lista compartida', true) + `<main class="list">
+      app.innerHTML = head('Lista compartida', true) + installHtml() + `<main class="list">
         <div class="shared"><b>${esc(data.name)}</b><span>${count(data.songs.length)}</span></div>
         ${data.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`;
       actions.save = () => {

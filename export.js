@@ -171,23 +171,26 @@ const Exporter = (() => {
   const blobOf = (canvas, type, quality) => new Promise(done => canvas.toBlob(done, type, quality));
   const png = canvas => blobOf(canvas, 'image/png');
 
-  // PDF mínimo: una página A4 por imagen.
+  // PDF mínimo: una página A4 por imagen. Recibe las hojas en una lista o de a una (generador).
   async function pdf(canvases) {
     const enc = new TextEncoder(), parts = [], at = [];
     let len = 0;
     const put = d => { const u = typeof d === 'string' ? enc.encode(d) : d; parts.push(u); len += u.length; };
     const obj = (n, ...body) => { at[n] = len; put(`${n} 0 obj\n`); body.forEach(put); put('\nendobj\n'); };
-    const jpgs = [];
-    for (const c of canvases) jpgs.push(new Uint8Array(await (await blobOf(c, 'image/jpeg', 0.9)).arrayBuffer()));
-    const n = canvases.length, draw = 'q 595 0 0 842 0 0 cm /Im0 Do Q';
+    // Cada hoja se pasa a JPEG apenas llega y se descarta, para no tenerlas todas en memoria.
+    const pages = [];
+    for (const c of canvases) {
+      pages.push({ w: c.width, h: c.height, jpg: new Uint8Array(await (await blobOf(c, 'image/jpeg', 0.9)).arrayBuffer()) });
+    }
+    const n = pages.length, draw = 'q 595 0 0 842 0 0 cm /Im0 Do Q';
     put('%PDF-1.4\n');
     obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
-    obj(2, `<< /Type /Pages /Count ${n} /Kids [${canvases.map((_, i) => `${3 + 3 * i} 0 R`).join(' ')}] >>`);
-    canvases.forEach((c, i) => {
+    obj(2, `<< /Type /Pages /Count ${n} /Kids [${pages.map((_, i) => `${3 + 3 * i} 0 R`).join(' ')}] >>`);
+    pages.forEach((c, i) => {
       const p = 3 + 3 * i;
       obj(p, `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /XObject << /Im0 ${p + 2} 0 R >> >> /Contents ${p + 1} 0 R >>`);
       obj(p + 1, `<< /Length ${draw.length} >>\nstream\n${draw}\nendstream`);
-      obj(p + 2, `<< /Type /XObject /Subtype /Image /Width ${c.width} /Height ${c.height} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${jpgs[i].length} >>\nstream\n`, jpgs[i], '\nendstream');
+      obj(p + 2, `<< /Type /XObject /Subtype /Image /Width ${c.w} /Height ${c.h} /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ${c.jpg.length} >>\nstream\n`, c.jpg, '\nendstream');
     });
     const total = 2 + 3 * n, xref = len;
     put(`xref\n0 ${total + 1}\n0000000000 65535 f \n`);

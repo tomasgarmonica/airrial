@@ -59,6 +59,8 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Otras formas de ver el cifrado: símbolos de jazz (△7, -7, ø), Do-Re-Mi, grados (I, IV, V)
 - [x] Exportar una canción a PDF o imagen (a tamaño hoja), y una lista entera a un solo PDF
 - [x] El archivo para compartir es una página .html: muestra el título como enlace y el enlace lleva todo el contenido
+- [x] Cartel de espera al generar imagen, PDF o archivo
+- [x] Cartel para instalar la app cuando se usa desde el navegador (botón en Android, instrucción en iPhone)
 - [ ] Probar en celulares reales cómo se abre el .html recibido (Android e iPhone) y hasta qué tamaño de lista funciona el enlace
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
 - [ ] Carpetas o etiquetas en la biblioteca
