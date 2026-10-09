@@ -188,6 +188,10 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .more .r { margin-top: 12px; }
 .fld { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: .7rem; color: var(--muted); }
 .fld select { flex: none; width: 100%; color: var(--text); font-size: 1rem; }
+/* tamaño de la hoja al ver una canción (el editor y el PDF no cambian) */
+#chart[data-size=chico] .cell { height: 2.9rem; }
+#chart[data-size=grande] .cell { height: 4.9rem; }
+.fld.narrow { flex: 0 0 34%; }
 .live { margin: 8px 0 0; text-align: center; font-size: .85rem; color: var(--accent); font-variant-numeric: tabular-nums; }
 .live[hidden] { display: none; }
 .mixer { margin-top: 8px; }
@@ -288,6 +292,8 @@ textarea { display: block; font: 1rem/1.6 ui-monospace, Consolas, monospace; res
 
 @media (min-width: 700px) {
   .cell { height: 4.4rem; }
+  #chart[data-size=chico] .cell { height: 3.6rem; }
+  #chart[data-size=grande] .cell { height: 5.8rem; }
   .ctl .r, .mixer { max-width: 640px; margin-left: auto; margin-right: auto; width: 100%; }
 }
 @media print {

@@ -39,6 +39,9 @@
   const applyVol = k => Engine.setVol(k, settings.mute[k] ? 0 : settings.vol[k]);
   // Modo práctica: cuánto sube el tempo (bpm) y cuánto cambia el tono (semitonos) en cada vuelta. Cero = no cambia.
   settings.practice = Object.assign({ tempo: 0, key: 0 }, settings.practice);
+  // Tamaño de la hoja al ver una canción: tope de la letra de los acordes, en píxeles. El alto del compás va por CSS.
+  const SHEET_SIZES = { chico: 24, normal: 30, grande: 44 };
+  if (!SHEET_SIZES[settings.size]) settings.size = 'normal';
   // Listas de temas: { id, name, songs: [ids en orden] }
   let lists = load(LISTS, []);
   const saveLists = () => store(LISTS, lists);
@@ -382,13 +385,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
 
   // Ajusta la letra de cada acorde al lugar que tiene en su compás: lo más grande que entre, hasta un tope.
   // Dentro de un compás, los acordes con el mismo espacio quedan del mismo tamaño.
+  // El tope sale de `data-fit` en la hoja (lo pone la vista de la canción según el tamaño elegido) o es el normal.
   const FIT_MAX = 30, FIT_MIN = 11;
   function fitChords(root) {
+    const max = +root.dataset.fit || FIT_MAX;
     const all = [...root.querySelectorAll('.cell .ch')];
-    for (const el of all) el.style.fontSize = FIT_MAX + 'px';
+    for (const el of all) el.style.fontSize = max + 'px';
     const sized = all.map(el => {
       const room = el.clientWidth - 2;
-      return { el, room, need: el.scrollWidth || 1, size: Math.max(FIT_MIN, Math.min(FIT_MAX, Math.floor(FIT_MAX * room / (el.scrollWidth || 1)))) };
+      return { el, room, need: el.scrollWidth || 1, size: Math.max(FIT_MIN, Math.min(max, Math.floor(max * room / (el.scrollWidth || 1)))) };
     });
     const bars = new Map();
     for (const s of sized) {
@@ -403,7 +408,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       s.el.style.fontSize = s.final + 'px';
       // Si ni al mínimo entra y es el último del compás, se apoya contra la barra de la derecha
       // y ocupa lugar libre hacia la izquierda, en vez de salirse del compás.
-      const spills = s.need * s.final / FIT_MAX > s.room + 2;
+      const spills = s.need * s.final / max > s.room + 2;
       s.el.style.justifySelf = spills && !s.el.nextElementSibling && s.el.previousElementSibling ? 'end' : '';
     }
   }
@@ -801,6 +806,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
           <div class="r">
             <label class="fld">Ver los acordes como<select id="notation">${[['letras', 'Letras: C, Dm7, Gmaj7'], ['jazz', 'Jazz: C, D-7, G△7'], ['latino', 'Do, Re, Mi: Do, Rem7, Solmaj7'], ['grados', 'Grados: I, IIm7, Vmaj7']]
               .map(o => `<option value="${o[0]}"${o[0] === settings.notation ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
+            <label class="fld narrow">Tamaño de la hoja<select id="size">${[['chico', 'Chico'], ['normal', 'Normal'], ['grande', 'Grande']]
+              .map(o => `<option value="${o[0]}"${o[0] === settings.size ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
           </div>
           <div class="r">
             <label class="fld">Subir el tempo por vuelta<select id="ptempo">${[[0, 'No'], [4, '+4 bpm'], [8, '+8 bpm'], [12, '+12 bpm']]
@@ -858,6 +865,9 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       Music.setView({ notation: settings.notation, key: song.key });
       chart.innerHTML = chartHtml(bars, semis, flats, colsOf(song));
       Music.setView(null);
+      // Tamaño elegido: cambia el alto de los compases (CSS) y hasta dónde puede crecer la letra.
+      chart.dataset.size = settings.size;
+      chart.dataset.fit = SHEET_SIZES[settings.size];
       fitChords(chart);
       markFrom();
       $('#key').textContent = song.key ? Music.transposeName(song.key, semis, flats) : (semis > 0 ? '+' : '') + semis;
@@ -1050,6 +1060,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       else if (t.id === 'style') { song.style = t.value; saveSongs(); restart(); }
       else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
+      else if (t.id === 'size') { settings.size = t.value; saveSettings(); draw(); }
       else if (t.id === 'ptempo' || t.id === 'pkey') {
         settings.practice[t.id === 'ptempo' ? 'tempo' : 'key'] = +t.value;
         saveSettings();

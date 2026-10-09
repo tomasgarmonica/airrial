@@ -58,7 +58,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Los acordes se agrandan hasta ocupar el lugar que tienen en el compás (en pantalla, PDF e imagen)
 - [x] Compases por renglón ajustables por canción (2 a 6), también en PDF e imagen
 - [x] El % (repetir compás) está con los acordes y avanza solo al compás siguiente
-- [ ] Tamaño de letra ajustable
+- [x] Tamaño de la hoja ajustable (chico, normal, grande) al ver una canción: alto de los compases y tope de la letra
 - [x] Otras formas de ver el cifrado: símbolos de jazz (△7, -7, ø), Do-Re-Mi y grados (I, IV, V), también en PDF e imagen
 - [x] Exportar una canción a PDF o imagen (a tamaño hoja), y una lista entera a un solo PDF
 - [x] El archivo para compartir es una página .html: muestra el título como enlace y el enlace lleva todo el contenido
