@@ -79,7 +79,8 @@ grabaciones (ver `GRABACION.md`).
 - [ ] iPhone: llevar a la app TODO lo que alguien ya guardó en Safari antes de instalarla
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
 - [x] Borrar varias canciones a la vez desde la biblioteca (modo selección)
-- [ ] Carpetas o etiquetas en la biblioteca
+- [x] Etiquetas libres por canción (hasta 8), con filtro en la biblioteca, búsqueda por etiqueta y edición desde "Datos de la canción"
+- [ ] Etiquetas: renombrar o borrar una etiqueta en todas las canciones a la vez
 
 ## 6. Servidores, sistemas y seguridad
 Hoy no hay servidor: la app son archivos fijos en GitHub Pages y cada canción vive en el teléfono de

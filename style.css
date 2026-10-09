@@ -71,6 +71,8 @@ main { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-
 .item { display: block; padding: 12px 0; border-bottom: 1px solid var(--surface); color: inherit; text-decoration: none; }
 .item b { display: block; font-size: 1.05rem; }
 .item span { font-size: .85rem; color: var(--muted); }
+.item .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.tags i { font-style: normal; font-size: .72rem; line-height: 1.5; padding: 0 8px; border-radius: 10px; background: var(--surface); color: var(--muted); }
 .inc { font-style: normal; font-weight: 500; font-size: .68rem; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; vertical-align: middle; white-space: nowrap; }
 .seg[hidden] { display: none; }
 .selbar { display: flex; align-items: center; gap: 4px; margin: 0 16px 8px; padding: 2px 6px; background: var(--surface); border-radius: 12px; }

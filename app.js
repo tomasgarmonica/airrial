@@ -89,12 +89,17 @@
 
   // Compases por renglón de una canción (entre 2 y 6; 4 si no se eligió).
   const colsOf = s => Math.min(6, Math.max(2, Math.round(+s.cols) || 4));
+  // Etiquetas de una canción: textos cortos y libres, sin repetidos (hasta 8, de 24 caracteres como mucho).
+  const cleanTag = t => String(t == null ? '' : t).replace(/[<>"|{}\[\]\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24).trim();
+  const tagsOf = s => [...new Set((Array.isArray(s.tags) ? s.tags : []).map(cleanTag).filter(Boolean))].slice(0, 8);
+  // Todas las etiquetas en uso en la biblioteca, en orden alfabético.
+  const allTags = () => [...new Set(songs.flatMap(tagsOf))].sort((a, b) => a.localeCompare(b, 'es'));
   const cleanSong = s => ({
     id: String(s.id || newId()), title: String(s.title || 'Sin título'), composer: String(s.composer || ''),
     style: STYLES.some(x => x[0] === s.style) ? s.style : 'swing', key: String(s.key || ''),
     tempo: Math.min(360, Math.max(30, +s.tempo || 120)), ts: METERS.includes(s.ts) ? s.ts : '4/4',
     transpose: Math.round(+s.transpose || 0) % 12, chart: String(s.chart || ''),
-    cols: colsOf(s),
+    cols: colsOf(s), tags: tagsOf(s),
     ...(s.builtin ? { builtin: true } : {}),
   });
 
@@ -466,7 +471,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   }
 
   // --- biblioteca ---
-  let libTab = 'songs', libStyle = '';
+  let libTab = 'songs', libStyle = '', libTag = '';
   const songMeta = s => [s.composer, styleName(s.style), s.key, s.ts].filter(Boolean).join(' · ');
   const count = n => n + (n === 1 ? ' tema' : ' temas');
 
@@ -477,6 +482,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <div class="seg tabs"><button data-a="tab" data-v="songs">Canciones</button><button data-a="tab" data-v="lists">Listas</button></div>
       <div class="search"><input id="q" type="search" autocomplete="off"></div>
       <div class="filt" id="filt"></div>
+      <div class="filt" id="tagfilt"></div>
       ${installHtml()}${iosOpenHtml()}
       <div class="selbar" id="selbar" hidden><button class="tx" data-a="selcancel">Cancelar</button><span id="selcount"></span>
         <button class="tx" data-a="selall">Todas</button><button class="tx del" data-a="seldel">Borrar</button></div>
@@ -504,13 +510,19 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         $('[data-a="seldel"]').disabled = !sel.size;
       }
       app.querySelectorAll('.tabs button').forEach(b => b.classList.toggle('on', b.dataset.v === libTab));
-      q.placeholder = onLists ? 'Buscar lista…' : 'Buscar canción, autor o género…';
+      q.placeholder = onLists ? 'Buscar lista…' : 'Buscar canción, autor, género o etiqueta…';
       // Filtro por género: solo aparecen los géneros que hay en la biblioteca.
       const used = STYLES.filter(st => songs.some(s => s.style === st[0]));
       if (!used.some(st => st[0] === libStyle)) libStyle = '';
       $('#filt').hidden = onLists || used.length < 2;
       $('#filt').innerHTML = [['', 'Todos'], ...used].map(st =>
         `<button data-a="style" data-v="${st[0]}"${st[0] === libStyle ? ' class="on"' : ''}>${esc(st[1].replace(/ \(.*/, ''))}</button>`).join('');
+      // Filtro por etiqueta: aparece si hay alguna en uso, y una etiqueta sin canciones deja de mostrarse.
+      const tags = allTags();
+      if (!tags.includes(libTag)) libTag = '';
+      $('#tagfilt').hidden = onLists || !tags.length;
+      $('#tagfilt').innerHTML = [['', 'Todas las etiquetas'], ...tags.map(t => [t, t])].map(t =>
+        `<button data-a="ltag" data-v="${esc(t[0])}"${t[0] === libTag ? ' class="on"' : ''}>${esc(t[1])}</button>`).join('');
       if (onLists) {
         const shown = lists.filter(l => !f || l.name.toLowerCase().includes(f));
         list.innerHTML = shown.length ? shown.map(l => `
@@ -521,13 +533,14 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       }
       const shown = songs
         .filter(s => !libStyle || s.style === libStyle)
-        .filter(s => !f || (s.title + ' ' + (s.composer || '') + ' ' + styleName(s.style)).toLowerCase().includes(f))
+        .filter(s => !libTag || tagsOf(s).includes(libTag))
+        .filter(s => !f || (s.title + ' ' + (s.composer || '') + ' ' + styleName(s.style) + ' ' + tagsOf(s).join(' ')).toLowerCase().includes(f))
         .sort((a, b) => a.title.localeCompare(b.title, 'es'));
       shownIds = shown.map(s => s.id);
       list.innerHTML = shown.length ? shown.map(s => (sel
         ? `<div class="item pick${sel.has(s.id) ? ' on' : ''}" data-a="pick" data-v="${esc(s.id)}">`
         : `<a class="item" href="#/s/${esc(s.id)}" data-id="${esc(s.id)}">`) + `<b>${esc(s.title)}${s.builtin ? ' <em class="inc">incluida</em>' : ''}</b>
-        <span>${esc(songMeta(s))}</span>${sel ? '</div>' : '</a>'}`).join('')
+        <span>${esc(songMeta(s))}</span>${tagsOf(s).length ? `<span class="tags">${tagsOf(s).map(t => `<i>${esc(t)}</i>`).join('')}</span>` : ''}${sel ? '</div>' : '</a>'}`).join('')
         : `<p class="empty">${songs.length ? 'Ninguna canción coincide con la búsqueda.' : 'No hay canciones. Tocá + para escribir la primera.'}</p>`;
     };
     draw();
@@ -580,6 +593,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       },
       tab: el => { libTab = el.dataset.v; q.value = ''; draw(); },
       style: el => { libStyle = el.dataset.v; draw(); },
+      ltag: el => { libTag = el.dataset.v; draw(); },
       new: () => {
         if (libTab !== 'lists') { location.hash = '#/e/new'; return; }
         const name = (prompt('Nombre de la lista:', '') || '').trim();
@@ -1221,6 +1235,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
           <label>Compás<select id="f-ts">${METERS.map(m => `<option${m === song.ts ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
           <div class="w keypick"><span>Compases por renglón</span>
             <div class="kb kcols">${[2, 3, 4, 5, 6].map(n => `<button type="button" data-a="cols" data-v="${n}">${n}</button>`).join('')}</div></div>
+          <div class="w keypick"><span>Etiquetas</span><div class="chips" id="tagrow"></div></div>
           <label class="w">Tempo<input id="f-tempo" type="number" inputmode="numeric" min="30" max="360" value="${song.tempo}"></label>
           <div class="w keypick"><span>Tonalidad</span><input type="hidden" id="f-key" value="${esc(song.key)}">
             <div class="kb k7">${ROOTS.map(r => `<button type="button" data-a="knote" data-v="${r}">${r}</button>`).join('')}</div>
@@ -1378,7 +1393,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     let clean = '';
     const snapshot = () => {
       readFields();
-      return JSON.stringify([song.title, song.composer, song.style, song.ts, song.key, song.tempo, colsOf(song),
+      return JSON.stringify([song.title, song.composer, song.style, song.ts, song.key, song.tempo, colsOf(song), tagsOf(song),
         mode === 'grid' ? Music.serialize(bars) : $('#f-chart').value]);
     };
     const mayLeave = () => snapshot() === clean || confirm('Hay cambios sin guardar. ¿Salir sin guardarlos?');
@@ -1662,6 +1677,31 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       draw();
     };
     drawCols();
+
+    // Etiquetas: se prenden y apagan las que ya existen en la biblioteca, o se escribe una nueva.
+    // La canción en edición es una copia, así que su lista se arma aparte para no tocar la guardada.
+    song.tags = tagsOf(song);
+    const drawTags = () => {
+      const known = [...new Set([...allTags(), ...song.tags])].sort((a, b) => a.localeCompare(b, 'es'));
+      $('#tagrow').innerHTML = known.map(t =>
+        `<button type="button" data-a="tagset" data-v="${esc(t)}"${song.tags.includes(t) ? ' class="on"' : ''}>${esc(t)}</button>`).join('') +
+        '<button type="button" data-a="tagnew">Nueva…</button>';
+    };
+    const addTag = t => {
+      if (song.tags.includes(t)) return;
+      if (song.tags.length >= 8) { toast('Una canción puede tener hasta 8 etiquetas.'); return; }
+      song.tags.push(t);
+    };
+    actions.tagset = el => {
+      const t = el.dataset.v;
+      if (song.tags.includes(t)) song.tags = song.tags.filter(x => x !== t); else addTag(t);
+      drawTags();
+    };
+    actions.tagnew = () => {
+      const t = cleanTag(prompt('Nombre de la etiqueta (por ejemplo: Peña, Para estudiar):', '') || '');
+      if (t) { addTag(t); drawTags(); }
+    };
+    drawTags();
 
     // Tonalidad por botones: nota, alteración y modo. Se guarda como texto ("Bb", "F#m") en el campo oculto.
     const k0 = Music.parseChord(song.key || '');
