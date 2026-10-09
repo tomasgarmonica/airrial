@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.26';
+  const VERSION = '0.27';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -1144,7 +1144,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
             <div class="kb k7">${ROOTS.map(r => `<button type="button" data-a="knote" data-v="${r}">${r}</button>`).join('')}</div>
             <div class="kb kmods"><button type="button" data-a="kacc" data-v="b">♭</button><button type="button" data-a="kacc" data-v="#">♯</button>
               <button type="button" data-a="kmode" data-v="">Mayor</button><button type="button" data-a="kmode" data-v="m">Menor</button>
-              <button type="button" data-a="knone">Ninguna</button></div></div>
+              <button type="button" data-a="knone">Ninguna</button></div>
+            <button type="button" class="khint" data-a="kuse" hidden></button></div>
         </div></details>
         <div class="seg"><button data-a="mode" data-v="grid">Botones</button><button data-a="mode" data-v="text">Texto</button></div>
         <div id="body"></div>
@@ -1232,6 +1233,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       song.chart = Music.serialize(bars);
       $('#grid').innerHTML = rowsHtml(bars, colsOf(song), (b, i) => barHtml(b, i, 0, true, i === cur.b ? cur.k : -1));
       fitChords($('#grid'));
+      keyHint();
       const old = $('.scroll', pad), keep = old && old.dataset.tab === tab ? old.scrollTop : 0;
       pad.innerHTML = `<div class="ptabs">${btn('tab', 'chords', 'Acordes', tab === 'chords')}${btn('tab', 'other', 'Otros', tab === 'other')}
         <span class="sp"></span><button type="button" data-a="undo" aria-label="Deshacer"${undo.length ? '' : ' disabled'}>${UNDO}</button>
@@ -1247,6 +1249,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       song.chart = $('#f-chart').value;
       $('#preview').innerHTML = chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song));
       fitChords($('#preview'));
+      keyHint();
     };
     const drawBody = () => {
       $('.seg').querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === mode));
@@ -1549,10 +1552,20 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     // Tonalidad por botones: nota, alteración y modo. Se guarda como texto ("Bb", "F#m") en el campo oculto.
     const k0 = Music.parseChord(song.key || '');
     let key = k0 ? { note: k0.letter, acc: plainAcc(k0.acc), minor: /^(m(?!aj)|min|-)/.test(k0.qual) } : null;
+    // Si no hay tonalidad elegida, propone la que surge de los acordes escritos.
+    const keyHint = () => {
+      const el = $('.khint'), ta = $('#f-chart');
+      const g = key ? '' : Music.guessKey(mode === 'grid' ? bars : Music.parseChart(ta ? ta.value : '', tsOf(song)));
+      el.hidden = !g;
+      el.dataset.v = g;
+      el.textContent = g ? `Sugerida por los acordes: ${g.replace('b', '♭').replace('#', '♯')} · Usar` : '';
+    };
     const drawKey = () => {
       $('#f-key').value = key ? key.note + key.acc + (key.minor ? 'm' : '') : '';
+      keyHint();
       app.querySelectorAll('.keypick button[data-a^="k"]').forEach(b => {
         const a = b.dataset.a, v = b.dataset.v;
+        if (a === 'kuse') return;
         b.classList.toggle('on', a === 'knone' ? !key : !!key &&
           (a === 'knote' ? key.note === v : a === 'kacc' ? key.acc === v : key.minor === (v === 'm')));
         if (a === 'kacc' || a === 'kmode') b.disabled = !key;
@@ -1564,6 +1577,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       kacc: el => { if (key) { key.acc = key.acc === el.dataset.v ? '' : el.dataset.v; drawKey(); } },
       kmode: el => { if (key) { key.minor = el.dataset.v === 'm'; drawKey(); } },
       knone: () => { key = null; drawKey(); },
+      kuse: el => {
+        const c = Music.parseChord(el.dataset.v);
+        if (c) { key = { note: c.letter, acc: plainAcc(c.acc), minor: c.qual === 'm' }; drawKey(); }
+      },
     });
     drawKey();
     bind(actions);

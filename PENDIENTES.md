@@ -12,7 +12,8 @@ grabaciones (ver `GRABACION.md`).
 - [x] Tonalidad por botones (nota, alteración, mayor o menor) en lugar de texto
 - [x] Mover un compás (← →) o una parte entera (↑ ↓)
 - [ ] Repartir los tiempos de un compás de forma desigual con un control propio (hoy: "Alargar el anterior")
-- [ ] Sugerir la tonalidad a partir de los acordes escritos
+- [x] Sugerir la tonalidad a partir de los acordes escritos (el editor la propone y se acepta con un toque)
+- [ ] Cortes: golpes y silencios de la banda que forman parte de la estructura. Falta definir cómo se escriben
 - [x] Símbolos propios para Segno y Coda; Fine, D.C., D.S. y "al Coda" se muestran a la derecha del compás
 
 ## 2. Reproducción
@@ -86,7 +87,8 @@ catálogo público.
 - [ ] Dónde alojar los sonidos grabados y cuánto pesan en el teléfono
 - [ ] Límite de espacio en el teléfono: cuántas canciones entran y qué pasa cuando se llena
 - [x] Número de versión visible y recarga automática cuando hay una versión nueva
-- [ ] Pruebas automáticas antes de publicar, para no romper lo que ya anda
+- [x] Pruebas automáticas en el proyecto (`node tests/todo.js`), que se corren antes de cada publicación
+- [ ] Pruebas automáticas de las pantallas (hoy se prueban a mano en el navegador)
 
 **Seguridad de los usuarios**
 - [ ] Inicio de sesión sin guardar contraseñas propias (con Google o enlace por mail)

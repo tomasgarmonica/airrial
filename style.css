@@ -262,6 +262,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .keypick button.on { background: var(--accent); color: var(--on-accent); font-weight: 700; }
 .keypick button:disabled { opacity: .35; }
 .kcols { grid-template-columns: repeat(5, 1fr); }
+.keypick .khint { text-align: left; padding: 0 12px; background: none; border: 1px dashed var(--line); color: var(--accent); font-size: .92rem; }
 .kmods { grid-template-columns: 1fr 1fr 1.6fr 1.6fr 1.8fr; }
 .kmods [data-a=kacc] { font-size: 1.3rem; }
 .fields input, .fields select { color: var(--text); font-size: 1rem; }
