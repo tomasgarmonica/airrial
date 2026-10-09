@@ -37,6 +37,8 @@
   // Instrumentos silenciados con un toque: el deslizador conserva su volumen para cuando vuelven.
   settings.mute = Object.assign({}, settings.mute);
   const applyVol = k => Engine.setVol(k, settings.mute[k] ? 0 : settings.vol[k]);
+  // Modo práctica: cuánto sube el tempo (bpm) y cuánto cambia el tono (semitonos) en cada vuelta. Cero = no cambia.
+  settings.practice = Object.assign({ tempo: 0, key: 0 }, settings.practice);
   // Listas de temas: { id, name, songs: [ids en orden] }
   let lists = load(LISTS, []);
   const saveLists = () => store(LISTS, lists);
@@ -790,6 +792,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
             <button id="key" class="val" data-a="reset" aria-label="Volver al tono original"></button>
             <button data-a="up" aria-label="Subir medio tono">+</button></div></div>
         </div>
+        <p class="live" id="live" hidden></p>
         <div class="more"><div class="in">
           <div class="r">
             <label class="fld">Estilo<select id="style" aria-label="Estilo">${STYLES.map(s => `<option value="${s[0]}"${s[0] === song.style ? ' selected' : ''}>${s[1]}</option>`).join('')}</select></label>
@@ -798,6 +801,12 @@ ${rows ? `<ol>${rows}</ol>` : ''}
           <div class="r">
             <label class="fld">Ver los acordes como<select id="notation">${[['letras', 'Letras: C, Dm7, Gmaj7'], ['jazz', 'Jazz: C, D-7, G△7'], ['latino', 'Do, Re, Mi: Do, Rem7, Solmaj7'], ['grados', 'Grados: I, IIm7, Vmaj7']]
               .map(o => `<option value="${o[0]}"${o[0] === settings.notation ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
+          </div>
+          <div class="r">
+            <label class="fld">Subir el tempo por vuelta<select id="ptempo">${[[0, 'No'], [4, '+4 bpm'], [8, '+8 bpm'], [12, '+12 bpm']]
+              .map(o => `<option value="${o[0]}"${o[0] === settings.practice.tempo ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
+            <label class="fld">Cambiar de tono por vuelta<select id="pkey">${[[0, 'No'], [1, '+1 semitono'], [5, 'Una cuarta arriba'], [7, 'Una quinta arriba']]
+              .map(o => `<option value="${o[0]}"${o[0] === settings.practice.key ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
           </div>
           <div class="mixer">
             ${slider('bass', 'Bajo')}${slider('keys', 'Teclado')}${slider('drums', 'Batería')}${slider('click', 'Claqueta')}
@@ -839,9 +848,11 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       saveSettings();
       toast(msg);
     };
+    // Modo práctica: mientras suena, `liveSemis` es el tono de la vuelta que se escucha (null = el guardado).
+    let liveSemis = null;
     const draw = () => {
       bars = Music.parseChart(song.chart, tsOf(song));
-      const semis = song.transpose || 0;
+      const semis = liveSemis != null ? liveSemis : (song.transpose || 0);
       const key = keyOf(song, bars);
       const flats = Music.useFlats(key, semis);
       Music.setView({ notation: settings.notation, key: song.key });
@@ -851,14 +862,25 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       markFrom();
       $('#key').textContent = song.key ? Music.transposeName(song.key, semis, flats) : (semis > 0 ? '+' : '') + semis;
     };
+    // Al parar, la hoja vuelve al tono guardado y se va el cartel de la vuelta.
+    const endLive = () => {
+      $('#live').hidden = true;
+      if (liveSemis == null) return;
+      liveSemis = null;
+      draw();
+    };
     const setPlaying = on => {
       $('#play').innerHTML = on ? STOP : PLAY;
       $('#play').classList.toggle('on', on);
-      if (!on) chart.querySelectorAll('.bar.on').forEach(el => el.classList.remove('on'));
+      if (!on) { chart.querySelectorAll('.bar.on').forEach(el => el.classList.remove('on')); endLive(); }
     };
     const restart = () => { if (Engine.isPlaying()) start(); };
     const start = () => {
-      const semis = song.transpose || 0;
+      endLive();
+      const semis = song.transpose || 0, practice = settings.practice, resolved = {};
+      // Tono y tempo de cada vuelta (la primera es la 0). Sin modo práctica son siempre los guardados.
+      const semisAt = n => ((semis + n * practice.key) % 12 + 12) % 12;
+      const tempoAt = n => Math.min(360, song.tempo + (n || 0) * practice.tempo);
       let seq, choruses = settings.choruses, finalChord = null;
       if (range && range.b != null) {
         // El tramo suena de corrido, sin las repeticiones ni casillas que tenga adentro.
@@ -867,19 +889,32 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         seq = Music.unfold(bars);
         const k = Music.parseChord(song.key || '');
         if (k && choruses !== 999) {
-          const root = (k.num + semis + 120) % 12;
-          finalChord = { root, bass: root, iv: Music.intervals(k.qual) };
+          finalChord = n => {
+            const root = (k.num + semisAt(n)) % 12;
+            return { root, bass: root, iv: Music.intervals(k.qual) };
+          };
         }
       }
       const ok = Engine.play({
         seq,
         startPos: from == null ? 0 : Math.max(0, seq.indexOf(from)),
         finalChord,
-        bars: Music.resolve(bars, semis),
-        getTempo: () => song.tempo,
+        barsFor: n => resolved[semisAt(n)] || (resolved[semisAt(n)] = Music.resolve(bars, semisAt(n))),
+        getTempo: tempoAt,
         style: song.style,
         choruses,
         countIn: settings.countIn,
+        // Llega cuando empieza a sonar cada vuelta: en modo práctica se muestra su tempo y la hoja pasa a su tono.
+        onChorus: n => {
+          if (!practice.tempo && !practice.key) return;
+          const now = semisAt(n), shown = liveSemis != null ? liveSemis : semisAt(0);
+          if (now !== shown) { liveSemis = now; draw(); }
+          const parts = ['Práctica · vuelta ' + (n + 1)];
+          if (practice.tempo) parts.push(tempoAt(n) + ' bpm');
+          if (practice.key) parts.push('tono ' + $('#key').textContent);
+          $('#live').textContent = parts.join(' · ');
+          $('#live').hidden = false;
+        },
         onBar: i => {
           chart.querySelectorAll('.bar.on').forEach(el => el.classList.remove('on'));
           const el = chart.querySelector(`.bar[data-i="${i}"]`);
@@ -1015,6 +1050,11 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       else if (t.id === 'style') { song.style = t.value; saveSongs(); restart(); }
       else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
+      else if (t.id === 'ptempo' || t.id === 'pkey') {
+        settings.practice[t.id === 'ptempo' ? 'tempo' : 'key'] = +t.value;
+        saveSettings();
+        restart();
+      }
       else if (t.id === 'notation') {
         settings.notation = t.value;
         saveSettings();

@@ -188,6 +188,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .more .r { margin-top: 12px; }
 .fld { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: .7rem; color: var(--muted); }
 .fld select { flex: none; width: 100%; color: var(--text); font-size: 1rem; }
+.live { margin: 8px 0 0; text-align: center; font-size: .85rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+.live[hidden] { display: none; }
 .mixer { margin-top: 8px; }
 .mixer label, .mx { display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 42px; font-size: .9rem; }
 .mx button { flex: 1; min-width: 0; min-height: 44px; padding: 0 10px; border: 0; border-radius: 8px; background: var(--bg); color: var(--text); text-align: left; }

@@ -22,7 +22,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Final de tema: terminar en un acorde largo (necesita la tonalidad cargada)
 - [x] Seguir sonando bien con la app en segundo plano
 - [x] La reproducción sigue D.C., D.S., Fine y Coda (sin repeticiones después del salto)
-- [ ] Modo práctica: subir el tempo o cambiar de tono en cada vuelta
+- [x] Modo práctica: subir el tempo o cambiar de tono en cada vuelta (vale solo mientras suena; la hoja muestra el tono de la vuelta)
 - [x] Silenciar instrumentos sueltos con un toque (el nombre del instrumento en la mezcla es el botón; el deslizador conserva su volumen)
 - [ ] Elegir instrumento armónico (piano o guitarra)
 

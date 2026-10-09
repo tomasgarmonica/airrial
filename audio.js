@@ -408,9 +408,9 @@ const Engine = (() => {
         if (S.chorus >= o.choruses) {
           // Cierre: un acorde largo sobre la tónica en lugar de cortar en seco.
           let tail = 0;
-          const c = o.finalChord;
+          const c = typeof o.finalChord === 'function' ? o.finalChord(S.chorus - 1) : o.finalChord;
           if (c && o.style !== 'click') {
-            const bd = 60 / o.getTempo();
+            const bd = 60 / o.getTempo(S.chorus - 1);
             chordHit(S.t, voice(c), bd * 4, 1);
             bass(S.t, rootOf(c), bd * 4, 0.9);
             kick(S.t, 0.8);
@@ -422,13 +422,16 @@ const Engine = (() => {
           S.done = true;
           return;
         }
+        // Vuelta nueva: en modo práctica puede traer otros acordes (otro tono) y otro tempo.
+        S.bars = barsOf(o, S.chorus);
+        S.q.push({ t: S.t, chorus: S.chorus });
       }
-      const idx = o.seq[S.pos], bar = o.bars[idx];
-      const bd = 60 / o.getTempo() * 4 / bar.den;
-      let nextIdx = null;
+      const idx = o.seq[S.pos], bar = S.bars[idx];
+      const bd = 60 / o.getTempo(S.chorus) * 4 / bar.den;
+      let nextIdx = null, nextBars = S.bars;
       if (S.pos + 1 < o.seq.length) nextIdx = o.seq[S.pos + 1];
-      else if (S.chorus + 1 < o.choruses) nextIdx = o.seq[0];
-      const ns = nextIdx == null ? null : o.bars[nextIdx].slots[0];
+      else if (S.chorus + 1 < o.choruses) { nextIdx = o.seq[0]; nextBars = barsOf(o, S.chorus + 1); }
+      const ns = nextIdx == null ? null : nextBars[nextIdx].slots[0];
       schedBar(bar, S.t, bd, ns && ns.beat === 0 ? ns.chord : null);
       S.q.push({ t: S.t, i: idx });
       S.t += bar.beats * bd;
@@ -447,6 +450,10 @@ const Engine = (() => {
         if (cb) cb();
         return false;
       }
+      if (e.chorus != null) {
+        if (S.o.onChorus) S.o.onChorus(e.chorus);
+        continue;
+      }
       S.o.onBar(e.i);
     }
     return true;
@@ -456,19 +463,25 @@ const Engine = (() => {
     if (S && flush()) raf = requestAnimationFrame(frame);
   }
 
+  // Compases ya resueltos de una vuelta: los mismos siempre, o los que dé barsFor (modo práctica).
+  const barsOf = (o, chorus) => (o.barsFor ? o.barsFor(chorus) : o.bars);
+
   // o: { seq, startPos, finalChord, bars, getTempo, style, choruses, countIn, onBar, onEnd }
+  // Opcionales para el modo práctica: barsFor(vuelta) en lugar de bars, getTempo(vuelta), finalChord(vuelta)
+  // y onChorus(vuelta), que avisa cuando empieza a sonar cada vuelta (la primera es la 0).
   function play(o) {
     stop();
     if (!o.seq.length) return false;
     ensure();
     makeBuses();
-    S = { o, pos: o.startPos || 0, chorus: 0, t: ctx.currentTime + 0.1, barNo: 0, last: null, lb: 38, q: [] };
+    S = { o, pos: o.startPos || 0, chorus: 0, t: ctx.currentTime + 0.1, barNo: 0, last: null, lb: 38, q: [], bars: barsOf(o, 0) };
     if (o.countIn) {
-      const b = o.bars[o.seq[S.pos]];
-      const bd = 60 / o.getTempo() * 4 / b.den;
+      const b = S.bars[o.seq[S.pos]];
+      const bd = 60 / o.getTempo(0) * 4 / b.den;
       for (let i = 0; i < b.beats; i++) click(S.t + i * bd, i === 0, bus.fixed);
       S.t += b.beats * bd;
     }
+    S.q.push({ t: S.t, chorus: 0 });
     timer = setInterval(tick, 25);
     tick();
     raf = requestAnimationFrame(frame);
