@@ -9,11 +9,13 @@ const Music = (() => {
   const accVal = a => (a === '#' || a === '♯' ? 1 : a === 'b' || a === '♭' ? -1 : 0);
   const pretty = s => s.replace(/b/g, '♭').replace(/#/g, '♯');
 
+  // Un "!" al final marca un corte: la banda da un golpe seco en ese acorde y calla hasta el próximo.
   function parseChord(str) {
-    const m = CHORD.exec(str);
+    const cut = typeof str === 'string' && str.length > 1 && str.endsWith('!');
+    const m = CHORD.exec(cut ? str.slice(0, -1) : str);
     if (!m) return null;
     return {
-      letter: m[1], acc: m[2], qual: m[3],
+      cut, letter: m[1], acc: m[2], qual: m[3],
       num: (NOTE[m[1]] + accVal(m[2]) + 12) % 12,
       bassLetter: m[4] || null, bassAcc: m[5] || '',
       bassNum: m[4] ? (NOTE[m[4]] + accVal(m[5]) + 12) % 12 : null,
@@ -247,6 +249,7 @@ const Music = (() => {
           const root = (c.num + semis + 120) % 12;
           slots.push({
             beat: pos[k],
+            cut: c.cut,
             chord: {
               root,
               bass: c.bassNum == null ? root : (c.bassNum + semis + 120) % 12,

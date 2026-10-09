@@ -74,4 +74,17 @@ assert.equal(r[0].slots[1].chord.root, 7);
 assert.equal(r[1].slots, r[0].slots);              // el % repite el compás entero, con su reparto
 // los lugares vacíos no cortan el acorde anterior
 near(M.resolve(M.parseChart('| { C _ _ G } |', [4, 4]), 0)[0].slots.map(s => s.beat), [0, 3]);
+// --- cortes ---
+const cut = M.parseChord('G7!');
+assert.equal(cut.cut, true); assert.equal(cut.qual, '7'); assert.equal(cut.num, 7);
+assert.equal(M.parseChord('G7').cut, false);
+assert.equal(M.parseChord('Bb/D!').bassNum, 2);
+assert.equal(M.parseChord('!'), null);
+const withCut = M.parseChart('| { C . . . . . . G! } | _ | F |', [4, 4]);
+assert.equal(M.serialize(withCut), '| { C . . . . . . G! } | _ | F |');
+const rc = M.resolve(withCut, 2);
+assert.deepEqual(rc[0].slots.map(s => !!s.cut), [false, true]);
+assert.equal(rc[0].slots[1].chord.root, 9);          // el corte se transporta con el acorde
+assert.equal(rc[1].slots.length, 0);                 // compás vacío: sigue el silencio
+assert.equal(M.guessKey(M.parseChart('| C! | Am | F | G! |', [4, 4])), 'C');
 console.log('tiempos del compás: ok');

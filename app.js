@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.29';
+  const VERSION = '0.30';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -333,7 +333,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const c = Music.parseChord(tk);
     if (!c) return `<span class="nc">${esc(tk)}</span>`;
     const d = Music.spell(c, semis, flats);
-    return `<b>${esc(d.root)}</b>${d.qual ? `<i>${esc(d.qual)}</i>` : ''}${d.bass ? `<u>/${esc(d.bass)}</u>` : ''}`;
+    // `cn` envuelve el nombre del acorde (es lo que se mide para ajustar el tamaño); el corte va chiquito debajo.
+    return `<span class="cn"><b>${esc(d.root)}</b>${d.qual ? `<i>${esc(d.qual)}</i>` : ''}${d.bass ? `<u>/${esc(d.bass)}</u>` : ''}${c.cut ? '<em class="cut">corte</em>' : ''}</span>`;
   }
 
   const SEGNO = '<svg class="mk" viewBox="0 0 24 24" role="img" aria-label="Segno"><path d="M16.5 7.5c-.8-2.6-7.5-2.9-7.5 1 0 3.6 7 2.6 7 6.8 0 3.8-6.6 3.6-7.6.9"/><path d="M6 20 18 4"/><circle class="dot" cx="6" cy="10.5" r="1.3"/><circle class="dot" cx="18" cy="13.5" r="1.3"/></svg>';
@@ -394,7 +395,9 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     for (const el of all) el.style.fontSize = max + 'px';
     const sized = all.map(el => {
       const room = el.clientWidth - 2;
-      return { el, room, need: el.scrollWidth || 1, size: Math.max(FIT_MIN, Math.min(max, Math.floor(max * room / (el.scrollWidth || 1)))) };
+      // Se mide el nombre del acorde, no la palabra "corte" que cuelga debajo.
+      const name = el.querySelector('.cn'), need = (name ? Math.ceil(name.getBoundingClientRect().width) : el.scrollWidth) || 1;
+      return { el, room, need, size: Math.max(FIT_MIN, Math.min(max, Math.floor(max * room / need))) };
     });
     const bars = new Map();
     for (const s of sized) {
@@ -411,6 +414,11 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       // y ocupa lugar libre hacia la izquierda, en vez de salirse del compás.
       const spills = s.need * s.final / max > s.room + 2;
       s.el.style.justifySelf = spills && !s.el.nextElementSibling && s.el.previousElementSibling ? 'end' : '';
+    }
+    // La palabra "corte" va alineada a la izquierda del acorde; si así se pasa de la barra del compás, a la derecha.
+    for (const mark of root.querySelectorAll('.cut')) {
+      mark.classList.remove('r');
+      if (mark.getBoundingClientRect().right > mark.closest('.cell').getBoundingClientRect().right - 2) mark.classList.add('r');
     }
   }
   window.addEventListener('resize', () => document.querySelectorAll('.chart').forEach(fitChords));
@@ -1180,8 +1188,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   const NOTES = ['Segno', 'Coda', 'Al Coda', 'Fine', 'D.C.', 'D.C. al Fine', 'D.C. al Coda', 'D.S.', 'D.S. al Fine', 'D.S. al Coda'];
   const plainAcc = a => (a === '♯' ? '#' : a === '♭' ? 'b' : a);
   const chordText = c => c.letter + plainAcc(c.acc) + c.qual +
-    (c.bassLetter ? '/' + c.bassLetter + plainAcc(c.bassAcc) : '');
-  const HELP = `<details class="help"><summary>Cómo se escribe</summary>
+    (c.bassLetter ? '/' + c.bassLetter + plainAcc(c.bassAcc) : '') + (c.cut ? '!' : '');
+  const HELP =`<details class="help"><summary>Cómo se escribe</summary>
     <ul>
       <li>Separá los compases con <code>|</code>. Cada renglón de texto es un renglón de la partitura.</li>
       <li>Dos acordes en un compás se reparten por la mitad: <code>| Dm7 G7 |</code>.</li>
@@ -1191,6 +1199,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <li>Casillas: <code>1.</code> y <code>2.</code> al empezar el compás.</li>
       <li>Cambio de compás: <code>3/4</code> al empezar el compás. Texto libre entre comillas: <code>"Fine"</code>.</li>
       <li>Acordes: <code>C</code> <code>F#m7</code> <code>Bbmaj7</code> <code>E7b9</code> <code>Am7b5</code> <code>Gsus4</code> <code>D/F#</code>.</li>
+      <li>Corte (golpe seco y silencio hasta el próximo acorde): un <code>!</code> pegado al acorde, por ejemplo <code>G7!</code>.</li>
     </ul></details>`;
 
   function editView(id) {
@@ -1270,7 +1279,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const acc = c ? plainAcc(bass ? c.bassAcc : c.acc) : '';
       return `<div class="kb k7">${ROOTS.map(r => btn('root', r, r, letter === r)).join('')}</div>
         <div class="kb k5">${btn('acc', 'b', '♭', acc === 'b')}${btn('acc', '#', '♯', acc === '#')}
-          ${btn('bass', '', '/ bajo', bass)}${btn('rep', '', '%', item() === '%')}${btn('divide', '', 'Dividir')}${btn('del', '', 'Borrar')}</div>
+          ${btn('bass', '', '/ bajo', bass)}${btn('rep', '', '%', item() === '%')}</div>
+        <div class="kb k3">${btn('divide', '', 'Dividir')}${btn('cut', '', 'Corte', !!(c && c.cut))}${btn('del', '', 'Borrar')}</div>
         ${bass ? `<p class="hint">Elegí arriba la nota del bajo. ${btn('nobass', '', 'Sin bajo')}</p>`
           : c ? `<div class="kb quals scroll">${QUALS.map(q => btn('qual', q, q ? q.replace(/b/g, '♭').replace(/#/g, '♯') : 'mayor', c.qual === q)).join('')}</div>`
           : '<p class="hint">Tocá una nota para escribir el acorde en el lugar marcado.</p>'}`;
@@ -1305,7 +1315,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const stripHtml = () => {
       const b = bars[cur.b];
       if (b.items.length < 2) return '';
-      return `<div class="strip">${b.items.map((it, k) => `<button type="button" data-a="slot" data-v="${k}" style="flex:${b.lens[k]}"${k === cur.k ? ' class="on"' : ''}>${it === '_' ? '' : esc(it.replace(/b/g, '♭').replace(/#/g, '♯'))}</button>`).join('')}</div>`;
+      return `<div class="strip">${b.items.map((it, k) => `<button type="button" data-a="slot" data-v="${k}" style="flex:${b.lens[k]}" class="${k === cur.k ? 'on' : ''}${it.endsWith('!') ? ' cut' : ''}">${it === '_' ? '' : esc(it.replace(/!$/, '').replace(/b/g, '♭').replace(/#/g, '♯'))}</button>`).join('')}</div>`;
     };
     const draw = () => {
       if (mode !== 'grid') return;
@@ -1459,6 +1469,14 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         cur.fresh = false;
       },
       bass: () => { if (Music.parseChord(item())) target = target === 'bass' ? 'root' : 'bass'; },
+      // Corte: golpe seco de la banda en este acorde y silencio hasta el próximo acorde escrito.
+      cut: () => {
+        const c = Music.parseChord(item());
+        if (!c) { toast('El corte se pone sobre un acorde: escribilo primero.'); return; }
+        c.cut = !c.cut;
+        setItem(chordText(c));
+        cur.fresh = false;
+      },
       nobass: () => {
         const c = Music.parseChord(item());
         if (c) { c.bassLetter = null; setItem(chordText(c)); }
