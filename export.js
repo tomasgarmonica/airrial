@@ -143,11 +143,12 @@ const Exporter = (() => {
       const s = Math.min(...sizes.filter((_, i) => Math.abs(rooms[i] - rooms[j]) < 1));
       const tx = left + pos[k] / B * inner, chord = Music.parseChord(b.items[k]);
       drawToken(g, b.items[k], tx, mid + s * 0.36, s, semis, flats);
-      // corte: la palabra chiquita debajo del acorde
-      if (chord && chord.cut) {
+      // anticipación y corte: la palabra chiquita debajo del acorde
+      const marks = chord ? [chord.push && 'anticipa', chord.cut && 'corte'].filter(Boolean).join(' · ') : '';
+      if (marks) {
         g.font = `600 17px ${FONT}`;
         g.fillStyle = '#444';
-        g.fillText('corte', Math.min(tx, x + w - 8 - g.measureText('corte').width), mid + 44);
+        g.fillText(marks, Math.max(x + 6, Math.min(tx, x + w - 8 - g.measureText(marks).width)), mid + 44);
         g.fillStyle = '#000';
       }
     });

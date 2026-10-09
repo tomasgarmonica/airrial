@@ -259,7 +259,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .k7 { grid-template-columns: repeat(7, 1fr); }
 .k7 button { font-size: 1.25rem; font-weight: 700; min-width: 0; padding: 0; }
 .k5 { grid-template-columns: 1fr 1fr 1.6fr 1fr; }
-.k3 { grid-template-columns: 1fr 1fr 1fr; }
+.k3 { grid-template-columns: 1fr 1.2fr 1fr 1fr; }
+.k3 button { min-width: 0; padding: 0 2px; }
 .k5 [data-a=rep] { font-size: 1.2rem; }
 .k5 button { min-width: 0; padding: 0 2px; white-space: nowrap; }
 .k5 [data-a=acc] { font-size: 1.35rem; }

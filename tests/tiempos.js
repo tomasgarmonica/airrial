@@ -87,4 +87,13 @@ assert.deepEqual(rc[0].slots.map(s => !!s.cut), [false, true]);
 assert.equal(rc[0].slots[1].chord.root, 9);          // el corte se transporta con el acorde
 assert.equal(rc[1].slots.length, 0);                 // compás vacío: sigue el silencio
 assert.equal(M.guessKey(M.parseChart('| C! | Am | F | G! |', [4, 4])), 'C');
+// --- anticipaciones ---
+const ant = M.parseChord('<G7');
+assert.equal(ant.push, true); assert.equal(ant.cut, false); assert.equal(ant.qual, '7');
+assert.deepEqual([M.parseChord('<Bb/D!').push, M.parseChord('<Bb/D!').cut, M.parseChord('<Bb/D!').bassNum], [true, true, 2]);
+assert.equal(M.parseChord('G7').push, false); assert.equal(M.parseChord('<'), null);
+const pushed = M.parseChart('| C | <G7 | { Am <Dm! } |', [4, 4]);
+assert.equal(M.serialize(pushed), '| C | <G7 | { Am <Dm! } |');
+assert.deepEqual(M.resolve(pushed, 0).map(x => x.slots.map(s => (s.push ? 'a' : '') + (s.cut ? 'c' : '')).join(',')), ['', 'a', ',ac']);
+assert.equal(M.guessKey(M.parseChart('| <C | Am | F | <G |', [4, 4])), 'C');
 console.log('tiempos del compás: ok');

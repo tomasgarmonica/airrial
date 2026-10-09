@@ -391,8 +391,20 @@ const Engine = (() => {
     if (!oompah) for (const s of x.segs) if (s.chord) chordHit(t + s.beat * bd, voice(s.chord), s.len * bd * 0.95, 0.9);
   }
 
-  function schedBar(bar, t, bd, next) {
-    const B = bar.beats, slots = bar.slots, carried = S.last;
+  function schedBar(bar, t, bd, next, ahead) {
+    const B = bar.beats, carried = S.last;
+    // Anticipaciones: un acorde marcado así empieza a sonar una corchea antes de donde está escrito. Si está
+    // en el primer tiempo, entra al final del compás anterior: `ahead` es ese acorde del compás que sigue, y
+    // `S.pushed` avisa después que el primer acorde ya entró (para no volver a atacarlo).
+    const eighth = bar.den / 8, came = S.pushed;
+    const slots = bar.slots.map((s, i) => {
+      if (!s.push) return s;
+      if (s.beat > 0) return { ...s, beat: Math.max(s.beat - eighth, 0), early: true };
+      return came && i === 0 ? { ...s, held: true } : s;
+    });
+    if (ahead) slots.push({ beat: B - eighth, chord: ahead.chord, cut: ahead.cut, early: true });
+    slots.sort((a, b) => a.beat - b.beat);
+    S.pushed = !!ahead;
     const at = b => {
       let c = carried;
       for (const s of slots) { if (s.beat <= b + 1e-6) c = s.chord; else break; }
@@ -408,12 +420,15 @@ const Engine = (() => {
       const whole = Math.floor(beat + 1e-6), part = beat - whole;
       return t + (swing && Math.abs(part - 0.5) < 1e-6 ? whole + 2 / 3 : beat) * bd;
     };
-    const hits = [];
+    const hits = [], accents = [];
     let from = S.hush ? t : null;
     quiet = [];
     for (const s of slots) {
+      // un corte que ya sonó anticipado en el compás anterior: no se repite el golpe, sigue el silencio
+      if (s.held && s.cut) { if (from == null) from = t; continue; }
       if (from != null) { quiet.push([from, when(s.beat)]); from = null; }
       if (s.cut && s.chord) { hits.push([when(s.beat), s.chord]); from = when(s.beat); }
+      else if (s.early && s.chord) accents.push([when(s.beat), s.chord]);
     }
     if (from != null) quiet.push([from, t + B * bd]);
     S.hush = from != null;
@@ -435,6 +450,13 @@ const Engine = (() => {
         kick(ht, 1);
         snare(ht, 0.7);
         nz(ht, 0.1, 'highpass', 6000, 0.3);
+      }
+      // La anticipación se marca: acorde, bajo y bombo entran juntos antes de tiempo y el acorde queda sonando.
+      for (const [pt, chord] of accents) {
+        const left = t + B * bd - pt;
+        chordHit(pt, voice(chord), left + bd * 0.4, 1);
+        bass(pt, rootOf(chord), Math.min(left, bd), 1);
+        kick(pt, 0.8);
       }
     }
     S.last = at(B);
@@ -475,7 +497,7 @@ const Engine = (() => {
       if (S.pos + 1 < o.seq.length) nextIdx = o.seq[S.pos + 1];
       else if (S.chorus + 1 < o.choruses) { nextIdx = o.seq[0]; nextBars = barsOf(o, S.chorus + 1); }
       const ns = nextIdx == null ? null : nextBars[nextIdx].slots[0];
-      schedBar(bar, S.t, bd, ns && ns.beat === 0 ? ns.chord : null);
+      schedBar(bar, S.t, bd, ns && ns.beat === 0 ? ns.chord : null, ns && ns.beat === 0 && ns.push ? ns : null);
       S.q.push({ t: S.t, i: idx });
       S.t += bar.beats * bd;
       S.pos++;

@@ -98,4 +98,27 @@ assert.equal(r.band(0, 6), 0); assert.equal(r.clicks(-0.01, 6), 12);
 // 9) sin cortes nada cambia: ningún compás queda en silencio
 r = play('| C | F G | Am | Dm |', 'pop');
 for (let b = 0; b < 4; b++) assert(r.band(b * 2 - 0.01, b * 2 + 2) > 3);
+
+// --- anticipaciones: el acorde escrito en el 1 entra en el "y" del 4 anterior ---
+// en pop, sin anticipación, en el "y" del 4 solo hay un bajo y un hi-hat
+r = play('| C | G | Am |', 'pop');
+const plain = r.hit(1.75);
+r = play('| C | <G | Am |', 'pop');
+assert(r.hit(1.75) >= plain + 5, 'la anticipación suma acorde, bajo y bombo en el "y" del 4');
+assert(r.band(2 - 0.01, 4) > 3, 'el compás del acorde anticipado suena normal');
+// en swing cae atresillada
+r = play('| C | <G | Am |', 'swing');
+assert(r.hit((3 + 2 / 3) * 0.5) >= 5, 'swing: anticipación en el último tercio del tiempo 4');
+// dentro del compás: un acorde escrito en el 3 entra en el "y" del 2
+r = play('| { C <G } | Am |', 'balada');
+assert(r.hit(0.75) >= 5);
+// anticipación con corte: el golpe se adelanta, no se repite en el 1, y hay silencio hasta el próximo acorde
+r = play('| C | <G! | _ | Am |', 'pop');
+assert(r.hit(1.75) >= 4); assert.equal(r.band(1.75, 6), 0); assert(r.band(6 - 0.01, 8) > 3);
+// en 6/8 la anticipación es de una corchea (un cuarto de segundo a 120)
+r = play('| Am | <E7 | Am |', 'chacarera', [6, 8]);
+assert(r.hit(1.5 - 0.25) >= 5);
+// con repeticiones, el compás anterior es el que suena antes, no el que está escrito antes
+r = play('|: <C | G :| Am |', 'pop');
+assert(r.hit(3.75) >= plain + 5, 'al repetir, la anticipación entra al final del compás que vuelve');
 console.log('cortes: ok');
