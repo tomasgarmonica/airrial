@@ -11,9 +11,11 @@ grabaciones (ver `GRABACION.md`).
 - [x] Duplicar una canción (para hacer versiones)
 - [x] Tonalidad por botones (nota, alteración, mayor o menor) en lugar de texto
 - [x] Mover un compás (← →) o una parte entera (↑ ↓)
-- [ ] Repartir los tiempos de un compás de forma desigual con un control propio (hoy: "Alargar el anterior")
+- [x] Dividir y Unir: el compás se parte en mitades (o como pida el compás, o en tres para un tresillo) hasta la semicorchea, para ubicar un acorde en un punto exacto. Reemplaza a "+ acorde" y "Alargar el anterior"
 - [x] Sugerir la tonalidad a partir de los acordes escritos (el editor la propone y se acepta con un toque)
-- [ ] Cortes: golpes y silencios de la banda que forman parte de la estructura. Falta definir cómo se escriben
+- [ ] Cortes, paso 2: botón "Corte" sobre un acorde y la palabra "corte" chica debajo, en la hoja, el PDF y la imagen
+- [ ] Cortes, paso 3: sonido (golpe seco de toda la banda y silencio hasta el próximo acorde escrito; el metrónomo sigue)
+- [ ] Swing: que las corcheas escritas suenen atresilladas cuando el estilo es swing
 - [x] Símbolos propios para Segno y Coda; Fine, D.C., D.S. y "al Coda" se muestran a la derecha del compás
 
 ## 2. Reproducción

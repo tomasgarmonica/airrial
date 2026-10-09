@@ -133,9 +133,9 @@ const Exporter = (() => {
       left += 34;
     }
     // acordes, ubicados según el tiempo en que entran
-    const B = b.ts[0], n = b.items.length, pos = Music.positions(n, B), inner = right - left;
+    const B = b.ts[0], pos = Music.starts(b), inner = right - left;
     const shown = [];
-    b.items.forEach((it, k) => { if (it !== '.') shown.push(k); });
+    b.items.forEach((it, k) => { if (it !== '_') shown.push(k); });
     const rooms = shown.map((k, j) => ((j + 1 < shown.length ? pos[shown[j + 1]] : B) - pos[k]) / B * inner - 8);
     const sizes = shown.map((k, j) => fitSize(g, b.items[k], rooms[j], semis, flats));
     shown.forEach((k, j) => {

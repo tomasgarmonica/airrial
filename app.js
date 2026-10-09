@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.28';
+  const VERSION = '0.29';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -352,29 +352,30 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   // Con `sel` (lugar marcado, o -1) dibuja la versión editable: todos los lugares se pueden tocar.
   function barHtml(b, i, semis, flats, sel) {
     const edit = sel !== undefined;
-    const B = b.ts[0], items = b.items, n = items.length, pos = Music.positions(n, B);
-    let chs = '', minSpan = B;
+    // El compás se dibuja sobre su grilla pareja: cada lugar ocupa las casillas que le tocan por su largo.
+    const items = b.items, n = items.length, g = Music.grid(b);
+    let chs = '', minSpan = g.n;
     items.forEach((it, k) => {
       if (edit) {
-        const inner = it === '.' ? '<span class="rp">·</span>' : tokHtml(it, semis, flats);
-        chs += `<span class="ch${k === sel ? ' cur' : ''}" data-k="${k}">${inner}</span>`;
+        // En el editor se ven todos los lugares, también los vacíos.
+        chs += `<span class="ch${k === sel ? ' cur' : ''}" data-k="${k}" style="grid-column:${g.at[k] + 1}/span ${g.span[k]}">${tokHtml(it, semis, flats)}</span>`;
         return;
       }
-      if (it === '.') return;
-      let end = B;
-      for (let j = k + 1; j < n; j++) if (items[j] !== '.') { end = pos[j]; break; }
-      minSpan = Math.min(minSpan, end - pos[k]);
-      const place = n <= B ? ` style="grid-column:${pos[k] + 1}/${end + 1}"` : '';
-      chs += `<span class="ch"${place}>${tokHtml(it, semis, flats)}</span>`;
+      if (it === '_') return;
+      // En la hoja, un acorde ocupa hasta donde empieza el siguiente.
+      let end = g.n;
+      for (let j = k + 1; j < n; j++) if (items[j] !== '_') { end = g.at[j]; break; }
+      minSpan = Math.min(minSpan, end - g.at[k]);
+      chs += `<span class="ch" style="grid-column:${g.at[k] + 1}/${end + 1}">${tokHtml(it, semis, flats)}</span>`;
     });
-    const frac = edit ? 1 / n : minSpan / B;
+    const frac = edit ? Math.min(...g.span) / g.n : minSpan / g.n;
     // Los acordes largos (Bbmaj7/D) bajan un escalón de tamaño para no pisar al vecino.
     const long = items.some(it => it.length > 5) ? 1 : 0;
     const size = ['n1', 'n2', 'n3'][Math.min(2, (frac >= 1 ? 0 : frac >= 0.5 ? 1 : 2) + long)];
     const lab = (b.section ? `<span class="sec">${esc(b.section)}</span>` : '') +
       (b.ending ? `<span class="end">${b.ending}.</span>` : '') +
       markHtml(b);
-    const cols = !edit && n <= B ? `grid-template-columns:repeat(${B},minmax(0,1fr))` : 'grid-auto-flow:column;grid-auto-columns:minmax(0,1fr)';
+    const cols = `grid-template-columns:repeat(${g.n},minmax(0,1fr))`;
     return `<div class="bar${b.repStart ? ' rs' : ''}${b.repEnd ? ' re' : ''}" data-i="${i}">` +
       `<div class="lab">${lab}</div><div class="cell ${size}">` +
       (b.showTs ? `<span class="ts"><b>${b.ts[0]}</b><b>${b.ts[1]}</b></span>` : '') +
@@ -1167,7 +1168,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   const INSERTS = [
     ['|', ' | '], ['|:', '|: '], [':|', ' :|'], ['%', '% '], ['[A]', '[]', 1], ['1.', '1. '], ['2.', '2. '],
     ['#', '#'], ['b', 'b'], ['m', 'm'], ['7', '7'], ['m7', 'm7'], ['maj7', 'maj7'], ['m7b5', 'm7b5'],
-    ['dim', 'dim'], ['sus4', 'sus4'], ['6', '6'], ['9', '9'], ['/', '/'], ['.', ' . '], ['N.C.', 'N.C. '], ['↵', '\n'],
+    ['dim', 'dim'], ['sus4', 'sus4'], ['6', '6'], ['9', '9'], ['/', '/'], ['{ }', '{  }', 2], ['.', ' . '], ['_', ' _ '], ['N.C.', 'N.C. '], ['↵', '\n'],
   ];
   const ROOTS = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
   const QUALS = [
@@ -1183,7 +1184,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   const HELP = `<details class="help"><summary>Cómo se escribe</summary>
     <ul>
       <li>Separá los compases con <code>|</code>. Cada renglón de texto es un renglón de la partitura.</li>
-      <li>Dos acordes en un compás se reparten por la mitad: <code>| Dm7 G7 |</code>. Con <code>.</code> alargás el acorde anterior un tiempo: <code>| C . . G7 |</code>.</li>
+      <li>Dos acordes en un compás se reparten por la mitad: <code>| Dm7 G7 |</code>.</li>
+      <li>Para ubicar un acorde en un punto exacto, escribí el compás entre llaves como una grilla pareja: cada lugar vale lo mismo, <code>.</code> alarga el acorde anterior y <code>_</code> es un lugar vacío. Un acorde en el 1 y otro en el "y" del 4: <code>| { C . . . . . . G } |</code>.</li>
       <li><code>%</code> repite el compás anterior. <code>N.C.</code> es silencio de la banda. <code>_</code> es un compás vacío.</li>
       <li>Partes: <code>[A]</code>, <code>[Estribillo]</code>. Repetición: <code>|:</code> … <code>:|</code> (o <code>:| x3</code>).</li>
       <li>Casillas: <code>1.</code> y <code>2.</code> al empezar el compás.</li>
@@ -1226,7 +1228,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const body = $('#body'), pad = $('#pad');
     let bars = [], cur = { b: 0, k: 0, fresh: true }, target = 'root', tab = 'chords', mode = 'grid', undo = [], redo = [];
 
-    const blank = row => ({ items: ['_'], row, ts: [4, 4] });
+    const blank = row => ({ items: ['_'], lens: [1], row, ts: [4, 4] });
     const isEmpty = b => b.items.every(x => x === '_') &&
       !(b.section || b.repStart || b.repEnd || b.ending || b.text || b.tsSet);
     const readFields = () => {
@@ -1268,7 +1270,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const acc = c ? plainAcc(bass ? c.bassAcc : c.acc) : '';
       return `<div class="kb k7">${ROOTS.map(r => btn('root', r, r, letter === r)).join('')}</div>
         <div class="kb k5">${btn('acc', 'b', '♭', acc === 'b')}${btn('acc', '#', '♯', acc === '#')}
-          ${btn('bass', '', '/ bajo', bass)}${btn('rep', '', '%', item() === '%')}${btn('add', '', '+ acorde')}${btn('del', '', 'Borrar')}</div>
+          ${btn('bass', '', '/ bajo', bass)}${btn('rep', '', '%', item() === '%')}${btn('divide', '', 'Dividir')}${btn('del', '', 'Borrar')}</div>
         ${bass ? `<p class="hint">Elegí arriba la nota del bajo. ${btn('nobass', '', 'Sin bajo')}</p>`
           : c ? `<div class="kb quals scroll">${QUALS.map(q => btn('qual', q, q ? q.replace(/b/g, '♭').replace(/#/g, '♯') : 'mayor', c.qual === q)).join('')}</div>`
           : '<p class="hint">Tocá una nota para escribir el acorde en el lugar marcado.</p>'}`;
@@ -1284,7 +1286,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
           (b.repEnd ? [2, 3, 4].map(n => btn('times', n, 'x' + n, (b.times || 2) === n)).join('') : '')) +
         group('Casilla', [1, 2, 3].map(n => btn('end', n, n + '.', b.ending === n)).join('')) +
         group('En el lugar marcado',
-          btn('sym', 'N.C.', 'N.C. Silencio', it === 'N.C.') + btn('sym', '.', '· Alargar el anterior', it === '.')) +
+          btn('sym', 'N.C.', 'N.C. Silencio', it === 'N.C.')) +
+        group('Dividir el compás', btn('divide', '', 'Dividir') + btn('divide', 3, 'Dividir en 3 (tresillo)') + btn('merge', '', 'Unir')) +
         group('Saltos y anotaciones', NOTES.map(s => btn('txt', s, s, b.text === s)).join('') +
           btn('txt', '?', 'Otra…', !!b.text && !NOTES.includes(b.text))) +
         group('Cambio de compás', METERS.map(m => btn('ts', m, m, meter === m)).join('')) +
@@ -1297,6 +1300,13 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         '</div>';
     };
 
+    // Con el compás dividido, una tira ancha muestra sus lugares para elegir en cuál escribir
+    // (en la hoja los más cortos quedan muy chicos para tocarlos).
+    const stripHtml = () => {
+      const b = bars[cur.b];
+      if (b.items.length < 2) return '';
+      return `<div class="strip">${b.items.map((it, k) => `<button type="button" data-a="slot" data-v="${k}" style="flex:${b.lens[k]}"${k === cur.k ? ' class="on"' : ''}>${it === '_' ? '' : esc(it.replace(/b/g, '♭').replace(/#/g, '♯'))}</button>`).join('')}</div>`;
+    };
     const draw = () => {
       if (mode !== 'grid') return;
       Music.normalize(bars, tsOf(song));
@@ -1308,7 +1318,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       pad.innerHTML = `<div class="ptabs">${btn('tab', 'chords', 'Acordes', tab === 'chords')}${btn('tab', 'other', 'Otros', tab === 'other')}
         <span class="sp"></span><button type="button" data-a="undo" aria-label="Deshacer"${undo.length ? '' : ' disabled'}>${UNDO}</button>
         <button type="button" data-a="redo" aria-label="Rehacer"${redo.length ? '' : ' disabled'}>${REDO}</button>${btn('prev', '', '‹')}${btn('next', '', '›')}</div>` +
-        (tab === 'chords' ? chordsPad(Music.parseChord(item())) : otherPad());
+        stripHtml() + (tab === 'chords' ? chordsPad(Music.parseChord(item())) : otherPad());
       const sc = $('.scroll', pad);
       if (sc) { sc.dataset.tab = tab; sc.scrollTop = keep; }
       const el = $('#grid .ch.cur');
@@ -1428,6 +1438,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       rep: () => {
         target = 'root';
         advance();
+        if (bars[cur.b].items.length > 1) { toast('El % repite un compás entero: usalo en un compás sin dividir.'); return; }
         setItem('%');
         cur.fresh = false;
       },
@@ -1453,16 +1464,22 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         if (c) { c.bassLetter = null; setItem(chordText(c)); }
         target = 'root';
       },
-      add: () => {
-        const b = bars[cur.b];
-        if (b.items.length >= 8) return;
-        b.items.splice(cur.k + 1, 0, '_');
-        go(cur.b, cur.k + 1);
+      // Parte el lugar marcado (por la mitad, o como pida el compás) y pasa a la segunda parte, lista para escribir.
+      divide: el => {
+        if (Music.split(bars[cur.b], cur.k, +el.dataset.v || 0)) go(cur.b, cur.k + 1);
+        else toast('No se puede dividir más chico que una semicorchea.');
       },
+      // Deshace la división del lugar marcado.
+      merge: () => {
+        const k = Music.join(bars[cur.b], cur.k);
+        if (k >= 0) go(cur.b, k);
+        else toast(bars[cur.b].items.length > 1 ? 'Primero uní las partes más chicas de al lado.' : 'Este compás no está dividido.');
+      },
+      slot: el => go(cur.b, +el.dataset.v),
       del: () => {
         const b = bars[cur.b];
         if (item() !== '_') { setItem('_'); go(cur.b, cur.k); }
-        else if (b.items.length > 1) { b.items.splice(cur.k, 1); go(cur.b, Math.max(0, cur.k - 1)); }
+        else if (b.items.length > 1) { const k = Music.join(b, cur.k); if (k >= 0) go(cur.b, k); }
         else if (bars.length > 1 && isEmpty(b)) {
           bars.splice(cur.b, 1);
           const i = Math.max(0, cur.b - 1);
