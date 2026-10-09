@@ -265,7 +265,48 @@ const Music = (() => {
     return lines.join('\n');
   }
 
-  return { setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold };
+  // Cuánto encaja cada tipo de acorde en cada grado (semitonos desde la tónica) de una tonalidad mayor o menor.
+  const FITS = {
+    major: { 0: { maj: 1, dom: 0.7 }, 2: { min: 1 }, 4: { min: 1 }, 5: { maj: 1, dom: 0.7 }, 7: { maj: 1, dom: 1 }, 9: { min: 1 }, 11: { dim: 1 } },
+    minor: { 0: { min: 1 }, 2: { dim: 1, min: 0.5 }, 3: { maj: 1 }, 5: { min: 1 }, 7: { dom: 1, maj: 0.8, min: 0.8 }, 8: { maj: 1 }, 10: { maj: 1, dom: 0.8 } },
+  };
+  const KEY_NAMES = {
+    major: ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'],
+    minor: ['C', 'C#', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'],
+  };
+
+  // Tonalidad más probable según los acordes escritos, por ejemplo 'Bb' o 'F#m' ('' si hay muy poco material).
+  // Suma cuántos acordes son propios de cada tonalidad y premia empezar o terminar en la tónica y las
+  // resoluciones de dominante a tónica.
+  function guessKey(bars) {
+    const chords = [];
+    for (const b of bars) for (const it of b.items) { const c = parseChord(it); if (c) chords.push(c); }
+    if (chords.length < 3) return '';
+    const kinds = chords.map(c => {
+      const iv = intervals(c.qual);
+      return iv[0] === 3 ? (iv[1] === 6 ? 'dim' : 'min') : iv[2] === 10 ? 'dom' : 'maj';
+    });
+    let best = null;
+    for (const mode of ['major', 'minor']) {
+      const home = mode === 'major' ? 'maj' : 'min';
+      for (let tonic = 0; tonic < 12; tonic++) {
+        const isHome = i => chords[i].num === tonic && kinds[i] === home;
+        let score = 0;
+        chords.forEach((c, i) => {
+          score += (FITS[mode][(c.num - tonic + 12) % 12] || {})[kinds[i]] || 0;
+          if (i && isHome(i) && chords[i - 1].num === (tonic + 7) % 12 && kinds[i - 1] !== 'min' && kinds[i - 1] !== 'dim') score += 1;
+        });
+        if (isHome(0) || (mode === 'major' && chords[0].num === tonic && kinds[0] === 'dom')) score += 1.5;
+        if (isHome(chords.length - 1)) score += 2;
+        if (!best || score > best.score) best = { score, mode, tonic };
+      }
+    }
+    const written = chords.find(c => c.num === best.tonic);
+    const name = written ? written.letter + written.acc.replace('♯', '#').replace('♭', 'b') : KEY_NAMES[best.mode][best.tonic];
+    return name + (best.mode === 'minor' ? 'm' : '');
+  }
+
+  return { guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;
