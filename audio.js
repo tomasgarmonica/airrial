@@ -53,7 +53,15 @@ const Engine = (() => {
     o.stop(end);
     return o;
   }
+  // Silencios del compás que se está programando, por los cortes: lo que empieza adentro no suena y lo que
+  // venía sonando se apaga al llegar. Cada uno es [desde, hasta) en tiempo del reloj de audio.
+  let quiet = [];
+  const silent = t => quiet.some(q => t >= q[0] - 1e-4 && t < q[1] - 1e-4);
+  const until = (t, dur) => Math.max(0.03, quiet.reduce((d, q) => (q[0] > t + 1e-4 ? Math.min(d, q[0] - t) : d), dur));
+
   function nz(t, dur, type, freq, peak, q) {
+    if (silent(t)) return;
+    dur = until(t, dur);
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
     s.buffer = noise;
     f.type = type;
@@ -66,6 +74,7 @@ const Engine = (() => {
     s.stop(t + dur + 0.02);
   }
   function kick(t, v) {
+    if (silent(t)) return;
     const g = ctx.createGain();
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
@@ -74,6 +83,7 @@ const Engine = (() => {
     o.frequency.exponentialRampToValueAtTime(45, t + 0.1);
   }
   function snare(t, v) {
+    if (silent(t)) return;
     nz(t, 0.16, 'highpass', 1800, v);
     const g = ctx.createGain();
     g.gain.setValueAtTime(v * 0.6, t);
@@ -87,6 +97,7 @@ const Engine = (() => {
   const shaker = (t, v, dur) => nz(t, dur, 'bandpass', 6500, v, 0.8);
   // Parche: tambores de candombe, surdo, bombo legüero (según la altura).
   function tom(t, f, v, dur) {
+    if (silent(t)) return;
     const g = ctx.createGain();
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -96,6 +107,7 @@ const Engine = (() => {
   }
   // Madera: clave, tamborim, cencerro.
   function wood(t, v) {
+    if (silent(t)) return;
     const g = ctx.createGain();
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
@@ -107,6 +119,8 @@ const Engine = (() => {
     osc('sine', accent ? 1760 : 1175, t, t + 0.08, g);
   }
   function bassNote(t, m, dur, v) {
+    if (silent(t)) return;
+    dur = until(t, dur);
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = 700;
@@ -114,6 +128,8 @@ const Engine = (() => {
     osc('sawtooth', mtof(m), t, t + dur + 0.1, env(f, t, v * 0.8, dur, 0.04));
   }
   function chordHit(t, notes, dur, v) {
+    if (silent(t)) return;
+    dur = until(t, dur);
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = 2400;
@@ -384,6 +400,23 @@ const Engine = (() => {
     };
     const style = S.o.style;
     for (let b = 0; b < B; b++) click(t + b * bd, b === 0, style === 'click' ? bus.fixed : bus.click);
+    // Cortes: en el acorde marcado toda la banda da un golpe seco y calla hasta el próximo acorde escrito
+    // (si hace falta, varios compases: `S.hush` avisa que el silencio viene de antes). La claqueta sigue.
+    // En swing, un corte escrito en el "y" de un tiempo cae atresillado, como el resto de las corcheas.
+    const swing = style === 'swing' && B === 4 && bar.den === 4;
+    const when = beat => {
+      const whole = Math.floor(beat + 1e-6), part = beat - whole;
+      return t + (swing && Math.abs(part - 0.5) < 1e-6 ? whole + 2 / 3 : beat) * bd;
+    };
+    const hits = [];
+    let from = S.hush ? t : null;
+    quiet = [];
+    for (const s of slots) {
+      if (from != null) { quiet.push([from, when(s.beat)]); from = null; }
+      if (s.cut && s.chord) { hits.push([when(s.beat), s.chord]); from = when(s.beat); }
+    }
+    if (from != null) quiet.push([from, t + B * bd]);
+    S.hush = from != null;
     if (style !== 'click') {
       const segs = [];
       if (!slots.length || slots[0].beat > 0) segs.push({ beat: 0, chord: carried });
@@ -393,6 +426,16 @@ const Engine = (() => {
       const fits = (METER[style] || '4/4').split(' ').includes(B + '/' + bar.den);
       if (fits && patterns[style]) patterns[style](t, bd, x, B);
       else generic(t, bd, x, B);
+    }
+    quiet = [];
+    if (style !== 'click') {
+      for (const [ht, chord] of hits) {
+        chordHit(ht, voice(chord), 0.16, 1.1);
+        bass(ht, rootOf(chord), 0.18, 1);
+        kick(ht, 1);
+        snare(ht, 0.7);
+        nz(ht, 0.1, 'highpass', 6000, 0.3);
+      }
     }
     S.last = at(B);
   }
@@ -409,7 +452,7 @@ const Engine = (() => {
           // Cierre: un acorde largo sobre la tónica en lugar de cortar en seco.
           let tail = 0;
           const c = typeof o.finalChord === 'function' ? o.finalChord(S.chorus - 1) : o.finalChord;
-          if (c && o.style !== 'click') {
+          if (c && o.style !== 'click' && !S.hush) {
             const bd = 60 / o.getTempo(S.chorus - 1);
             chordHit(S.t, voice(c), bd * 4, 1);
             bass(S.t, rootOf(c), bd * 4, 0.9);
