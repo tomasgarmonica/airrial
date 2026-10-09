@@ -63,7 +63,10 @@ grabaciones (ver `GRABACION.md`).
 - [x] Cartel para instalar la app cuando se usa desde el navegador (botón en Android, instrucción en iPhone)
 - [x] Probado en Android: el archivo .html abre listas de hasta 1000 temas, y Airrial aparece en el menú Compartir tras reinstalar
 - [x] Se quitó la opción de compartir como enlace suelto: queda Archivo, PDF e Imagen
-- [ ] Probar en iPhone cómo se abre el archivo .html recibido
+- [x] Probado en iPhone: el archivo abre en Safari, pero lo guardado no pasa a la app instalada (son espacios separados)
+- [x] iPhone: aviso al abrir algo compartido en Safari y botón "Abrir archivo recibido" en la app instalada
+- [ ] iPhone: probar con un usuario real el camino Guardar en Archivos → Abrir archivo recibido
+- [ ] iPhone: evaluar pasar lo recibido de Safari a la app por el portapapeles (copiar en Safari, pegar en la app)
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
 - [ ] Carpetas o etiquetas en la biblioteca
 

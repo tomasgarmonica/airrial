@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.20';
+  const VERSION = '0.21';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -173,7 +173,6 @@
       d.showModal();
     });
   }
-  // Comparte un archivo de texto con los datos; quien lo recibe lo abre con Airrial o con Menú → Importar.
   const safeName = name => name.replace(/[\\/:*?"<>|]/g, '').trim() || 'airrial';
   // Comparte archivos ya armados (PDF, imágenes, página); si el teléfono no lo permite, los descarga.
   async function shareBlobs(items, title) {
@@ -200,7 +199,7 @@
     ['pdf', 'PDF', 'Para ver o imprimir, sin la app'],
   ];
   // Archivo para compartir: una página con el título como enlace. El enlace lleva todo el contenido,
-  // así que al tocarlo la app lo importa; la página también guarda los datos para Menú → Importar.
+  // así que al tocarlo la app lo importa; la página también guarda los datos para Menú → Abrir un archivo.
   async function shareFile(name, data, pack) {
     const page = await busy('Preparando el archivo…', async () => {
     const url = location.origin + location.pathname + '#/i/' + await pack();
@@ -218,7 +217,8 @@ a.open span{display:block;font-weight:400;font-size:.85rem;margin-top:2px}ol{pad
 <a class="open" href="${esc(url)}">${esc(name)}<span>Tocá para abrir en Airrial</span></a>
 <p>${esc(sub)}</p>
 ${rows ? `<ol>${rows}</ol>` : ''}
-<p>Si el enlace no abre, entrá a airrial.ar, andá a Menú → Importar y elegí este archivo.</p>
+<p>Si el botón no abre, entrá a airrial.ar, andá a Menú → Abrir un archivo y elegí este archivo.</p>
+<p><b>En iPhone con la app instalada:</b> guardá este archivo en Archivos (Compartir → Guardar en Archivos), abrí Airrial y tocá "Abrir archivo recibido".</p>
 </main>
 <script type="application/json" id="airrial-data">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>
 </body></html>`;
@@ -242,6 +242,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   // --- instalación ---
   // A quien usa la app desde el navegador se le ofrece instalarla.
   let installEvent = null;
+  const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const hideInstall = () => document.querySelectorAll('.inst').forEach(el => el.remove());
   window.addEventListener('beforeinstallprompt', e => {
@@ -254,9 +255,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const close = '<button class="x" data-a="noinstall" aria-label="No mostrar más">×</button>';
     if (standalone() || settings.noInstall) return '';
     if (installEvent) return `<div class="inst"><span>Instalá Airrial para tenerla a mano y usarla sin conexión.</span><button data-a="install">Instalar</button>${close}</div>`;
-    if (/iphone|ipad|ipod/i.test(navigator.userAgent)) return `<div class="inst"><span>Para instalar Airrial en iPhone: tocá Compartir y elegí "Agregar a inicio".</span>${close}</div>`;
+    if (isIos) return `<div class="inst"><span>Para instalar Airrial en iPhone: tocá Compartir y elegí "Agregar a inicio".</span>${close}</div>`;
     return '';
   };
+  // En iPhone, al abrir algo compartido desde Safari: aviso de que no llega solo a la app instalada.
+  const iosNote = () => (isIos && !standalone() ? `<div class="inst note"><span><b>En iPhone</b>, lo que guardes acá queda en Safari y no pasa a la app instalada.
+    Para tenerlo en la app: en WhatsApp tocá el archivo → Compartir → <b>Guardar en Archivos</b>; después abrí Airrial y tocá <b>Abrir archivo recibido</b>.</span></div>` : '');
+  // En la app instalada en iPhone: botón a la vista para abrir un archivo recibido.
+  const iosOpenHtml = () => (isIos && standalone() && !settings.noOpenTip
+    ? `<div class="inst"><span>¿Te mandaron una canción o una lista?</span><button data-a="import">Abrir archivo recibido</button><button class="x" data-a="noopentip" aria-label="No mostrar más">×</button></div>` : '');
   const installActions = {
     install: async () => {
       const e = installEvent;
@@ -267,6 +274,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       hideInstall();
     },
     noinstall: () => { settings.noInstall = true; saveSettings(); hideInstall(); },
+    noopentip: el => { settings.noOpenTip = true; saveSettings(); el.closest('.inst').remove(); },
   };
 
   function toast(msg) {
@@ -373,17 +381,17 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <div class="seg tabs"><button data-a="tab" data-v="songs">Canciones</button><button data-a="tab" data-v="lists">Listas</button></div>
       <div class="search"><input id="q" type="search" autocomplete="off"></div>
       <div class="filt" id="filt"></div>
-      ${installHtml()}
+      ${installHtml()}${iosOpenHtml()}
       <main class="list" id="list"></main>
       <button class="fab" data-a="new" aria-label="Agregar">+</button>
       <dialog id="menu"><div class="sheet">
         <button data-a="export">Exportar todo (copia de seguridad)</button>
         <p class="hint" id="age">${backupAge()}</p>
-        <button data-a="import">Importar canciones y listas</button>
+        <button data-a="import">Abrir un archivo (recibido o copia de seguridad)</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="close">Cerrar</button>
-        <input type="file" id="file" accept=".json,.txt,.html,.htm,application/json,text/plain,text/html" hidden>
-      </div></dialog>`;
+      </div></dialog>
+      <input type="file" id="file" accept=".json,.txt,.html,.htm,application/json,text/plain,text/html" hidden>`;
     const list = $('#list'), q = $('#q');
     const draw = () => {
       const f = q.value.trim().toLowerCase(), onLists = libTab === 'lists';
@@ -868,7 +876,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       app.innerHTML = head('Enlace no válido') + '<main><p class="empty">Este enlace está incompleto o no es de Airrial. Pedí que te lo manden de nuevo.</p></main>';
     } else if (data.song) {
       const song = data.song;
-      app.innerHTML = head('Canción compartida', true) + installHtml() + `<main class="chart">
+      app.innerHTML = head('Canción compartida', true) + (iosNote() || installHtml()) + `<main class="chart">
         <div class="shared"><b>${esc(song.title)}</b>
         <span>${esc([songMeta(song), song.tempo + ' bpm'].join(' · '))}</span></div>
         ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true)}</main>`;
@@ -878,7 +886,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         swap('#/s/' + id);
       };
     } else {
-      app.innerHTML = head('Lista compartida', true) + installHtml() + `<main class="list">
+      app.innerHTML = head('Lista compartida', true) + (iosNote() || installHtml()) + `<main class="list">
         <div class="shared"><b>${esc(data.name)}</b><span>${count(data.songs.length)}</span></div>
         ${data.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`;
       actions.save = () => {

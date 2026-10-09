@@ -41,6 +41,7 @@ main { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; p
 @media (prefers-reduced-motion: reduce) { .busy i { animation: none; } }
 .inst { display: flex; align-items: center; gap: 8px; margin: 0 16px 8px; padding: 8px 8px 8px 12px; background: var(--surface); border-radius: 12px; font-size: .88rem; }
 .inst span { flex: 1; min-width: 0; }
+.inst.note { padding: 10px 12px; border: 1px solid var(--accent); }
 .inst button { flex: none; min-height: 40px; padding: 0 14px; border: 0; border-radius: 10px; background: var(--accent); color: var(--on-accent); font-weight: 600; }
 .inst .x { background: none; color: var(--muted); font-size: 1.3rem; padding: 0 8px; font-weight: 400; }
 .toast {
