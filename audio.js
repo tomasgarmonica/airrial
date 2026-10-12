@@ -406,10 +406,8 @@ const Engine = (() => {
         const c = x.at(i / 4);
         if (c) bass(t + i * s, fifth ? fifthOf(c) : rootOf(c), s * d * 0.9, fifth ? 0.75 : 0.95);
       }
-      for (const i of [2, 6, 10, 14]) {
-        const c = x.at(i / 4);
-        if (c) chordHit(t + i * s, voice(c), s * 1.5, 0.8);
-      }
+      // Teclado planchado: el acorde entra en el 1 (o donde cambie) y queda sonando. A contratiempo sonaba a cumbia.
+      for (const g of x.segs) if (g.chord) chordHit(t + g.beat * bd, voice(g.chord), g.len * bd * 0.95, 0.85);
     },
     // Güiro en "chiqui-chiqui", bombo en 1 y 3 y acordes a contratiempo.
     cumbia(t, bd, x) {
