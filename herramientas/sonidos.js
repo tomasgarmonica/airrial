@@ -27,6 +27,12 @@ const PERCUSION = {
   pandeiro_platinelas: 'Percu/pandeiro platinelas.wav', campana_lomo: 'Percu/Campana lomo.wav',
   surdo_cerrado: 'Percu/Surdo cerrado.wav', surdo_abierto: 'Percu/Surdo abierto.wav',
   surdo_pta_dedo: 'Percu/Surdo pta dedo.wav', surdo_palma: 'Percu/Surdo palma.wav',
+  // tambores de candombe (el chico está más arriba)
+  piano_tono: 'Percu/piano tono.wav', piano_palma: 'Percu/piano palma.wav', piano_pta_dedo: 'Percu/piano pta dedo.wav',
+  piano_palma_y_palo: 'Percu/piano palma y palo.wav', piano_palo_abierto: 'Percu/piano palo abierto.wav',
+  piano_palo_cerrado: 'Percu/piano palo cerrado.wav', piano_madera: 'Percu/piano madera.wav',
+  repique_palo: 'Percu/repique palo.wav', repique_mano: 'Percu/repique mano.wav',
+  repique_rim: 'Percu/repique rim.wav', repique_madera: 'Percu/repique madera.wav',
   guiro_arrastre: 'Percu/Guiro Metal arrastre.wav', guiro_abajo: 'Percu/Guiro Metal abajo.wav', guiro_arriba: 'Percu/Guiro Metal arriba.wav',
 };
 // Piano: las notas que alcanzan los acordes de hoy (cada una cubre también el semitono de arriba y el de abajo),

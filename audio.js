@@ -384,10 +384,10 @@ const Engine = (() => {
     // Madera con la clave, y los tres tambores: chico, piano y repique.
     candombe(t, bd, x) {
       const s = bd / 4;
-      for (const i of [0, 3, 6, 10, 12]) wood(t + i * s, 0.45, 'clave');
+      for (const i of [0, 3, 6, 10, 12]) wood(t + i * s, 0.45, 'repique_madera');
       for (let i = 0; i < 16; i++) if (i % 4) tom(t + i * s, 340, i % 4 === 2 ? 0.3 : 0.2, 0.07, i % 4 === 1 ? 'chico_mano' : 'chico_palo');
-      for (const i of [0, 3, 6, 8, 11, 14]) tom(t + i * s, 95, i % 8 ? 0.5 : 0.75, 0.22, 'tumba_tono');
-      if (x.barNo % 2) for (const i of [10, 13, 15]) tom(t + i * s, 190, 0.4, 0.12, 'conga_tono');
+      for (const i of [0, 3, 6, 8, 11, 14]) tom(t + i * s, 95, i % 8 ? 0.5 : 0.75, 0.22, 'piano_palo_abierto');
+      if (x.barNo % 2) for (const i of [10, 13, 15]) tom(t + i * s, 190, 0.4, 0.12, 'repique_palo');
       for (const [i, fifth, d] of [[0, 0, 3], [3, 1, 3], [6, 0, 2], [8, 0, 3], [11, 1, 3], [14, 0, 2]]) {
         const c = x.at(i / 4);
         if (c) bass(t + i * s, fifth ? fifthOf(c) : rootOf(c), s * d * 0.9, fifth ? 0.75 : 0.95);
