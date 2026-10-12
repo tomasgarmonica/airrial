@@ -70,6 +70,8 @@ const Engine = (() => {
           if (!(Math.abs(shift) < 0.2)) throw new Error(g.archivo);
           for (const [name, [at, len]] of Object.entries(g.sonidos)) b[name] = { buf, at: at + shift, len };
         }
+        // Notas de piano que hay grabadas: b['60m'] es el Do central a intensidad media y b['60s'], suave.
+        b.notes = Object.keys(b).filter(k => /^\d+m$/.test(k)).map(k => parseInt(k, 10));
         bank = b;
       })().catch(() => { fetched = null; }).then(() => { preparing = null; });
     }
@@ -193,9 +195,29 @@ const Engine = (() => {
     f.connect(bus.bass);
     osc('sawtooth', mtof(m), t, t + dur + 0.1, env(f, t, v * 0.8, dur, 0.04));
   }
+  // Nota de piano grabada: la más cercana de las que hay, corrida de altura lo que haga falta.
+  // Suena mientras dura la nota y se apaga rápido al soltarla, como al levantar el dedo de la tecla.
+  function pianoNote(t, m, dur, v) {
+    const b = S.bank;
+    let root = b.notes[0];
+    for (const n of b.notes) if (Math.abs(n - m) < Math.abs(root - m)) root = n;
+    const s = b[root + (v < 0.75 ? 's' : 'm')] || b[root + 'm'];
+    const src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = s.buf;
+    src.playbackRate.value = Math.pow(2, (m - root) / 12);
+    g.gain.setValueAtTime(v * 0.6, t);
+    g.gain.setTargetAtTime(0, t + dur, 0.05);
+    src.connect(g); g.connect(bus.keys);
+    src.start(t, s.at, s.len);
+    src.stop(t + dur + 0.4);
+  }
   function chordHit(t, notes, dur, v) {
     if (silent(t) || tied(t)) return;
     dur = until(t, dur);
+    if (S.bank && S.bank.notes.length) {
+      for (const m of notes) pianoNote(t, m, dur, v);
+      return;
+    }
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = 2400;

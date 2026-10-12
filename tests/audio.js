@@ -10,18 +10,19 @@ const node = kind => ({ kind, gain: param(), frequency: param(), Q: param(), pla
   start(t, at, len) {
     if (!(t >= 0)) throw new Error('start ' + t);
     if (this.buffer && this.buffer.grabado) {
-      if (!places.has(at.toFixed(4)) || !(len > 0)) throw new Error('sonido grabado fuera de lugar: ' + at + ' ' + len);
+      if (!places.has(this.buffer.grabado + at.toFixed(4)) || !(len > 0)) throw new Error('sonido grabado fuera de lugar: ' + at + ' ' + len);
       recorded++;
+      if (this.buffer.grabado === index.piano.archivo) piano++;
     }
     events.push([kind, t]);
   }, stop() {} });
 // Sonidos grabados de mentira: el índice es el verdadero, y el audio solo trae la marca del principio.
 const RATE = 8000, index = JSON.parse(fs.readFileSync(path.join(dir, 'sonidos', 'indice.json'), 'utf8'));
 const places = new Set(), wanted = [];
-let recorded = 0;
+let recorded = 0, piano = 0;
 for (const g of Object.values(index)) {
   if (!fs.existsSync(path.join(dir, 'sonidos', g.archivo))) throw new Error('Falta sonidos/' + g.archivo);
-  for (const [at] of Object.values(g.sonidos)) places.add(at.toFixed(4));
+  for (const [at] of Object.values(g.sonidos)) places.add(g.archivo + at.toFixed(4));
 }
 const fakeFetch = async url => {
   const file = url.replace('sonidos/', '');
@@ -40,7 +41,7 @@ class Ctx {
   decodeAudioData(g, ok) {
     const d = new Float32Array(RATE);
     d[Math.round(g.marca * RATE)] = 1;
-    ok({ grabado: true, sampleRate: RATE, getChannelData: () => d });
+    ok({ grabado: g.archivo, sampleRate: RATE, getChannelData: () => d });
   }
   resume() {}
 }
@@ -66,7 +67,7 @@ if (sounds) { sandbox.fetch = fakeFetch; console.log('\ncon sonidos grabados'); 
 for (const style of styles) for (const ts of Object.keys(charts)) {
   const tsn = ts.split('/').map(Number);
   const bars = Music.parseChart(charts[ts], tsn);
-  events = []; now = 0; recorded = 0;
+  events = []; now = 0; recorded = piano = 0;
   let seen = 0, ended = false;
   try {
     Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 3), getTempo: () => 140, style, choruses: 2, countIn: true,
@@ -75,7 +76,8 @@ for (const style of styles) for (const ts of Object.keys(charts)) {
     for (let k = 0; k < 20 && !tickFn; k++) await pause();
     for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
     if (!ended || seen !== bars.length * 2 + 1) throw new Error(`fin=${ended} compases=${seen}`);
-    console.log(style.padEnd(10), ts, String(events.length).padStart(5), 'sonidos' + (sounds ? `, ${recorded} grabados` : ''));
+    if (sounds && style !== 'click' && !(recorded > piano && piano)) throw new Error(`grabados: ${recorded}, de piano: ${piano}`);
+    console.log(style.padEnd(10), ts, String(events.length).padStart(5), 'sonidos' + (sounds ? `, ${recorded} grabados (${piano} de piano)` : ''));
   } catch (e) { fail++; console.log('FALLA', style, ts, e.message); }
 }
 }
