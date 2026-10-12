@@ -46,7 +46,10 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Comunidad: destacar las canciones más completas o mejor puntuadas (fijadas o con puntaje). A definir
 
 ## 4. Audio y pistas
-- [ ] Instrumentos grabados en lugar de sonidos sintetizados (ver `GRABACION.md`)
+- [x] Sonidos grabados, primera tanda: batería (bombo, redoblante, aro, hi-hat), piano y la percusión de samba, candombe, cumbia, bolero, chacarera y zamba. Si no cargan, suena lo sintetizado
+- [ ] Escuchar los sonidos grabados en cada ritmo y ajustar de oído volúmenes y qué instrumento toca cada cosa
+- [ ] Falta grabar: bajo, ride, crash, maracas o shaker, y los otros sonidos de teclado. Mientras tanto siguen sintetizados
+- [ ] Grabado pero todavía sin usar (falta escribir su ritmo o sus remates): toms, redoblante agudo, bongó, timbales, cáscara, campanas, jam block, cajón, quijada, triángulo, güiro de madera, pandeiro (tonos), golpes de conga, y la guitarra
 - [ ] Patrones más musicales por estilo, con variaciones y remates al final de cada parte
 - [x] Ritmos nuevos: samba, tango, milonga, candombe, cumbia, chacarera, zamba y vals (falta afinarlos de oído)
 - [ ] Revisar de oído cada ritmo nuevo y corregir lo que no suene al género (incluye shuffle, funk, reggae y bolero, escritos sin poder escucharlos)

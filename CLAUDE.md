@@ -16,6 +16,10 @@ y explicarle los pasos que le toquen de a uno.
   con Web Audio), `export.js` (PDF e imagen), `app.js` (pantallas), `sw.js` (uso sin conexión),
   `incluidas.json` (canciones de ejemplo), `tests/` (pruebas), `PENDIENTES.md` (lo hecho y lo que falta),
   `GRABACION.md` (instructivo para grabar los sonidos).
+- **Sonidos grabados:** los originales están en la carpeta `Audios` del Drive (fuera del proyecto: `Batería`,
+  `Percu`, `Piano`, `Guitarra`). `node herramientas/sonidos.js "G:/Mi unidad/Audios"` arma con ellos los
+  archivos livianos de `sonidos/` (un MP3 por grupo más `indice.json`), que es lo que usa la app. Para sumar
+  un sonido: agregarlo a la lista de esa herramienta, correrla y usarlo por su nombre en `audio.js`.
 - **Fuera de git:** `grabaciones/` (audios originales) y `pruebas/` (archivos de prueba generados).
 
 ## Cómo se trabaja
