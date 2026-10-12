@@ -1,7 +1,7 @@
 // Arma los sonidos livianos que usa la app a partir de las grabaciones originales (que no se tocan).
 // Uso:  node herramientas/sonidos.js "G:/Mi unidad/Audios"      (necesita ffmpeg instalado)
 //
-// Por cada grupo (batería, percusión, piano) sale un solo archivo MP3 con todos los golpes o notas en fila,
+// Por cada grupo (batería, percusión, piano, bajo) sale un solo archivo MP3 con todos los golpes o notas en fila,
 // y en sonidos/indice.json queda anotado dónde empieza y cuánto dura cada uno. Al principio de cada archivo
 // va una marca (un clic corto) para que la app pueda ubicarse aunque el navegador corra el audio unos
 // milisegundos al abrirlo.
@@ -42,6 +42,13 @@ for (const [midi, name] of [[54, 'F#3'], [57, 'A3'], [60, 'C4'], [63, 'Eb4'], [6
   PIANO[midi + 'm'] = `Piano/Piano ${name}.wav`;
   PIANO[midi + 's'] = `Piano/Piano ${name} suave.wav`;
 }
+// Bajo: los archivos están nombrados una octava arriba de como suenan ("Bajo F2" es el Fa1). Van las notas que
+// usa la app (de Fa1 para arriba; el Si y el Re más graves quedan afuera), cada una en hasta cinco versiones:
+// "m" normal, "f" fuerte, "x" nota fantasma, "g" slap fantasma y "p" slap. Los dos slaps vienen grabados en un
+// mismo archivo, uno después del otro, y se separan más abajo.
+const BAJO = [[29, 'F2'], [32, 'Ab2'], [35, 'B2'], [38, 'D3'], [41, 'F3'], [44, 'Ab3'], [47, 'B3'], [50, 'D4']];
+// Grabaciones que no se usan: "Bajo F3.wav" quedó un semitono y medio alta. (La normal de B2 no está grabada.)
+const SALTEAR = ['Bajo/Bajo F3.wav'];
 
 function readWav(p) {
   const b = fs.readFileSync(p);
@@ -88,11 +95,14 @@ function trim(x, max) {
 }
 const scale = (x, g) => { for (let i = 0; i < x.length; i++) x[i] *= g; return x; };
 
+// Una entrada de las listas puede ser un archivo o un audio ya leído (los slaps, que se separan antes).
+const load = v => (typeof v === 'string' ? readWav(path.join(SRC, v)) : v);
+
 // Golpes: cada uno a su máximo, así la fuerza la decide la app al tocarlo.
 function hits(map) {
   const out = {};
   for (const [name, file] of Object.entries(map)) {
-    const y = trim(readWav(path.join(SRC, file)), 4);
+    const y = trim(load(file), 4);
     out[name] = scale(y, CEIL / peakOf(y));
   }
   return out;
@@ -101,13 +111,38 @@ function hits(map) {
 function notes(map) {
   const out = {}, rms = {};
   for (const [name, file] of Object.entries(map)) {
-    const y = out[name] = trim(readWav(path.join(SRC, file)), 3.5), n = Math.min(y.length, SR);
+    const y = out[name] = trim(load(file), 3.5), n = Math.min(y.length, SR);
     let s = 0; for (let i = 0; i < n; i++) s += y[i] * y[i];
     rms[name] = Math.sqrt(s / n);
   }
   const target = Math.min(...Object.keys(out).map(k => CEIL * rms[k] / peakOf(out[k])));
   for (const k of Object.keys(out)) scale(out[k], target / rms[k]);
   return out;
+}
+
+// Bajo: arma las listas de notas (normal, fuerte y slap) y de golpes sin altura (fantasma y slap fantasma).
+function bajo() {
+  const tuned = {}, slaps = {}, dead = {};
+  for (const [midi, name] of BAJO) {
+    const put = (map, key, file) => { if (!SALTEAR.includes(file) && fs.existsSync(path.join(SRC, file))) map[key] = file; };
+    put(tuned, `b${midi}m`, `Bajo/Bajo ${name}.wav`);
+    put(tuned, `b${midi}f`, `Bajo/Bajo ${name} fuerte.wav`);
+    put(dead, `b${midi}x`, `Bajo/Bajo ${name} fantasma.wav`);
+    const both = `Bajo/Bajo ${name} ghost slap y slap.wav`;
+    if (!fs.existsSync(path.join(SRC, both))) continue;
+    // El segundo golpe (el slap) empieza donde la envolvente pega el salto más grande, pasado el primero.
+    const x = readWav(path.join(SRC, both)), win = Math.floor(0.01 * SR);
+    const top = a => { let m = 0; for (let i = Math.max(0, a); i < a + win && i < x.length; i++) m = Math.max(m, Math.abs(x[i])); return m; };
+    let cut = 0, jump = 0;
+    for (let a = Math.floor(0.3 * SR); a < x.length - win; a += 64) {
+      const j = top(a) / (top(a - 5 * win) + top(a - 3 * win) + 1e-4);
+      if (j > jump) { jump = j; cut = a; }
+    }
+    cut -= Math.floor(0.02 * SR);
+    dead[`b${midi}g`] = x.subarray(0, cut);
+    slaps[`b${midi}p`] = x.subarray(cut);
+  }
+  return { ...notes(tuned), ...notes(slaps), ...hits(dead) };
 }
 
 // Dónde cae la marca en un audio: la primera muestra que pasa de la cuarta parte del máximo.
@@ -138,5 +173,6 @@ const indice = {
   bateria: pack('bateria', hits(BATERIA), 2),
   percusion: pack('percusion', hits(PERCUSION), 2),
   piano: pack('piano', notes(PIANO), 3),
+  bajo: pack('bajo', bajo(), 3),
 };
 fs.writeFileSync(path.join(OUT, 'indice.json'), JSON.stringify(indice) + '\n');

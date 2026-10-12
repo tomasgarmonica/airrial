@@ -72,6 +72,8 @@ const Engine = (() => {
         }
         // Notas de piano que hay grabadas: b['60m'] es el Do central a intensidad media y b['60s'], suave.
         b.notes = Object.keys(b).filter(k => /^\d+m$/.test(k)).map(k => parseInt(k, 10));
+        // Notas de bajo grabadas, normales ("m") y fuertes ("f"): b['b41f'] es el Fa2 fuerte.
+        b.bass = Object.keys(b).map(k => /^b(\d+)([mf])$/.exec(k)).filter(Boolean).map(r => ({ m: +r[1], hard: r[2] === 'f', s: b[r[0]] }));
         bank = b;
       })().catch(() => { fetched = null; }).then(() => { preparing = null; });
     }
@@ -200,6 +202,21 @@ const Engine = (() => {
   function bassNote(t, m, dur, v) {
     if (silent(t) || tied(t)) return;
     dur = until(t, dur);
+    if (S.bank && S.bank.bass.length) {
+      // Grabado: la nota más cercana de las que hay, corrida de altura lo que haga falta. Las más fuertes usan
+      // la grabación fuerte; si a una intensidad le falta esa nota, se prefiere la otra antes que irse lejos.
+      const hard = v >= 0.95, cost = n => Math.abs(n.m - m) + (n.hard === hard ? 0 : 1.5);
+      const n = S.bank.bass.reduce((a, c) => (cost(c) < cost(a) ? c : a));
+      const src = ctx.createBufferSource(), g = ctx.createGain();
+      src.buffer = n.s.buf;
+      src.playbackRate.value = Math.pow(2, (m - n.m) / 12);
+      g.gain.setValueAtTime(v * 1.2, t);
+      g.gain.setTargetAtTime(0, t + dur, 0.03);
+      src.connect(g); g.connect(bus.bass);
+      src.start(t, n.s.at, n.s.len);
+      src.stop(t + dur + 0.3);
+      return;
+    }
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = 700;

@@ -48,7 +48,10 @@ grabaciones (ver `GRABACION.md`).
 ## 4. Audio y pistas
 - [x] Sonidos grabados, primera tanda: batería (bombo, redoblante, aro, hi-hat), piano y la percusión de samba, candombe, cumbia, bolero, chacarera y zamba. Si no cargan, suena lo sintetizado
 - [ ] Escuchar los sonidos grabados en cada ritmo y ajustar de oído volúmenes y qué instrumento toca cada cosa
-- [ ] Falta grabar: bajo, ride, crash, maracas o shaker, y los otros sonidos de teclado. Mientras tanto siguen sintetizados
+- [x] Bajo grabado (normal y fuerte) en todos los ritmos
+- [ ] Bajo: usar las notas fantasma, el slap y el slap fantasma (ya están cargados, falta escribir dónde van) y los slides (falta medir dónde llega la nota)
+- [ ] Bajo: regrabar el Fa normal ("Bajo F3.wav", quedó un semitono y medio alto) y grabar el Si normal ("Bajo B2.wav", falta)
+- [ ] Falta grabar: ride, crash, maracas o shaker, y los otros sonidos de teclado. Mientras tanto siguen sintetizados
 - [ ] Grabado pero todavía sin usar (falta escribir su ritmo o sus remates): toms, redoblante agudo, bongó, timbales, cáscara, campanas, jam block, cajón, quijada, triángulo, güiro de madera, pandeiro (tonos), golpes de conga, y la guitarra
 - [ ] Patrones más musicales por estilo, con variaciones y remates al final de cada parte
 - [x] Ritmos nuevos: samba, tango, milonga, candombe, cumbia, chacarera, zamba y vals (falta afinarlos de oído)

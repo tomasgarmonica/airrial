@@ -1,9 +1,9 @@
 // Guarda la app en el teléfono para que funcione sin conexión.
-const CACHE = 'airrial-v10';
+const CACHE = 'airrial-v11';
 const INBOX = 'airrial-inbox';
 const FILES = ['./', 'index.html', 'style.css', 'music.js', 'bases.js', 'audio.js', 'export.js', 'app.js',
   'manifest.webmanifest', 'incluidas.json', 'icon.svg', 'icon-192.png', 'icon-512.png',
-  'sonidos/indice.json', 'sonidos/bateria.mp3', 'sonidos/percusion.mp3', 'sonidos/piano.mp3'];
+  'sonidos/indice.json', 'sonidos/bateria.mp3', 'sonidos/percusion.mp3', 'sonidos/piano.mp3', 'sonidos/bajo.mp3'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(FILES.map(f => new Request(f, { cache: 'reload' })))).then(() => self.skipWaiting()));
