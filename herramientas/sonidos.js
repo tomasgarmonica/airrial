@@ -25,6 +25,8 @@ const PERCUSION = {
   tumba_tono: 'Percu/tumba tono.wav', conga_tono: 'Percu/conga tono.wav', bongo_grave: 'Percu/bongo grave abierto.wav',
   leguero_aro: 'Percu/bombo aro.wav', leguero_medio: 'Percu/bombo parche medio.wav', leguero_fuerte: 'Percu/bombo parche fuerte.wav',
   pandeiro_platinelas: 'Percu/pandeiro platinelas.wav', campana_lomo: 'Percu/Campana lomo.wav',
+  surdo_cerrado: 'Percu/Surdo cerrado.wav', surdo_abierto: 'Percu/Surdo abierto.wav',
+  surdo_pta_dedo: 'Percu/Surdo pta dedo.wav', surdo_palma: 'Percu/Surdo palma.wav',
   guiro_arrastre: 'Percu/Guiro Metal arrastre.wav', guiro_abajo: 'Percu/Guiro Metal abajo.wav', guiro_arriba: 'Percu/Guiro Metal arriba.wav',
 };
 // Piano: las notas que alcanzan los acordes de hoy (cada una cubre también el semitono de arriba y el de abajo),

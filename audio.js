@@ -331,7 +331,12 @@ const Engine = (() => {
     samba(t, bd, x) {
       const s = bd / 4;
       for (let i = 0; i < 16; i++) shaker(t + i * s, i % 4 === 0 ? 0.22 : i % 4 === 3 ? 0.18 : 0.1, 0.035, 'pandeiro_platinelas');
-      for (let b = 0; b < 4; b++) tom(t + b * bd, b % 2 ? 80 : 85, b % 2 ? 0.8 : 0.35, b % 2 ? 0.3 : 0.08, 'chancha', b % 2 ? 1.2 : 0.1);
+      // Surdo: cerrado en 1 y 3, abierto en 2 y 4, y la mano en el "y" de cada tiempo (punta de dedo después
+      // del cerrado, palma después del abierto). Los golpes de mano solo existen grabados.
+      for (let b = 0; b < 4; b++) {
+        tom(t + b * bd, b % 2 ? 80 : 85, b % 2 ? 0.8 : 0.6, b % 2 ? 0.3 : 0.08, b % 2 ? 'surdo_abierto' : 'surdo_cerrado');
+        shot(b % 2 ? 'surdo_palma' : 'surdo_pta_dedo', t + (b + 0.5) * bd, b % 2 ? 0.3 : 0.25);
+      }
       for (const i of [0, 2, 3, 5, 7, 9, 10, 12, 14]) wood(t + i * s, 0.2, 'chico_palo');
       const c0 = x.at(0), c2 = x.at(2);
       if (c0) bass(t, rootOf(c0), s * 6, 0.95);
