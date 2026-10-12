@@ -63,6 +63,12 @@ function readMidi(file) {
   return { notes, sig };
 }
 
+// Ajustes de volumen pedidos de oído por el dueño: se multiplican por la intensidad que trae el MIDI.
+// Candombe: todo parejo (la madera venía más fuerte que el piano) y el chico bastante más abajo.
+const AJUSTE = {
+  candombe: { chico_mano: 0.35, chico_palo: 0.35, repique_madera: 0.76 },
+};
+
 const bases = {};
 for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).sort()) {
   const style = plain(file.replace(/^base /i, '').replace(/\.mid$/i, '')), map = maps[style];
@@ -72,7 +78,7 @@ for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).so
   const beats = sig[0], per = 4 / sig[1];
   const hits = notes.map(([t, n, v]) => {
     if (!map[n]) throw new Error(`${file}: hay una nota (${n}) que no figura en Notas bases.txt`);
-    return [+(t / per).toFixed(4), map[n], +(v / 127).toFixed(2)];
+    return [+(t / per).toFixed(4), map[n], +(v / 127 * ((AJUSTE[style] || {})[map[n]] || 1)).toFixed(2)];
   }).sort((a, c) => a[0] - c[0]);
   const bars = Math.max(1, Math.ceil((hits[hits.length - 1][0] + 1e-3) / beats));
   bases[style] = { tiempos: beats, compases: bars, golpes: hits };
