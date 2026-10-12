@@ -1,0 +1,5 @@
+// Bases de percusión de cada ritmo. Lo genera herramientas/bases.js a partir de los MIDI: no editar a mano.
+// Cada golpe: [tiempo dentro de la base, sonido grabado, fuerza de 0 a 1].
+const BASES = {
+  "candombe":{"tiempos":4,"compases":1,"golpes":[[0,"piano_palma_y_palo",0.76],[0,"chico_palo",1],[0,"repique_madera",1],[0.25,"chico_mano",1],[0.5,"piano_pta_dedo",0.76],[0.5,"chico_palo",1],[0.75,"piano_palo_abierto",0.76],[0.75,"chico_palo",1],[0.75,"repique_madera",1],[1,"chico_palo",1],[1.25,"piano_palma",0.76],[1.25,"chico_mano",1],[1.5,"piano_palo_cerrado",0.76],[1.5,"chico_palo",1],[1.5,"repique_madera",1],[1.75,"chico_palo",1],[2,"piano_palma_y_palo",0.76],[2,"chico_palo",1],[2.25,"chico_mano",1],[2.5,"piano_pta_dedo",0.76],[2.5,"chico_palo",1],[2.5,"repique_madera",1],[2.75,"piano_palo_abierto",0.76],[2.75,"chico_palo",1],[3,"piano_palma_y_palo",0.76],[3,"chico_palo",1],[3,"repique_madera",1],[3.25,"chico_mano",1],[3.5,"piano_palo_cerrado",0.76],[3.5,"chico_palo",1],[3.75,"chico_palo",1]]},
+};

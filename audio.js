@@ -126,6 +126,17 @@ const Engine = (() => {
     src.start(t, s.at, Math.min(s.len, dur + 0.04));
     return true;
   }
+  // Percusión de un compás según la base escrita en MIDI para ese ritmo (bases.js). Devuelve false si el ritmo
+  // no tiene base para este compás o si no están los sonidos grabados; entonces vale el patrón de más abajo.
+  function base(style, t, bd, B) {
+    const p = typeof BASES !== 'undefined' && BASES[style];
+    if (!p || !S.bank || p.tiempos !== B) return false;
+    const from = (S.barNo % p.compases) * B;
+    for (const [at, name, v] of p.golpes) {
+      if (at > from - 1e-3 && at < from + B - 1e-3) shot(name, t + (at - from) * bd, v * 0.5);
+    }
+    return true;
+  }
   function nz(t, dur, type, freq, peak, q) {
     if (silent(t)) return;
     dur = until(t, dur);
@@ -381,13 +392,16 @@ const Engine = (() => {
       }
       for (const i of [0, 3, 6]) rim(t + i * e, 0.2);
     },
-    // Madera con la clave, y los tres tambores: chico, piano y repique.
+    // Los tambores salen de la base escrita en MIDI. Sin sonidos grabados: madera con la clave y los tres
+    // tambores (chico, piano y repique) sintetizados.
     candombe(t, bd, x) {
       const s = bd / 4;
-      for (const i of [0, 3, 6, 10, 12]) wood(t + i * s, 0.45, 'repique_madera');
-      for (let i = 0; i < 16; i++) if (i % 4) tom(t + i * s, 340, i % 4 === 2 ? 0.3 : 0.2, 0.07, i % 4 === 1 ? 'chico_mano' : 'chico_palo');
-      for (const i of [0, 3, 6, 8, 11, 14]) tom(t + i * s, 95, i % 8 ? 0.5 : 0.75, 0.22, 'piano_palo_abierto');
-      if (x.barNo % 2) for (const i of [10, 13, 15]) tom(t + i * s, 190, 0.4, 0.12, 'repique_palo');
+      if (!base('candombe', t, bd, 4)) {
+        for (const i of [0, 3, 6, 10, 12]) wood(t + i * s, 0.45);
+        for (let i = 0; i < 16; i++) if (i % 4) tom(t + i * s, 340, i % 4 === 2 ? 0.3 : 0.2, 0.07);
+        for (const i of [0, 3, 6, 8, 11, 14]) tom(t + i * s, 95, i % 8 ? 0.5 : 0.75, 0.22);
+        if (x.barNo % 2) for (const i of [10, 13, 15]) tom(t + i * s, 190, 0.4, 0.12);
+      }
       for (const [i, fifth, d] of [[0, 0, 3], [3, 1, 3], [6, 0, 2], [8, 0, 3], [11, 1, 3], [14, 0, 2]]) {
         const c = x.at(i / 4);
         if (c) bass(t + i * s, fifth ? fifthOf(c) : rootOf(c), s * d * 0.9, fifth ? 0.75 : 0.95);

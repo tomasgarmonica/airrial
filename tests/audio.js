@@ -49,7 +49,12 @@ let tickFn = null;
 const sandbox = { window: { AudioContext: Ctx }, document: { hidden: false }, setInterval: f => { tickFn = f; return 1; }, clearInterval() { tickFn = null; },
   requestAnimationFrame: () => 1, cancelAnimationFrame() {}, setTimeout() {}, Math, console };
 vm.createContext(sandbox);
-vm.runInContext(fs.readFileSync(path.join(dir, 'audio.js'), 'utf8') + '\nthis.Engine = Engine;', sandbox);
+vm.runInContext(fs.readFileSync(path.join(dir, 'bases.js'), 'utf8') + fs.readFileSync(path.join(dir, 'audio.js'), 'utf8') + '\nthis.Engine = Engine; this.BASES = BASES;', sandbox);
+// cada golpe de las bases tiene que ser un sonido que exista y caer dentro de la base
+for (const [style, b] of Object.entries(sandbox.BASES)) for (const [at, name] of b.golpes) {
+  if (!Object.values(index).some(g => g.sonidos[name])) throw new Error(`La base de ${style} usa "${name}", que no está en sonidos/`);
+  if (!(at >= 0 && at < b.tiempos * b.compases)) throw new Error(`La base de ${style} tiene un golpe fuera de lugar`);
+}
 const Engine = sandbox.Engine;
 
 const charts = {

@@ -20,6 +20,9 @@ y explicarle los pasos que le toquen de a uno.
   `Percu`, `Piano`, `Guitarra`). `node herramientas/sonidos.js "G:/Mi unidad/Audios"` arma con ellos los
   archivos livianos de `sonidos/` (un MP3 por grupo más `indice.json`), que es lo que usa la app. Para sumar
   un sonido: agregarlo a la lista de esa herramienta, correrla y usarlo por su nombre en `audio.js`.
+- **Bases de percusión:** el dueño las escribe en MIDI en `Audios/Midi` del Drive (`Base <ritmo>.mid`, y en
+  `Notas bases.txt` qué sonido es cada nota). `node herramientas/bases.js "G:/Mi unidad/Audios/Midi"` las pasa a
+  `bases.js`. Un ritmo con base la usa para la percusión cuando hay sonidos grabados (`base()` en `audio.js`).
 - **Fuera de git:** `grabaciones/` (audios originales) y `pruebas/` (archivos de prueba generados).
 
 ## Cómo se trabaja

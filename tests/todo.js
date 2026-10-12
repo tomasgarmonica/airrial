@@ -5,7 +5,7 @@ const root = path.join(__dirname, '..');
 const run = (...args) => execFileSync(process.execPath, args, { stdio: 'inherit' });
 
 // 1) que ningún archivo de la app tenga errores de escritura
-for (const f of ['music.js', 'audio.js', 'export.js', 'app.js', 'sw.js']) run('--check', path.join(root, f));
+for (const f of ['music.js', 'bases.js', 'audio.js', 'export.js', 'app.js', 'sw.js']) run('--check', path.join(root, f));
 // 2) que estén todas las funciones que la app usa de la lógica musical
 const Music = require(path.join(root, 'music.js'));
 for (const name of ['setView', 'markOf', 'normalize', 'serialize', 'parseChord', 'spell', 'transposeName', 'useFlats',
