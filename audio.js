@@ -159,10 +159,11 @@ const Engine = (() => {
   const hat = (t, v, name) => shot(name || 'hh_cerrado', t, v) || nz(t, 0.04, 'highpass', 7500, v);
   const ride = (t, v) => nz(t, 0.3, 'bandpass', 8500, v, 1.2);
   const rim = (t, v, name) => shot(name || 'aro', t, v) || nz(t, 0.03, 'bandpass', 1900, v, 4);
-  const shaker = (t, v, dur) => nz(t, dur, 'bandpass', 6500, v, 0.8);
+  // Los que siguen llevan al final el nombre del sonido grabado que los reemplaza, que cambia según el ritmo.
+  const shaker = (t, v, dur, name) => shot(name, t, v, dur * 3) || nz(t, dur, 'bandpass', 6500, v, 0.8);
   // Parche: tambores de candombe, surdo, bombo legüero (según la altura).
-  function tom(t, f, v, dur) {
-    if (silent(t)) return;
+  function tom(t, f, v, dur, name, cap) {
+    if (shot(name, t, v, cap) || silent(t)) return;
     const g = ctx.createGain();
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
@@ -171,8 +172,8 @@ const Engine = (() => {
     o.frequency.exponentialRampToValueAtTime(f, t + 0.04);
   }
   // Madera: clave, tamborim, cencerro.
-  function wood(t, v) {
-    if (silent(t)) return;
+  function wood(t, v, name) {
+    if (shot(name, t, v) || silent(t)) return;
     const g = ctx.createGain();
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
@@ -307,9 +308,9 @@ const Engine = (() => {
     },
     samba(t, bd, x) {
       const s = bd / 4;
-      for (let i = 0; i < 16; i++) shaker(t + i * s, i % 4 === 0 ? 0.22 : i % 4 === 3 ? 0.18 : 0.1, 0.035);
-      for (let b = 0; b < 4; b++) tom(t + b * bd, b % 2 ? 80 : 85, b % 2 ? 0.8 : 0.35, b % 2 ? 0.3 : 0.08);
-      for (const i of [0, 2, 3, 5, 7, 9, 10, 12, 14]) wood(t + i * s, 0.2);
+      for (let i = 0; i < 16; i++) shaker(t + i * s, i % 4 === 0 ? 0.22 : i % 4 === 3 ? 0.18 : 0.1, 0.035, 'pandeiro_platinelas');
+      for (let b = 0; b < 4; b++) tom(t + b * bd, b % 2 ? 80 : 85, b % 2 ? 0.8 : 0.35, b % 2 ? 0.3 : 0.08, 'chancha', b % 2 ? 1.2 : 0.1);
+      for (const i of [0, 2, 3, 5, 7, 9, 10, 12, 14]) wood(t + i * s, 0.2, 'chico_palo');
       const c0 = x.at(0), c2 = x.at(2);
       if (c0) bass(t, rootOf(c0), s * 6, 0.95);
       if (c2) {
@@ -356,10 +357,10 @@ const Engine = (() => {
     // Madera con la clave, y los tres tambores: chico, piano y repique.
     candombe(t, bd, x) {
       const s = bd / 4;
-      for (const i of [0, 3, 6, 10, 12]) wood(t + i * s, 0.45);
-      for (let i = 0; i < 16; i++) if (i % 4) tom(t + i * s, 340, i % 4 === 2 ? 0.3 : 0.2, 0.07);
-      for (const i of [0, 3, 6, 8, 11, 14]) tom(t + i * s, 95, i % 8 ? 0.5 : 0.75, 0.22);
-      if (x.barNo % 2) for (const i of [10, 13, 15]) tom(t + i * s, 190, 0.4, 0.12);
+      for (const i of [0, 3, 6, 10, 12]) wood(t + i * s, 0.45, 'clave');
+      for (let i = 0; i < 16; i++) if (i % 4) tom(t + i * s, 340, i % 4 === 2 ? 0.3 : 0.2, 0.07, i % 4 === 1 ? 'chico_mano' : 'chico_palo');
+      for (const i of [0, 3, 6, 8, 11, 14]) tom(t + i * s, 95, i % 8 ? 0.5 : 0.75, 0.22, 'tumba_tono');
+      if (x.barNo % 2) for (const i of [10, 13, 15]) tom(t + i * s, 190, 0.4, 0.12, 'conga_tono');
       for (const [i, fifth, d] of [[0, 0, 3], [3, 1, 3], [6, 0, 2], [8, 0, 3], [11, 1, 3], [14, 0, 2]]) {
         const c = x.at(i / 4);
         if (c) bass(t + i * s, fifth ? fifthOf(c) : rootOf(c), s * d * 0.9, fifth ? 0.75 : 0.95);
@@ -374,8 +375,8 @@ const Engine = (() => {
       const e = bd / 2, s = bd / 4;
       for (let b = 0; b < 4; b++) {
         const tb = t + b * bd;
-        shaker(tb, 0.3, 0.09); shaker(tb + 2 * s, 0.18, 0.04); shaker(tb + 3 * s, 0.18, 0.04);
-        wood(tb, 0.15);
+        shaker(tb, 0.3, 0.09, 'guiro_arrastre'); shaker(tb + 2 * s, 0.18, 0.04, 'guiro_abajo'); shaker(tb + 3 * s, 0.18, 0.04, 'guiro_arriba');
+        wood(tb, 0.15, 'campana_lomo');
       }
       // Bajo: fundamental, tercera y quinta en negra, corchea, corchea; dos veces por compás.
       for (const h of [0, 2]) {
@@ -388,7 +389,7 @@ const Engine = (() => {
         bass(t + (h + 1.5) * bd, up(c1.iv[1]), e * 0.9, 0.9);
       }
       kick(t, 0.8); kick(t + 2 * bd, 0.7);
-      tom(t + 1.5 * bd, 200, 0.35, 0.12); tom(t + 3.5 * bd, 200, 0.35, 0.12); tom(t + 3.75 * bd, 240, 0.3, 0.1);
+      tom(t + 1.5 * bd, 200, 0.35, 0.12, 'conga_tono'); tom(t + 3.5 * bd, 200, 0.35, 0.12, 'conga_tono'); tom(t + 3.75 * bd, 240, 0.3, 0.1, 'conga_tono');
       for (const i of [1, 3, 5, 7]) {
         const c = x.at(i / 2);
         if (c) chordHit(t + i * e, voice(c), e * 0.6, 0.85);
@@ -459,7 +460,7 @@ const Engine = (() => {
       const e = bd / 2;
       for (let i = 0; i < 8; i++) shaker(t + i * e, i % 2 ? 0.1 : 0.17, 0.05);
       rim(t + bd, 0.2); rim(t + 3 * bd, 0.2);
-      tom(t + 3.5 * bd, 180, 0.25, 0.12);
+      tom(t + 3.5 * bd, 180, 0.25, 0.12, 'bongo_grave');
       const c0 = x.at(0), c2 = x.at(2), c3 = x.at(3);
       if (c0) bass(t, rootOf(c0), bd * 1.9, 1);
       if (c2) bass(t + 2 * bd, c2 === c0 ? fifthOf(c2) : rootOf(c2), bd * 0.9, 0.85);
@@ -475,8 +476,8 @@ const Engine = (() => {
     // Seis corcheas por compás (6/8 o 3/4): bombo legüero con el parche en 2 y 3, bajo en negras.
     chacarera(t, bd, x, B) {
       const e = bd * B / 6, at = i => x.at(i * B / 6);
-      for (const [i, v] of [[0, 0.4], [3, 0.3], [5, 0.3]]) rim(t + i * e, v);
-      tom(t + 2 * e, 85, 0.7, 0.25); tom(t + 4 * e, 80, 0.85, 0.3);
+      for (const [i, v] of [[0, 0.4], [3, 0.3], [5, 0.3]]) rim(t + i * e, v, 'leguero_aro');
+      tom(t + 2 * e, 85, 0.7, 0.25, 'leguero_medio'); tom(t + 4 * e, 80, 0.85, 0.3, 'leguero_fuerte');
       for (const i of [0, 2, 4]) {
         const c = at(i);
         if (c) bass(t + i * e, i === 2 && c === at(0) ? fifthOf(c) : rootOf(c), e * 1.8, i ? 0.8 : 1);
@@ -489,8 +490,8 @@ const Engine = (() => {
     // Más lenta y en dos pulsos: parche en 1, bajo en negras con puntillo.
     zamba(t, bd, x, B) {
       const e = bd * B / 6, at = i => x.at(i * B / 6);
-      tom(t, 80, 0.8, 0.35); tom(t + 4 * e, 85, 0.55, 0.3);
-      for (const [i, v] of [[2, 0.3], [3, 0.35], [5, 0.25]]) rim(t + i * e, v);
+      tom(t, 80, 0.8, 0.35, 'leguero_fuerte'); tom(t + 4 * e, 85, 0.55, 0.3, 'leguero_medio');
+      for (const [i, v] of [[2, 0.3], [3, 0.35], [5, 0.25]]) rim(t + i * e, v, 'leguero_aro');
       const c0 = at(0), c3 = at(3);
       if (c0) bass(t, rootOf(c0), e * 2.8, 1);
       if (c3) bass(t + 3 * e, c3 === c0 ? fifthOf(c3) : rootOf(c3), e * 1.8, 0.8);
