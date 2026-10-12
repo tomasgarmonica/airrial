@@ -1,4 +1,5 @@
-// Banda de acompañamiento sintetizada con Web Audio (bajo, teclado, batería, claqueta).
+// Banda de acompañamiento con Web Audio (bajo, teclado, batería, claqueta): sonidos grabados donde los hay
+// (carpeta sonidos/) y sintetizados para el resto.
 const Engine = (() => {
   let ctx = null, noise = null, out = null, bus = null, timer = null, raf = null, S = null;
   const vol = { bass: 0.8, keys: 0.6, drums: 0.7, click: 0 };
@@ -34,6 +35,47 @@ const Engine = (() => {
     if (bus && bus[k]) bus[k].gain.value = v;
   }
 
+  // --- sonidos grabados ---
+  // Se bajan al abrir una canción y se preparan la primera vez que se toca. Mientras no estén, o si algo
+  // falla (sin conexión la primera vez, por ejemplo), suena todo sintetizado.
+  let bank = null, fetched = null, preparing = null;
+  function preload() {
+    if (!fetched && typeof fetch === 'function') {
+      const get = async file => {
+        const res = await fetch('sonidos/' + file);
+        if (!res.ok) throw new Error(file);
+        return res;
+      };
+      fetched = (async () => {
+        const groups = Object.values(await (await get('indice.json')).json());
+        const data = await Promise.all(groups.map(async g => (await get(g.archivo)).arrayBuffer()));
+        return groups.map((g, i) => ({ ...g, data: data[i] }));
+      })();
+      fetched.catch(() => { fetched = null; });
+    }
+    return fetched;
+  }
+  // Cada archivo trae muchos sonidos en fila y una marca al principio (un clic): según el navegador, el audio
+  // queda corrido unos milisegundos al abrirlo, y la marca dice cuánto.
+  function prepare() {
+    if (!preparing) {
+      preparing = (async () => {
+        const b = {};
+        for (const g of await preload()) {
+          const buf = await new Promise((ok, no) => ctx.decodeAudioData(g.data, ok, no));
+          const d = buf.getChannelData(0);
+          let i = 0;
+          while (i < d.length && Math.abs(d[i]) < 0.25) i++;
+          const shift = i / buf.sampleRate - g.marca;
+          if (!(Math.abs(shift) < 0.2)) throw new Error(g.archivo);
+          for (const [name, [at, len]] of Object.entries(g.sonidos)) b[name] = { buf, at: at + shift, len };
+        }
+        bank = b;
+      })().catch(() => { fetched = null; }).then(() => { preparing = null; });
+    }
+    return preparing;
+  }
+
   // --- instrumentos ---
   function env(dest, t, peak, dur, rel) {
     const g = ctx.createGain();
@@ -64,6 +106,24 @@ const Engine = (() => {
   let ties = [];
   const tied = t => ties.some(x => Math.abs(t - x) < 2e-3);
 
+  // Un golpe grabado. Devuelve false si ese sonido no está, y entonces lo toca el sintetizador.
+  // Suena entero, salvo que se le ponga un tope (`cap`, en segundos) o que lo apague un corte.
+  function shot(name, t, v, cap) {
+    const s = S.bank && S.bank[name];
+    if (!s) return false;
+    if (silent(t)) return true;
+    const dur = until(t, Math.min(cap || s.len, s.len));
+    const src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = s.buf;
+    g.gain.setValueAtTime(v, t);
+    if (dur < s.len) {
+      g.gain.setValueAtTime(v, t + dur);
+      g.gain.linearRampToValueAtTime(0, t + dur + 0.03);
+    }
+    src.connect(g); g.connect(bus.drums);
+    src.start(t, s.at, Math.min(s.len, dur + 0.04));
+    return true;
+  }
   function nz(t, dur, type, freq, peak, q) {
     if (silent(t)) return;
     dur = until(t, dur);
@@ -79,7 +139,7 @@ const Engine = (() => {
     s.stop(t + dur + 0.02);
   }
   function kick(t, v) {
-    if (silent(t)) return;
+    if (shot('bombo', t, v) || silent(t)) return;
     const g = ctx.createGain();
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
@@ -88,7 +148,7 @@ const Engine = (() => {
     o.frequency.exponentialRampToValueAtTime(45, t + 0.1);
   }
   function snare(t, v) {
-    if (silent(t)) return;
+    if (shot('redo', t, v) || silent(t)) return;
     nz(t, 0.16, 'highpass', 1800, v);
     const g = ctx.createGain();
     g.gain.setValueAtTime(v * 0.6, t);
@@ -96,9 +156,9 @@ const Engine = (() => {
     g.connect(bus.drums);
     osc('triangle', 190, t, t + 0.1, g);
   }
-  const hat = (t, v) => nz(t, 0.04, 'highpass', 7500, v);
+  const hat = (t, v, name) => shot(name || 'hh_cerrado', t, v) || nz(t, 0.04, 'highpass', 7500, v);
   const ride = (t, v) => nz(t, 0.3, 'bandpass', 8500, v, 1.2);
-  const rim = (t, v) => nz(t, 0.03, 'bandpass', 1900, v, 4);
+  const rim = (t, v, name) => shot(name || 'aro', t, v) || nz(t, 0.03, 'bandpass', 1900, v, 4);
   const shaker = (t, v, dur) => nz(t, dur, 'bandpass', 6500, v, 0.8);
   // Parche: tambores de candombe, surdo, bombo legüero (según la altura).
   function tom(t, f, v, dur) {
@@ -180,7 +240,7 @@ const Engine = (() => {
       for (let b = 0; b < 4; b++) {
         const tb = t + b * bd;
         ride(tb, 0.22);
-        if (b % 2) { hat(tb, 0.3); ride(tb + bd * 2 / 3, 0.13); }
+        if (b % 2) { hat(tb, 0.3, 'hh_pedal'); ride(tb + bd * 2 / 3, 0.13); }
         const c = x.at(b);
         if (!c) continue;
         const prev = b ? x.at(b - 1) : null;
@@ -544,7 +604,7 @@ const Engine = (() => {
         bass(ht, rootOf(chord), 0.18, 1);
         kick(ht, 1);
         snare(ht, 0.7);
-        nz(ht, 0.1, 'highpass', 6000, 0.3);
+        if (!shot('hh_abierto', ht, 0.3, 0.1)) nz(ht, 0.1, 'highpass', 6000, 0.3);
       }
       // La anticipación se marca: acorde, bajo y bombo entran juntos antes de tiempo y el acorde queda sonando.
       for (const [pt, chord, dur] of accents) {
@@ -636,17 +696,27 @@ const Engine = (() => {
     if (!o.seq.length) return false;
     ensure();
     makeBuses();
-    S = { o, pos: o.startPos || 0, chorus: 0, t: ctx.currentTime + 0.1, barNo: 0, last: null, lb: 38, q: [], bars: barsOf(o, 0) };
-    if (o.countIn) {
-      const b = S.bars[o.seq[S.pos]];
-      const bd = 60 / o.getTempo(0) * 4 / b.den;
-      for (let i = 0; i < b.beats; i++) click(S.t + i * bd, i === 0, bus.fixed);
-      S.t += b.beats * bd;
-    }
-    S.q.push({ t: S.t, chorus: 0 });
-    timer = setInterval(tick, 25);
-    tick();
-    raf = requestAnimationFrame(frame);
+    S = { o, pos: o.startPos || 0, chorus: 0, t: 0, barNo: 0, last: null, lb: 38, q: [], bars: barsOf(o, 0) };
+    const mine = S;
+    const begin = () => {
+      if (S !== mine) return;
+      S.bank = bank;
+      S.t = ctx.currentTime + 0.1;
+      if (o.countIn) {
+        const b = S.bars[o.seq[S.pos]];
+        const bd = 60 / o.getTempo(0) * 4 / b.den;
+        for (let i = 0; i < b.beats; i++) click(S.t + i * bd, i === 0, bus.fixed);
+        S.t += b.beats * bd;
+      }
+      S.q.push({ t: S.t, chorus: 0 });
+      timer = setInterval(tick, 25);
+      tick();
+      raf = requestAnimationFrame(frame);
+    };
+    // La primera vez hay que preparar los sonidos grabados: se los espera un momento y, si tardan, este tema
+    // arranca con los sintetizados (los grabados quedan para la próxima vez que se toque).
+    if (bank || typeof fetch !== 'function') begin();
+    else Promise.race([prepare(), new Promise(ok => setTimeout(ok, 2500))]).then(begin);
     return true;
   }
 
@@ -663,5 +733,5 @@ const Engine = (() => {
     S = null;
   }
 
-  return { play, stop, setVol, isPlaying: () => !!S };
+  return { play, stop, setVol, preload, isPlaying: () => !!S };
 })();

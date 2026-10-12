@@ -1,12 +1,33 @@
-// Corre el motor de audio con un AudioContext simulado: verifica que cada estilo programe notas sin errores.
+// Corre el motor de audio con un AudioContext simulado: verifica que cada estilo programe notas sin errores,
+// primero con todo sintetizado y después con los sonidos grabados (los que anota sonidos/indice.json).
 const fs = require('fs'), vm = require('vm'), path = require('path');
 const dir = process.argv[2];
 const Music = require(path.join(dir, 'music.js'));
 
 let now = 0, events = [];
 const param = () => ({ value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime(v) { if (!(v > 0)) throw new Error('rampa a ' + v); }, setTargetAtTime() {} });
-const node = kind => ({ kind, gain: param(), frequency: param(), Q: param(), connect() {}, disconnect() {},
-  start(t) { if (!(t >= 0)) throw new Error('start ' + t); events.push([kind, t]); }, stop() {} });
+const node = kind => ({ kind, gain: param(), frequency: param(), Q: param(), playbackRate: param(), connect() {}, disconnect() {},
+  start(t, at, len) {
+    if (!(t >= 0)) throw new Error('start ' + t);
+    if (this.buffer && this.buffer.grabado) {
+      if (!places.has(at.toFixed(4)) || !(len > 0)) throw new Error('sonido grabado fuera de lugar: ' + at + ' ' + len);
+      recorded++;
+    }
+    events.push([kind, t]);
+  }, stop() {} });
+// Sonidos grabados de mentira: el índice es el verdadero, y el audio solo trae la marca del principio.
+const RATE = 8000, index = JSON.parse(fs.readFileSync(path.join(dir, 'sonidos', 'indice.json'), 'utf8'));
+const places = new Set(), wanted = [];
+let recorded = 0;
+for (const g of Object.values(index)) {
+  if (!fs.existsSync(path.join(dir, 'sonidos', g.archivo))) throw new Error('Falta sonidos/' + g.archivo);
+  for (const [at] of Object.values(g.sonidos)) places.add(at.toFixed(4));
+}
+const fakeFetch = async url => {
+  const file = url.replace('sonidos/', '');
+  wanted.push(file);
+  return { ok: true, json: async () => index, arrayBuffer: async () => Object.values(index).find(g => g.archivo === file) };
+};
 class Ctx {
   constructor() { this.sampleRate = 8000; this.state = 'running'; this.destination = {}; }
   get currentTime() { return now; }
@@ -16,6 +37,11 @@ class Ctx {
   createBufferSource() { return node('noise'); }
   createBiquadFilter() { return node('filter'); }
   createDynamicsCompressor() { return node('comp'); }
+  decodeAudioData(g, ok) {
+    const d = new Float32Array(RATE);
+    d[Math.round(g.marca * RATE)] = 1;
+    ok({ grabado: true, sampleRate: RATE, getChannelData: () => d });
+  }
   resume() {}
 }
 let tickFn = null;
@@ -32,18 +58,28 @@ const charts = {
   '5/4': '| Am | Dm E7 | % | Am |',
 };
 const styles = ['swing', 'shuffle', 'bossa', 'samba', 'pop', 'balada', 'funk', 'reggae', 'bolero', 'tango', 'milonga', 'candombe', 'cumbia', 'chacarera', 'zamba', 'vals', 'click'];
+const pause = () => new Promise(done => setImmediate(done));
 let fail = 0;
+(async () => {
+for (const sounds of [false, true]) {
+if (sounds) { sandbox.fetch = fakeFetch; console.log('\ncon sonidos grabados'); }
 for (const style of styles) for (const ts of Object.keys(charts)) {
   const tsn = ts.split('/').map(Number);
   const bars = Music.parseChart(charts[ts], tsn);
-  events = []; now = 0;
+  events = []; now = 0; recorded = 0;
   let seen = 0, ended = false;
   try {
     Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 3), getTempo: () => 140, style, choruses: 2, countIn: true,
       finalChord: { root: 0, bass: 0, iv: [4, 7] }, onBar: () => { seen++; }, onEnd: () => { ended = true; } });
+    // la primera vez el motor espera a que los sonidos grabados estén listos
+    for (let k = 0; k < 20 && !tickFn; k++) await pause();
     for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
     if (!ended || seen !== bars.length * 2 + 1) throw new Error(`fin=${ended} compases=${seen}`);
-    console.log(style.padEnd(10), ts, String(events.length).padStart(5), 'sonidos');
+    console.log(style.padEnd(10), ts, String(events.length).padStart(5), 'sonidos' + (sounds ? `, ${recorded} grabados` : ''));
   } catch (e) { fail++; console.log('FALLA', style, ts, e.message); }
 }
+}
+if (wanted.length !== Object.keys(index).length + 1) { fail++; console.log('FALLA: pidió', wanted.join(' ')); }
 console.log(fail ? `${fail} fallas` : 'todo ok');
+if (fail) process.exit(1);
+})();

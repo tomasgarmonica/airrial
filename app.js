@@ -972,6 +972,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
 
     draw();
     wake(true);
+    Engine.preload();
     if (list) hint('swipe', 'Deslizá la hoja hacia los costados para pasar de tema.');
     bind({
       back: () => up(list ? '#/l/' + list.id : '#/'),
