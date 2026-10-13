@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.53';
+  const VERSION = '0.54';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -952,7 +952,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       let seq, choruses = settings.choruses, finalChord = null;
       if (range && range.b != null) {
         // El tramo suena de corrido, sin las repeticiones ni casillas que tenga adentro.
-        seq = bars.slice(range.a, range.b + 1).map((_, i) => i + range.a);
+        seq = Music.audible(bars, bars.slice(range.a, range.b + 1).map((_, i) => i + range.a));
       } else {
         seq = Music.unfold(bars);
         const k = Music.parseChord(song.key || '');

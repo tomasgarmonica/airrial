@@ -16,6 +16,19 @@ assert.equal(seq('|: A | 1. B :| 2. C | "D.C. al Fine" D |'), '0 1 0 2 3 0 2 3')
 assert.equal(seq('|: A | "Fine" B :| C | "D.C." D |'), '0 1 0 1 2 3 0 1');
 // repetición y D.C. en el mismo compás: primero repite, después salta
 assert.equal(seq('| "Fine" A |: B | "D.C." C :|'), '0 1 2 1 2 0');
+// los compases en blanco no se tocan: sirven para acomodar la hoja (la casilla 2 debajo de la casilla 1)
+assert.equal(seq('|: A | B | C | 1. D :|\n| _ | _ | _ | 2. E |\n| F |'), '0 1 2 3 0 1 2 7 8');
+assert.equal(seq('| A | _ | B |'), '0 2');
+// un lugar vacío dentro de un compás con acordes no lo vuelve blanco, y "%" y "N.C." se tocan
+assert.equal(seq('| A _ | % | N.C. | _ |'), '0 1 2');
+// lo que tenga marcado un compás en blanco vale igual: repetición y salto
+assert.equal(seq('|: A | _ :| B |'), '0 0 2');
+assert.equal(seq('| A | "Fine" B | "D.C. al Fine" _ |'), '0 1 0 1');
+// la casilla 2 marcada en el primer compás en blanco del renglón: igual se saltean los blancos
+assert.equal(seq('|: A | B | 1. C | D :|\n| 2. _ | _ | E | F |'), '0 1 2 3 0 1 6 7');
+// después de un corte, los compases en blanco sí cuentan: son el silencio que deja el corte
+assert.equal(seq('| A | G! | _ | _ | B | _ | C |'), '0 1 2 3 4 6');
+assert.equal(seq('| A | { F . G! } | _ | B |'), '0 1 2 3');
 // anotación libre no hace nada
 assert.equal(seq('| "Dulce" A | "Descanso" B |'), '0 1');
 // formas de mostrar

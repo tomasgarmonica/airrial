@@ -276,9 +276,24 @@ const Music = (() => {
     return { segno: 'segno', coda: 'coda', fine: 'fine', 'al coda': 'alcoda' }[t] || '';
   }
 
+  // Un compás en blanco no tiene nada escrito (ni un acorde, ni "%", ni "N.C."). Sirve para acomodar la hoja,
+  // por ejemplo para que la casilla 2 quede debajo de la casilla 1, y no se toca. La excepción: los que vienen
+  // justo después de un corte sí cuentan, porque son el silencio que deja el corte.
+  // De una lista de compases en el orden en que suenan, deja los que de verdad se tocan.
+  function audible(bars, seq) {
+    let hush = false;
+    return seq.filter(k => {
+      const written = bars[k].items.filter(it => it !== '_');
+      if (!written.length) return hush;
+      hush = /!$/.test(written[written.length - 1]);
+      return true;
+    });
+  }
+
   // Orden real de ejecución, con repeticiones, casillas y saltos (D.C., D.S., Fine, Coda).
   // Después de un D.C. o D.S. no se hacen las repeticiones: se toma la última casilla, se termina en "Fine"
-  // y en "Al Coda" se salta al compás marcado "Coda".
+  // y en "Al Coda" se salta al compás marcado "Coda". Los compases en blanco no se tocan (ver audible), pero
+  // lo que tengan marcado (repetición, casilla, salto) vale igual.
   function unfold(bars) {
     const seq = [];
     let i = 0, start = 0, pass = 1, checked = -1, jumped = false;
@@ -320,7 +335,7 @@ const Music = (() => {
       }
       i++;
     }
-    return seq;
+    return audible(bars, seq);
   }
 
   // Recalcula el compás vigente en cada lugar después de editar la grilla.
@@ -405,7 +420,7 @@ const Music = (() => {
     return name + (best.mode === 'minor' ? 'm' : '');
   }
 
-  return { starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold };
+  return { starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;

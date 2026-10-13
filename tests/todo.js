@@ -9,7 +9,7 @@ for (const f of ['music.js', 'bases.js', 'audio.js', 'export.js', 'app.js', 'sw.
 // 2) que estén todas las funciones que la app usa de la lógica musical
 const Music = require(path.join(root, 'music.js'));
 for (const name of ['setView', 'markOf', 'normalize', 'serialize', 'parseChord', 'spell', 'transposeName', 'useFlats',
-  'firstChord', 'positions', 'parseChart', 'intervals', 'resolve', 'unfold', 'guessKey', 'starts', 'grid', 'natural', 'split', 'join']) {
+  'firstChord', 'positions', 'parseChart', 'intervals', 'resolve', 'unfold', 'guessKey', 'starts', 'grid', 'natural', 'split', 'join', 'audible']) {
   if (typeof Music[name] !== 'function') throw new Error('Falta la función Music.' + name);
 }
 // 3) las pruebas de cada parte
