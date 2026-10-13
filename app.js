@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.40';
+  const VERSION = '0.41';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -95,12 +95,15 @@
   const tagsOf = s => [...new Set((Array.isArray(s.tags) ? s.tags : []).map(cleanTag).filter(Boolean))].slice(0, 8);
   // Todas las etiquetas en uso en la biblioteca, en orden alfabético.
   const allTags = () => [...new Set(songs.flatMap(tagsOf))].sort((a, b) => a.localeCompare(b, 'es'));
+  // Teclados grabados que puede usar una canción (el primero es el de siempre).
+  const KEYBOARDS = [['piano', 'Piano'], ['rhodes', 'Rhodes'], ['cp80', 'CP-80']];
+  const keysOf = s => (KEYBOARDS.some(k => k[0] === s.keys) ? s.keys : 'piano');
   const cleanSong = s => ({
     id: String(s.id || newId()), title: String(s.title || 'Sin título'), composer: String(s.composer || ''),
     style: STYLES.some(x => x[0] === s.style) ? s.style : 'swing', key: String(s.key || ''),
     tempo: Math.min(360, Math.max(30, +s.tempo || 120)), ts: METERS.includes(s.ts) ? s.ts : '4/4',
     transpose: Math.round(+s.transpose || 0) % 12, chart: String(s.chart || ''),
-    cols: colsOf(s), tags: tagsOf(s),
+    cols: colsOf(s), tags: tagsOf(s), keys: keysOf(s),
     ...(s.builtin ? { builtin: true } : {}),
   });
 
@@ -828,6 +831,9 @@ ${rows ? `<ol>${rows}</ol>` : ''}
             <label class="fld">Vueltas<select id="reps" aria-label="Vueltas">${[1, 2, 3, 4, 6, 999].map(n => `<option value="${n}"${n === settings.choruses ? ' selected' : ''}>${n === 999 ? 'Sin fin' : n + (n === 1 ? ' vuelta' : ' vueltas')}</option>`).join('')}</select></label>
           </div>
           <div class="r">
+            <label class="fld">Teclado<select id="keys" aria-label="Teclado">${KEYBOARDS.map(k => `<option value="${k[0]}"${k[0] === keysOf(song) ? ' selected' : ''}>${k[1]}</option>`).join('')}</select></label>
+          </div>
+          <div class="r">
             <label class="fld">Ver los acordes como<select id="notation">${[['letras', 'Letras: C, Dm7, Gmaj7'], ['jazz', 'Jazz: C, D-7, G△7'], ['latino', 'Do, Re, Mi: Do, Rem7, Solmaj7'], ['grados', 'Grados: I, IIm7, Vmaj7']]
               .map(o => `<option value="${o[0]}"${o[0] === settings.notation ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
             <label class="fld narrow">Tamaño de la hoja<select id="size">${[['chico', 'Chico'], ['normal', 'Normal'], ['grande', 'Grande']]
@@ -936,6 +942,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         barsFor: n => resolved[semisAt(n)] || (resolved[semisAt(n)] = Music.resolve(bars, semisAt(n))),
         getTempo: tempoAt,
         style: song.style,
+        keys: keysOf(song),
         choruses,
         countIn: settings.countIn,
         // Llega cuando empieza a sonar cada vuelta: en modo práctica se muestra su tempo y la hoja pasa a su tono.
@@ -972,7 +979,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
 
     draw();
     wake(true);
-    Engine.preload();
+    Engine.preload(keysOf(song));
     if (list) hint('swipe', 'Deslizá la hoja hacia los costados para pasar de tema.');
     bind({
       back: () => up(list ? '#/l/' + list.id : '#/'),
@@ -1083,6 +1090,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const t = e.target;
       if (t.id === 'tempo') setTempo(+t.value);
       else if (t.id === 'style') { song.style = t.value; saveSongs(); restart(); }
+      else if (t.id === 'keys') { song.keys = t.value; saveSongs(); Engine.preload(song.keys); restart(); }
       else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
       else if (t.id === 'size') { settings.size = t.value; saveSettings(); draw(); }

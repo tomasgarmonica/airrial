@@ -30,7 +30,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] La reproducción sigue D.C., D.S., Fine y Coda (sin repeticiones después del salto)
 - [x] Modo práctica: subir el tempo o cambiar de tono en cada vuelta (vale solo mientras suena; la hoja muestra el tono de la vuelta)
 - [x] Silenciar instrumentos sueltos con un toque (el nombre del instrumento en la mezcla es el botón; el deslizador conserva su volumen)
-- [ ] Elegir instrumento armónico (piano o guitarra)
+- [ ] Sumar la guitarra como otro instrumento armónico (ya se elige entre piano, Rhodes y CP-80)
 
 ## 3. Guardado y compartir
 - [x] Compartir una canción por enlace (WhatsApp, mail) y abrirla directo en la app
@@ -51,7 +51,9 @@ grabaciones (ver `GRABACION.md`).
 - [x] Bajo grabado (normal y fuerte) en todos los ritmos
 - [ ] Bajo: usar las notas fantasma, el slap y el slap fantasma (ya están cargados, falta escribir dónde van) y los slides (falta medir dónde llega la nota)
 - [ ] Bajo: regrabar el Fa normal ("Bajo F3.wav", quedó un semitono y medio alto) y grabar el Si normal ("Bajo B2.wav", falta)
-- [ ] Falta grabar: ride, crash, maracas o shaker, y los otros sonidos de teclado. Mientras tanto siguen sintetizados
+- [x] Teclado por canción: piano, Rhodes o CP-80 (se elige en el panel de la canción; al compartirla no viaja y el otro la escucha con piano)
+- [ ] CP-80 fuerte: las notas quedaron entre 10 y 24 centésimas altas respecto de las normales. Escuchar si molesta
+- [ ] Falta grabar: ride, crash, maracas o shaker. Mientras tanto siguen sintetizados
 - [ ] Grabado pero todavía sin usar (falta escribir su ritmo o sus remates): toms, redoblante agudo, bongó, timbales, cáscara, campanas, jam block, cajón, quijada, triángulo, güiro de madera, pandeiro (tonos), golpes de conga, y la guitarra
 - [ ] Patrones más musicales por estilo, con variaciones y remates al final de cada parte
 - [x] Ritmos nuevos: samba, tango, milonga, candombe, cumbia, chacarera, zamba y vals (falta afinarlos de oído)

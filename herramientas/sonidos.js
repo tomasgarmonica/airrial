@@ -1,7 +1,7 @@
 // Arma los sonidos livianos que usa la app a partir de las grabaciones originales (que no se tocan).
 // Uso:  node herramientas/sonidos.js "G:/Mi unidad/Audios"      (necesita ffmpeg instalado)
 //
-// Por cada grupo (batería, percusión, piano, bajo) sale un solo archivo MP3 con todos los golpes o notas en fila,
+// Por cada grupo (batería, percusión, bajo y cada teclado) sale un solo archivo MP3 con todos los golpes o notas en fila,
 // y en sonidos/indice.json queda anotado dónde empieza y cuánto dura cada uno. Al principio de cada archivo
 // va una marca (un clic corto) para que la app pueda ubicarse aunque el navegador corra el audio unos
 // milisegundos al abrirlo.
@@ -35,12 +35,18 @@ const PERCUSION = {
   repique_rim: 'Percu/repique rim.wav', repique_madera: 'Percu/repique madera.wav',
   guiro_arrastre: 'Percu/Guiro Metal arrastre.wav', guiro_abajo: 'Percu/Guiro Metal abajo.wav', guiro_arriba: 'Percu/Guiro Metal arriba.wav',
 };
-// Piano: las notas que alcanzan los acordes de hoy (cada una cubre también el semitono de arriba y el de abajo),
-// en dos intensidades: "s" suave y "m" media.
-const PIANO = {};
-for (const [midi, name] of [[54, 'F#3'], [57, 'A3'], [60, 'C4'], [63, 'Eb4'], [66, 'F#4']]) {
-  PIANO[midi + 'm'] = `Piano/Piano ${name}.wav`;
+// Teclados: las notas que alcanzan los acordes de hoy (cada una cubre también el semitono de arriba y el de
+// abajo), en dos intensidades: "s" la más suave y "m" la más fuerte. Del piano se grabó suave y normal; del
+// Rhodes y del CP-80, normal y fuerte. (El Fa#4 normal del CP-80 está guardado como "CP80 F4.wav".)
+const TECLAS = [[54, 'F#3'], [57, 'A3'], [60, 'C4'], [63, 'Eb4'], [66, 'F#4']];
+const PIANO = {}, RHODES = {}, CP80 = {};
+for (const [midi, name] of TECLAS) {
   PIANO[midi + 's'] = `Piano/Piano ${name} suave.wav`;
+  PIANO[midi + 'm'] = `Piano/Piano ${name}.wav`;
+  RHODES[midi + 's'] = `Piano/Rohdes ${name}.wav`;
+  RHODES[midi + 'm'] = `Piano/Rohdes ${name} fuerte.wav`;
+  CP80[midi + 's'] = `Piano/CP80 ${name === 'F#4' ? 'F4' : name}.wav`;
+  CP80[midi + 'm'] = `Piano/CP80 ${name} fuerte.wav`;
 }
 // Bajo: los archivos están nombrados una octava arriba de como suenan ("Bajo F2" es el Fa1). Van las notas que
 // usa la app (de Fa1 para arriba; el Si y el Re más graves quedan afuera), cada una en hasta cinco versiones:
@@ -172,7 +178,10 @@ fs.mkdirSync(OUT, { recursive: true });
 const indice = {
   bateria: pack('bateria', hits(BATERIA), 2),
   percusion: pack('percusion', hits(PERCUSION), 2),
-  piano: pack('piano', notes(PIANO), 3),
+  // Los teclados van marcados: la app baja solo el que usa la canción.
+  piano: { ...pack('piano', notes(PIANO), 3), teclado: true },
+  rhodes: { ...pack('rhodes', notes(RHODES), 3), teclado: true },
+  cp80: { ...pack('cp80', notes(CP80), 3), teclado: true },
   bajo: pack('bajo', bajo(), 3),
 };
 fs.writeFileSync(path.join(OUT, 'indice.json'), JSON.stringify(indice) + '\n');

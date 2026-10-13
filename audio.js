@@ -36,48 +36,68 @@ const Engine = (() => {
   }
 
   // --- sonidos grabados ---
-  // Se bajan al abrir una canción y se preparan la primera vez que se toca. Mientras no estén, o si algo
-  // falla (sin conexión la primera vez, por ejemplo), suena todo sintetizado.
-  let bank = null, fetched = null, preparing = null;
-  function preload() {
-    if (!fetched && typeof fetch === 'function') {
-      const get = async file => {
-        const res = await fetch('sonidos/' + file);
-        if (!res.ok) throw new Error(file);
-        return res;
-      };
-      fetched = (async () => {
-        const groups = Object.values(await (await get('indice.json')).json());
-        const data = await Promise.all(groups.map(async g => (await get(g.archivo)).arrayBuffer()));
-        return groups.map((g, i) => ({ ...g, data: data[i] }));
-      })();
-      fetched.catch(() => { fetched = null; });
+  // Vienen en grupos (batería, percusión, bajo y un grupo por teclado), cada uno en un archivo. Se bajan al
+  // abrir una canción y se preparan al tocarla; de los teclados, solo el que usa esa canción. Lo que no esté
+  // listo, o falle (sin conexión la primera vez, por ejemplo), suena sintetizado.
+  let index = null, groups = null, preparing = null;
+  const raw = {}, ready = {};   // por grupo: el archivo bajado (promesa) y sus sonidos ya preparados
+  const get = async file => {
+    const res = await fetch('sonidos/' + file);
+    if (!res.ok) throw new Error(file);
+    return res;
+  };
+  // Grupos que necesita una canción: todos los que no son teclados, más su teclado.
+  const needed = keys => Object.keys(groups).filter(g => !groups[g].teclado || g === keys);
+  function preload(keys) {
+    if (typeof fetch !== 'function') return Promise.reject(new Error('sin fetch'));
+    if (!index) {
+      index = get('indice.json').then(res => res.json()).then(all => { groups = all; });
+      index.catch(() => { index = null; });
     }
-    return fetched;
+    return index.then(() => Promise.all(needed(keys || 'piano').map(g => {
+      if (!raw[g] && !ready[g]) {
+        raw[g] = get(groups[g].archivo).then(res => res.arrayBuffer());
+        raw[g].catch(() => { delete raw[g]; });
+      }
+      return raw[g];
+    })));
   }
   // Cada archivo trae muchos sonidos en fila y una marca al principio (un clic): según el navegador, el audio
   // queda corrido unos milisegundos al abrirlo, y la marca dice cuánto.
-  function prepare() {
-    if (!preparing) {
-      preparing = (async () => {
-        const b = {};
-        for (const g of await preload()) {
-          const buf = await new Promise((ok, no) => ctx.decodeAudioData(g.data, ok, no));
-          const d = buf.getChannelData(0);
-          let i = 0;
-          while (i < d.length && Math.abs(d[i]) < 0.25) i++;
-          const shift = i / buf.sampleRate - g.marca;
-          if (!(Math.abs(shift) < 0.2)) throw new Error(g.archivo);
-          for (const [name, [at, len]] of Object.entries(g.sonidos)) b[name] = { buf, at: at + shift, len };
-        }
-        // Notas de piano que hay grabadas: b['60m'] es el Do central a intensidad media y b['60s'], suave.
-        b.notes = Object.keys(b).filter(k => /^\d+m$/.test(k)).map(k => parseInt(k, 10));
-        // Notas de bajo grabadas, normales ("m") y fuertes ("f"): b['b41f'] es el Fa2 fuerte.
-        b.bass = Object.keys(b).map(k => /^b(\d+)([mf])$/.exec(k)).filter(Boolean).map(r => ({ m: +r[1], hard: r[2] === 'f', s: b[r[0]] }));
-        bank = b;
-      })().catch(() => { fetched = null; }).then(() => { preparing = null; });
-    }
+  async function decode(g) {
+    const info = groups[g], data = await raw[g];
+    const buf = await new Promise((ok, no) => ctx.decodeAudioData(data, ok, no));
+    const d = buf.getChannelData(0), b = {};
+    let i = 0;
+    while (i < d.length && Math.abs(d[i]) < 0.25) i++;
+    const shift = i / buf.sampleRate - info.marca;
+    if (!(Math.abs(shift) < 0.2)) throw new Error(info.archivo);
+    for (const [name, [at, len]] of Object.entries(info.sonidos)) b[name] = { buf, at: at + shift, len };
+    ready[g] = b;
+    delete raw[g];
+  }
+  // De a una preparación por vez: si se pide otra mientras tanto, espera a que termine la anterior.
+  function prepare(keys) {
+    const run = async () => {
+      await preload(keys);
+      for (const g of needed(keys)) if (!ready[g]) await decode(g);
+    };
+    preparing = (preparing || Promise.resolve()).then(run).catch(() => {});
     return preparing;
+  }
+  const complete = keys => !!groups && needed(keys).every(g => ready[g]);
+  // Lo que hay listo para una canción: los golpes por su nombre, las notas de bajo y las del teclado elegido.
+  function bankFor(keys) {
+    if (!groups) return null;
+    const b = {};
+    for (const g of Object.keys(groups)) if (!groups[g].teclado && ready[g]) Object.assign(b, ready[g]);
+    // Notas de bajo, normales ("m") y fuertes ("f"): b['b41f'] es el Fa2 fuerte.
+    b.bass = Object.keys(b).map(k => /^b(\d+)([mf])$/.exec(k)).filter(Boolean).map(r => ({ m: +r[1], hard: r[2] === 'f', s: b[r[0]] }));
+    // Teclado: kb['60m'] es el Do central en su versión más fuerte y kb['60s'], en la más suave.
+    const kb = groups[keys] && groups[keys].teclado && ready[keys];
+    b.kb = kb || null;
+    b.notes = kb ? Object.keys(kb).filter(k => /^\d+m$/.test(k)).map(k => parseInt(k, 10)) : [];
+    return b;
   }
 
   // --- instrumentos ---
@@ -132,7 +152,7 @@ const Engine = (() => {
   // no tiene base para este compás o si no están los sonidos grabados; entonces vale el patrón de más abajo.
   function base(style, t, bd, B) {
     const p = typeof BASES !== 'undefined' && BASES[style];
-    if (!p || !S.bank || p.tiempos !== B) return false;
+    if (!p || !S.bank || p.tiempos !== B || !S.bank[p.golpes[0][1]]) return false;
     const from = (S.barNo % p.compases) * B;
     for (const [at, name, v] of p.golpes) {
       if (at > from - 1e-3 && at < from + B - 1e-3) shot(name, t + (at - from) * bd, v * 0.5);
@@ -223,13 +243,13 @@ const Engine = (() => {
     f.connect(bus.bass);
     osc('sawtooth', mtof(m), t, t + dur + 0.1, env(f, t, v * 0.8, dur, 0.04));
   }
-  // Nota de piano grabada: la más cercana de las que hay, corrida de altura lo que haga falta.
+  // Nota de teclado grabada: la más cercana de las que hay, corrida de altura lo que haga falta.
   // Suena mientras dura la nota y se apaga rápido al soltarla, como al levantar el dedo de la tecla.
   function pianoNote(t, m, dur, v) {
     const b = S.bank;
     let root = b.notes[0];
     for (const n of b.notes) if (Math.abs(n - m) < Math.abs(root - m)) root = n;
-    const s = b[root + (v < 0.75 ? 's' : 'm')] || b[root + 'm'];
+    const s = b.kb[root + (v < 0.75 ? 's' : 'm')] || b.kb[root + 'm'];
     const src = ctx.createBufferSource(), g = ctx.createGain();
     src.buffer = s.buf;
     src.playbackRate.value = Math.pow(2, (m - root) / 12);
@@ -745,7 +765,8 @@ const Engine = (() => {
   // Compases ya resueltos de una vuelta: los mismos siempre, o los que dé barsFor (modo práctica).
   const barsOf = (o, chorus) => (o.barsFor ? o.barsFor(chorus) : o.bars);
 
-  // o: { seq, startPos, finalChord, bars, getTempo, style, choruses, countIn, onBar, onEnd }
+  // o: { seq, startPos, finalChord, bars, getTempo, style, keys, choruses, countIn, onBar, onEnd }
+  // keys es el teclado de la canción ('piano', 'rhodes' o 'cp80'; si falta, piano).
   // Opcionales para el modo práctica: barsFor(vuelta) en lugar de bars, getTempo(vuelta), finalChord(vuelta)
   // y onChorus(vuelta), que avisa cuando empieza a sonar cada vuelta (la primera es la 0).
   function play(o) {
@@ -754,10 +775,10 @@ const Engine = (() => {
     ensure();
     makeBuses();
     S = { o, pos: o.startPos || 0, chorus: 0, t: 0, barNo: 0, last: null, lb: 38, q: [], bars: barsOf(o, 0) };
-    const mine = S;
+    const mine = S, keys = o.keys || 'piano';
     const begin = () => {
       if (S !== mine) return;
-      S.bank = bank;
+      S.bank = bankFor(keys);
       S.t = ctx.currentTime + 0.1;
       if (o.countIn) {
         const b = S.bars[o.seq[S.pos]];
@@ -772,8 +793,8 @@ const Engine = (() => {
     };
     // La primera vez hay que preparar los sonidos grabados: se los espera un momento y, si tardan, este tema
     // arranca con los sintetizados (los grabados quedan para la próxima vez que se toque).
-    if (bank || typeof fetch !== 'function') begin();
-    else Promise.race([prepare(), new Promise(ok => setTimeout(ok, 2500))]).then(begin);
+    if (typeof fetch !== 'function' || complete(keys)) begin();
+    else Promise.race([prepare(keys), new Promise(ok => setTimeout(ok, 2500))]).then(begin);
     return true;
   }
 
@@ -790,5 +811,6 @@ const Engine = (() => {
     S = null;
   }
 
-  return { play, stop, setVol, preload, isPlaying: () => !!S };
+  // preload(teclado): va bajando los sonidos que necesita una canción, sin esperar a que se toque.
+  return { play, stop, setVol, preload: keys => { preload(keys).catch(() => {}); }, isPlaying: () => !!S };
 })();

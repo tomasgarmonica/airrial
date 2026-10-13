@@ -13,13 +13,14 @@ const node = kind => ({ kind, gain: param(), frequency: param(), Q: param(), pla
       if (!places.has(this.buffer.grabado + at.toFixed(4)) || !(len > 0)) throw new Error('sonido grabado fuera de lugar: ' + at + ' ' + len);
       recorded++;
       if (this.buffer.grabado === index.piano.archivo) piano++;
+      if (this.buffer.grabado === lastKeys) inKeys++;
     }
     events.push([kind, t]);
   }, stop() {} });
 // Sonidos grabados de mentira: el índice es el verdadero, y el audio solo trae la marca del principio.
 const RATE = 8000, index = JSON.parse(fs.readFileSync(path.join(dir, 'sonidos', 'indice.json'), 'utf8'));
 const places = new Set(), wanted = [];
-let recorded = 0, piano = 0;
+let recorded = 0, piano = 0, lastKeys = null, inKeys = 0;
 for (const g of Object.values(index)) {
   if (!fs.existsSync(path.join(dir, 'sonidos', g.archivo))) throw new Error('Falta sonidos/' + g.archivo);
   for (const [at] of Object.values(g.sonidos)) places.add(g.archivo + at.toFixed(4));
@@ -86,7 +87,22 @@ for (const style of styles) for (const ts of Object.keys(charts)) {
   } catch (e) { fail++; console.log('FALLA', style, ts, e.message); }
 }
 }
-if (wanted.length !== Object.keys(index).length + 1) { fail++; console.log('FALLA: pidió', wanted.join(' ')); }
+// De los teclados solo tiene que haber bajado el piano, que es el que usan las canciones si no dicen otro.
+const others = Object.keys(index).filter(g => index[g].teclado && g !== 'piano');
+if (wanted.length !== Object.keys(index).length + 1 - others.length || others.some(g => wanted.includes(index[g].archivo))) {
+  fail++; console.log('FALLA: pidió', wanted.join(' '));
+}
+// Cada uno de los otros teclados se baja recién cuando una canción lo pide, y ahí suena ese y no el piano.
+for (const keys of others) {
+  const bars = Music.parseChart(charts['4/4'], [4, 4]);
+  events = []; now = 0; recorded = piano = 0; lastKeys = index[keys].archivo; inKeys = 0;
+  Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 140, style: 'pop', keys, choruses: 1, countIn: false,
+    finalChord: null, onBar() {}, onEnd() {} });
+  for (let k = 0; k < 20 && !tickFn; k++) await pause();
+  for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
+  if (!wanted.includes(index[keys].archivo) || !inKeys || piano) { fail++; console.log('FALLA: teclado', keys, 'grabados', inKeys, 'de piano', piano); }
+  else console.log('teclado', keys.padEnd(8), inKeys, 'notas grabadas');
+}
 console.log(fail ? `${fail} fallas` : 'todo ok');
 if (fail) process.exit(1);
 })();
