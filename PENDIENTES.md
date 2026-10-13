@@ -158,6 +158,8 @@ catálogo público.
 - [ ] Derechos de autor de las canciones que suban los usuarios: qué se permite y cómo se da de baja
 - [ ] Licencia del código y de los sonidos grabados; registro del nombre
 - [ ] Estadísticas de uso que respeten la privacidad
+- [x] Contador de uso anónimo con GoatCounter (panel del dueño: airrial.goatcounter.com), desde la 0.1.1. Cuenta visitas (`/navegador` o `/instalada`) y acciones con nombre fijo: reproducir por ritmo, compartir, recibir, abrir archivo, escribir. Una vez por apertura y solo en airrial.ar; nunca títulos ni acordes (`tally` en `app.js`, prueba en `tests/contador.js`). No se carga el script de GoatCounter: la app manda el aviso sola. Falta que el dueño confirme que ve los números y que active "ignorar mi IP"; revisar la licencia gratuita cuando haya donaciones
+- [x] Mezcla: silenciar con un toque cada instrumento de la base, por ritmo (0.1.2). Falta que el dueño lo pruebe de oído
 - [ ] Donaciones en formato "Invitame una birra", por MercadoPago y/o PayPal (pedido del dueño el 13 de octubre de 2026). Falta: crear los enlaces de cobro en cada servicio (los arma el dueño con sus cuentas), decidir dónde va el botón en la app y si el monto es fijo o libre. Por el orden de prioridades, va después de la Comunidad
 
 ## Problemas conocidos
