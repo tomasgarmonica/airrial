@@ -115,6 +115,11 @@ const ALTERNAR = ['zamba'];
 // elige cuál lleva cada parte de la canción (la primera es la que suena si no se elige nada).
 const PARTES = { son: ['Abajo (estrofa)', 'Arriba (montuno)'] };
 
+// Golpes que en el MIDI exportado quedaron corridos y el dueño pidió acomodar: [sonido, dónde está, dónde va],
+// en tiempos desde el comienzo de la base. Si el MIDI ya viene corregido, no hacen nada (y se pueden borrar).
+// Son: el último golpe del lado de tres de la clave estaba una semicorchea antes (en los dos compases).
+const CORREGIR = { son: [['clave', 3.25, 3.5], ['clave', 7.25, 7.5]] };
+
 const bases = {};
 for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).sort()) {
   const style = plain(file.replace(/^base /i, '').replace(/\.mid$/i, ''));
@@ -133,6 +138,10 @@ for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).so
     if (!known.has(sound)) throw new Error(`${file}: usa "${said}", que todavía no está en la app (falta sumarlo en herramientas/sonidos.js como ${sound})`);
     return [+(t / per).toFixed(4), sound, +(v / 127 * ((AJUSTE[style] || {})[sound] || 1)).toFixed(2)];
   }).sort((a, c) => a[0] - c[0]);
+  for (const [sound, was, goes] of CORREGIR[style] || []) {
+    for (const h of hits) if (h[1] === sound && Math.abs(h[0] - was) < 1e-3) { h[0] = goes; console.log(`${style}: ${sound} corrido de ${was} a ${goes}`); }
+  }
+  hits.sort((a, c) => a[0] - c[0]);
   const bars = Math.max(1, Math.ceil((hits[hits.length - 1][0] + 1e-3) / beats));
   const instrumentos = {};
   for (const h of hits) instrumentos[instOf(h[1])] = known.get(h[1]);
