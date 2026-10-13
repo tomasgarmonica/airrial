@@ -67,7 +67,13 @@ y explicarle los pasos que le toquen de a uno.
   `curl -s https://airrial.ar/app.js | grep "const VERSION"`. GitHub tarda entre uno y varios minutos.
 - **Commits** en castellano, con autor `tomasgarmonica <tomasgarmonica@users.noreply.github.com>` (para no
   exponer su mail en un repositorio público).
-- **Las pantallas** se prueban a mano en el navegador, a 390 px de ancho, simulando toques. No se puede
+- **Las pantallas** tienen una prueba automática, `tests/pantallas.html`: abre la app en un marco de 390 px y la
+  maneja sola (escribir una canción, verla, listas, recibir, etiquetas, iReal), sin tocar lo guardado en el
+  navegador. Se corre antes de publicar cambios de pantalla: `python -m http.server 8765` en la carpeta del
+  proyecto y abrir `http://127.0.0.1:8765/tests/pantallas.html`; tiene que terminar en "Todas las pantallas
+  pasaron". Con la pestaña en segundo plano tarda varios minutos. Lo que esa prueba no cubre
+  se prueba a mano en el navegador, a 390 px de ancho, simulando toques (sirve un marco: un `<iframe>` de 390 px
+  con la app adentro, porque la ventana del navegador no siempre se deja achicar). No se puede
   probar con el dedo ni escuchar el sonido: decirlo siempre al entregar, sin darlo por verificado.
 - **Diseño dudoso:** preguntar antes de construir.
 - **Al empezar en cualquier PC, primero `git pull`**: se trabaja desde dos computadoras. En la PC original la

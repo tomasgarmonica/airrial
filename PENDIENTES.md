@@ -139,7 +139,8 @@ catálogo público.
 - [ ] Límite de espacio en el teléfono: medir cuántas canciones entran
 - [x] Número de versión visible y recarga automática cuando hay una versión nueva
 - [x] Pruebas automáticas en el proyecto (`node tests/todo.js`), que se corren antes de cada publicación
-- [ ] Pruebas automáticas de las pantallas (hoy se prueban a mano en el navegador)
+- [x] Pruebas automáticas de las pantallas: `tests/pantallas.html` maneja la app sola en un marco de 390 px (biblioteca, editor por botones, ver canción, listas, recibir un enlace, etiquetas, archivo de iReal) y avisa si algo se sale de la pantalla
+- [ ] Pruebas de pantallas: sumar reproducción (necesita simular el audio), exportar a PDF e imagen, y el editor de texto
 
 **Seguridad de los usuarios**
 - [ ] Inicio de sesión sin guardar contraseñas propias (con Google o enlace por mail)

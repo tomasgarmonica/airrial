@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><title>Airrial: pruebas de las pantallas</title>
+<style>body{font:15px/1.5 system-ui,sans-serif;margin:16px;background:#111318;color:#f2f3f5}
+#out{white-space:pre-wrap}.ok{color:#8fd694}.no{color:#ff7b6b;font-weight:700}iframe{width:390px;height:844px;border:1px solid #444;margin-top:12px}</style></head>
+<body>
+<h1>Pruebas de las pantallas</h1>
+<p>Abre la app en un marco de 390 px (tamaño de celular) y la maneja sola: toca botones y mira qué aparece.
+No toca lo guardado en este navegador: usa un almacenamiento de mentira que se borra al terminar.
+Hay que abrir esta página desde un servidor (en la PC: <code>python -m http.server</code> en la carpeta del proyecto,
+y entrar a <code>localhost:8000/tests/pantallas.html</code>).</p>
+<div id="out">Corriendo…</div>
+<script>
+// Cada caso arranca la app de cero dentro de un marco, con lo que se le quiera dejar guardado de antes.
+const out = document.getElementById('out'), lines = [];
+let fails = 0, frame = null;
+const wait = ms => new Promise(done => setTimeout(done, ms));
+const until = async (test, what) => { for (let i = 0; i < 60; i++) { if (test()) return; await wait(50); } throw new Error('no pasó: ' + what); };
+const check = (cond, what) => { if (!cond) throw new Error(what); };
+const same = (a, b, what) => check(JSON.stringify(a) === JSON.stringify(b), what + ': esperaba ' + JSON.stringify(b) + ' y hay ' + JSON.stringify(a));
+const b64 = text => btoa(unescape(encodeURIComponent(text))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const song = (id, title, chart, more) => ({ id, title, composer: '', style: 'swing', key: 'C', tempo: 120, ts: '4/4', transpose: 0, chart, cols: 4, tags: [], keys: 'piano', ...more });
+
+let page = null;
+async function start(seed, hash) {
+  page = page || await (await fetch('../index.html?v=' + Date.now())).text();
+  if (frame) frame.remove();
+  frame = document.createElement('iframe');
+  document.body.appendChild(frame);
+  // Antes de que cargue la app: almacenamiento de mentira, carteles del navegador que contestan solos (`answers`
+  // son las respuestas que van a dar los próximos "prompt"), y nada de instalar el modo sin conexión.
+  // (Sin <base>: con una dirección base, cuando la app cambia de pantalla el marco se iría a la app verdadera.)
+  const pre = `<script>
+    const fake = () => { const m = new Map(); return { getItem: k => (m.has(k) ? m.get(k) : null), setItem: (k, v) => { m.set(k, String(v)); },
+      removeItem: k => { m.delete(k); }, clear: () => m.clear(), key: i => [...m.keys()][i] || null, get length() { return m.size; } }; };
+    const ls = fake(), ss = fake();
+    for (const [k, v] of Object.entries(${JSON.stringify(seed || {})})) ls.setItem('airrial.' + k + '.v1', JSON.stringify(v));
+    Object.defineProperty(window, 'localStorage', { get: () => ls });
+    Object.defineProperty(window, 'sessionStorage', { get: () => ss });
+    window.said = []; window.answers = [];
+    window.alert = m => { said.push(m); };
+    window.confirm = m => { said.push(m); return true; };
+    window.prompt = (m, v) => { said.push(m); return answers.length ? answers.shift() : null; };
+    Object.defineProperty(navigator, 'serviceWorker', { get: () => ({ controller: null, addEventListener() {}, register: () => Promise.resolve() }) });
+    Object.defineProperty(navigator, 'clipboard', { get: () => ({ writeText: () => Promise.reject(new Error('no')), readText: () => Promise.reject(new Error('no')) }) });
+  <\/script>`;
+  const doc = frame.contentDocument;
+  doc.open();
+  // los archivos de la app están una carpeta más arriba que esta página
+  doc.write(page.replace('<head>', '<head>' + pre).replace(/(src|href)="([\w.-]+)"/g, (m, attr, file) => `${attr}="../${file}?v=${Date.now()}"`));
+  doc.close();
+  const w = frame.contentWindow;
+  await until(() => w.document.querySelector('#app header'), 'que cargue la app');
+  if (hash) { w.location.hash = hash; await wait(250); }
+  const d = w.document, $ = s => d.querySelector(s), $$ = s => [...d.querySelectorAll(s)];
+  return {
+    w, d, $, $$,
+    tap: async s => { const el = typeof s === 'string' ? $(s) : s; check(el, 'no está el botón ' + s); el.click(); await wait(80); },
+    type: async (s, v) => { const el = $(s); check(el, 'no está el campo ' + s); el.value = v; el.dispatchEvent(new Event('input', { bubbles: true })); await wait(50); },
+    saved: k => JSON.parse(w.localStorage.getItem('airrial.' + k + '.v1') || 'null'),
+    mine: () => {
+      // si el marco se fue a otra página, ya no es la app de prueba (y estaría usando lo guardado de verdad)
+      check(frame.contentWindow.said, 'la app se salió del marco de prueba');
+      return (JSON.parse(frame.contentWindow.localStorage.getItem('airrial.songs.v1') || '[]')).filter(s => !s.builtin);
+    },
+    text: s => ($(s) ? $(s).innerText.replace(/\s+/g, ' ').trim() : null),
+    // en un celular nada se tiene que salir de la pantalla hacia el costado
+    fits: what => check(d.documentElement.scrollWidth <= w.innerWidth, what + ': se sale de la pantalla a lo ancho (' + d.documentElement.scrollWidth + ' px)'),
+    dialog: () => $$('body > dialog[open]').pop(),
+  };
+}
+
+const cases = {
+  'La biblioteca vacía invita a escribir y muestra la versión': async () => {
+    const a = await start({ songs: [] });
+    check(/beta \d+\.\d+\.\d+/.test(a.text('.ttl p')), 'no se ve la versión');
+    check(/Tocá \+/.test(a.text('#list')), 'falta el mensaje de biblioteca vacía');
+    a.fits('biblioteca');
+  },
+  'Escribir una canción con los botones, guardarla y verla': async () => {
+    const a = await start({ songs: [] }, '#/e/new');
+    await a.type('#f-title', 'Mi tema');
+    await a.tap('#pad [data-a=root][data-v=C]');
+    await a.tap('#pad [data-a=next]');
+    await a.tap('#pad [data-a=root][data-v=D]'); await a.tap('#pad [data-a=qual][data-v=m7]');
+    await a.tap('#pad [data-a=next]');
+    await a.tap('#pad [data-a=root][data-v=G]'); await a.tap('#pad [data-a=qual][data-v="7"]');
+    await a.tap('#pad [data-a=push]'); await a.tap('#pad [data-a=push]');
+    a.fits('editor');
+    await a.tap('[data-a=save]');
+    same(a.mine().map(s => [s.title, s.chart]), [['Mi tema', '| C | Dm7 | <<G7 |']], 'lo guardado');
+    await until(() => a.$('#chart .bar'), 'que abra la canción');
+    same(a.$$('#chart .bar').map(b => b.innerText.replace(/\s+/g, ' ').trim()), ['4 4 C', 'Dm7', 'G7 anticipa semi'], 'la hoja');
+    a.fits('canción');
+  },
+  'Ver una canción: subir medio tono cambia los acordes y la tonalidad': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '|: [A] C | F :|\n| "Fine" G7 |')] }, '#/s/s1');
+    same(a.text('#key'), 'C', 'tonalidad');
+    await a.tap('[data-a=up]');
+    same([a.text('#key'), a.$$('#chart .cn').map(c => c.innerText.trim())], ['D♭', ['D♭', 'G♭', 'A♭7']], 'medio tono arriba');
+    same(a.mine()[0].transpose, 1, 'la transposición queda guardada');
+    check(a.$('#chart .bar.rs') && a.$('#chart .bar.re') && /Fine/.test(a.text('#chart')), 'faltan la repetición o la anotación');
+    a.fits('canción');
+  },
+  'Armar una lista y sumarle temas': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '| C |'), song('s2', 'Dos', '| F |')] });
+    await a.tap('[data-a=tab][data-v=lists]');
+    a.w.answers.push('Recital');
+    await a.tap('[data-a=new]');
+    await until(() => a.text('#lname') === 'Recital', 'que abra la lista');
+    await a.tap('[data-a=add]');
+    for (const box of a.$$('#picklist input')) box.checked = true;
+    await a.tap('[data-a=pickok]');
+    same(a.saved('lists').map(l => [l.name, l.songs.length]), [['Recital', 2]], 'la lista guardada');
+    same(a.text('#lcount'), '2 temas', 'la cuenta de temas');
+    a.fits('lista');
+  },
+  'Recibir una canción: entra, y si se repite el título va con número': async () => {
+    const link = '#/i/' + b64(JSON.stringify([1, 'Uno', 'Otra persona', 'bossa', 'F', 100, '4/4', '| F | C7 |', 4]));
+    const a = await start({ songs: [song('s1', 'Uno', '| C |')] }, link);
+    await until(() => a.$('[data-a=save]'), 'la pantalla de lo recibido');
+    check(/Canción compartida/.test(a.text('.ttl')) && a.$$('main .bar').length === 2, 'no muestra lo recibido');
+    a.fits('recibido');
+    await a.tap('[data-a=save]');
+    same(a.mine().map(s => [s.title, s.chart]), [['Uno', '| C |'], ['Uno (2)', '| F | C7 |']], 'no pisa la que había');
+  },
+  'Un enlace armado para romper la app no la rompe': async () => {
+    const evil = '#/i/' + b64(JSON.stringify([1, '<img src=x onerror="document.title=\'roto\'">', '<b>x</b>', 'nada', 'C', 1e9, '9/9', '['.repeat(60000), 99]));
+    const a = await start({ songs: [] }, evil);
+    await until(() => a.$('[data-a=save]'), 'la pantalla de lo recibido');
+    check(!a.$('#app img') && a.d.title !== 'roto', 'el título se metió como parte de la página');
+    await a.tap('[data-a=save]');
+    const s = a.mine()[0];
+    check(s.chart.length <= 40000 && s.tempo === 360 && s.ts === '4/4' && s.style === 'swing', 'lo recibido no quedó recortado');
+    same(a.w.said, [], 'no tiene que saltar ningún cartel');
+  },
+  'Etiquetas: renombrar una en todas las canciones desde el Menú': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '| C |', { tags: ['Peña', 'Estudiar'] }), song('s2', 'Dos', '| F |', { tags: ['Peña'] })] });
+    await a.tap('[data-a=menu]'); await a.tap('[data-a=tags]');
+    await until(() => a.dialog(), 'el cuadro de etiquetas');
+    await a.tap([...a.dialog().querySelectorAll('button')].find(b => /Peña/.test(b.innerText)));
+    a.w.answers.push('Fogón');
+    await a.tap(a.dialog().querySelector('[data-k=ren]'));
+    same(a.mine().map(s => s.tags), [['Fogón', 'Estudiar'], ['Fogón']], 'etiquetas guardadas');
+    same(a.$$('#tagfilt button').map(b => b.textContent), ['Todas las etiquetas', 'Estudiar', 'Fogón'], 'el filtro de la biblioteca');
+  },
+  'Abrir un archivo de iReal Pro trae los temas y arma la lista': async () => {
+    const a = await start({ songs: [] });
+    const ireal = '<a href="irealb://' + encodeURIComponent('Uno=Autor Un==Medium Swing=C==1r34LbKcu7[C   |G7   Z=Jazz=120=3===Dos=Otra Una==Bossa Nova=F==1r34LbKcu7[F   Z=x=0=0===Mi lista') + '">x</a>';
+    const dt = new a.w.DataTransfer();
+    dt.items.add(new a.w.File([ireal], 'lista.html', { type: 'text/html' }));
+    a.$('#file').files = dt.files;
+    a.$('#file').dispatchEvent(new a.w.Event('change', { bubbles: true }));
+    await until(() => a.mine().length === 2, 'que entren los temas');
+    same(a.mine().map(s => [s.title, s.composer, s.style, s.chart]), [['Uno', 'Un Autor', 'swing', '| C | G7 |'], ['Dos', 'Una Otra', 'bossa', '| F |']], 'los temas');
+    same(a.saved('lists').map(l => [l.name, l.songs.length]), [['Mi lista', 2]], 'la lista');
+    check(/Se importaron 2 temas y 1 lista/.test(a.w.said.join(' ')), 'falta el aviso de cuántos entraron');
+  },
+};
+
+(async () => {
+  for (const [name, run] of Object.entries(cases)) {
+    try { await run(); lines.push('<span class="ok">✔</span> ' + name); }
+    catch (e) { fails++; lines.push('<span class="no">✘ ' + name + '</span>\n    ' + String(e.message || e).replace(/</g, '&lt;')); }
+    out.innerHTML = lines.join('\n') + '\n\nCorriendo…';
+  }
+  if (frame) frame.remove();
+  const end = fails ? 'FALLAN ' + fails + ' de ' + Object.keys(cases).length + '.' : 'Todas las pantallas pasaron (' + Object.keys(cases).length + ').';
+  out.innerHTML = lines.join('\n') + '\n\n<b class="' + (fails ? 'no' : 'ok') + '">' + end + '</b>';
+  document.title = end;
+})();
+</script>
+</body></html>
