@@ -59,9 +59,10 @@ y explicarle los pasos que le toquen de a uno.
   marcador hasta aquel" sin mirar qué hay en el medio.
 - **Antes de publicar:** `node tests/todo.js` tiene que terminar en "Todas las pruebas pasaron.".
   Al sumar lógica en `music.js`, agregar su prueba y el nombre de la función a la lista de `tests/todo.js`.
-- **En cada publicación** sumar 1 al último número de `VERSION` en `app.js` (0.0.60 → 0.0.61; se muestra en la
-  biblioteca como "beta 0.0.NN"). El número del medio pasa a 1 ("beta 0.1.x") cuando el dueño decida que la app
-  está para compartir con gente que la pruebe: eso lo decide él.
+- **En cada publicación** sumar 1 al último número de `VERSION` en `app.js` (0.1.0 → 0.1.1; se muestra en la
+  biblioteca como "beta 0.1.N"). Desde la 0.1.0 (13 de octubre de 2026) la app se comparte con gente que la
+  prueba: lo que se publica les llega a ellos, así que antes de subir tienen que pasar las pruebas y la de
+  pantallas. Cuándo cambia el número del medio lo decide el dueño.
   Si se agregan archivos a la app, sumarlos a `FILES` en `sw.js` y subir el número de `CACHE`.
 - **Después del push**, esperar a que el sitio sirva la versión nueva antes de pedirle que pruebe:
   `curl -s https://airrial.ar/app.js | grep "const VERSION"`. GitHub tarda entre uno y varios minutos.
