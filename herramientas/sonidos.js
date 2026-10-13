@@ -32,7 +32,7 @@ const PERCUSION = {
   pandeiro_tono: 'Percu/pandeiro tono.wav', pandeiro_tono_tapado: 'Percu/pandeiro tono tapado.wav',
   tamborim: 'Percu/Tamborim.wav',   // hecho por el dueño subiéndole la altura al chico con palo
   surdo_cerrado: 'Percu/Surdo cerrado.wav', surdo_abierto: 'Percu/Surdo abierto.wav',
-  surdo_pta_dedo: 'Percu/Surdo pta dedo.wav', surdo_palma: 'Percu/Surdo palma.wav',
+  surdo_dedos: 'Percu/Surdo dedos.wav',
   // tambores de candombe (el chico está más arriba)
   piano_tono: 'Percu/piano tono.wav', piano_palma: 'Percu/piano palma.wav', piano_pta_dedo: 'Percu/piano pta dedo.wav',
   piano_palma_y_palo: 'Percu/piano palma y palo.wav', piano_palo_abierto: 'Percu/piano palo abierto.wav',
