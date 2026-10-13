@@ -150,6 +150,10 @@ const Engine = (() => {
   }
   // Percusión de un compás según la base escrita en MIDI para ese ritmo (bases.js). Devuelve false si el ritmo
   // no tiene base para este compás o si no están los sonidos grabados; entonces vale el patrón de más abajo.
+  // Volumen que el usuario le dio a cada instrumento de la base que suena (1, o nada, es como viene).
+  let trims = {};
+  // "surdo_abierto" y "surdo_dedos" son el surdo; "tom1" y "tom2", los toms. (La misma regla está en herramientas/bases.js.)
+  const instOf = name => name.split('_')[0].replace(/[0-9]+$/, '');
   function base(style, t, bd, B) {
     const p = typeof BASES !== 'undefined' && BASES[style];
     if (!p || !S.bank || !S.bank[p.golpes[0][1]]) return false;
@@ -166,7 +170,8 @@ const Engine = (() => {
     }
     const from = bar * p.tiempos, step = bd * B / p.tiempos;
     for (const [at, name, v] of p.golpes) {
-      if (at > from - 1e-3 && at < from + p.tiempos - 1e-3) shot(name, t + (at - from) * step, v * 0.5);
+      const k = trims[instOf(name)];
+      if (at > from - 1e-3 && at < from + p.tiempos - 1e-3) shot(name, t + (at - from) * step, v * 0.5 * (k == null ? 1 : k));
     }
     return true;
   }
@@ -831,5 +836,6 @@ const Engine = (() => {
   }
 
   // preload(teclado): va bajando los sonidos que necesita una canción, sin esperar a que se toque.
-  return { play, stop, setVol, preload: keys => { preload(keys).catch(() => {}); }, isPlaying: () => !!S };
+  // setTrims({ chico: 0.5, ... }): volumen de cada instrumento de la base, para el ritmo que se va a tocar.
+  return { play, stop, setVol, setTrims: t => { trims = t || {}; }, preload: keys => { preload(keys).catch(() => {}); }, isPlaying: () => !!S };
 })();

@@ -206,6 +206,11 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .mx.off button { color: var(--muted); text-decoration: line-through; }
 .mx.off button::after { content: " · silenciado"; display: inline-block; text-decoration: none; font-size: .78rem; }
 .mx.off input { opacity: .35; }
+.mx.sub { min-height: 38px; }
+.mx.sub span { flex: 1; min-width: 0; padding-left: 22px; color: var(--muted); }
+.mxmore { display: flex; gap: 8px; margin: 2px 0 6px; }
+.mxmore:empty { display: none; }
+.mxmore button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--bg); color: var(--accent); font-size: .85rem; }
 .mixer input[type=range] { flex: 0 0 66%; accent-color: var(--accent); }
 .mixer .chk { justify-content: flex-start; }
 .mixer .chk input { width: 20px; height: 20px; accent-color: var(--accent); }

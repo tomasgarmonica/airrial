@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.52';
+  const VERSION = '0.53';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -37,6 +37,13 @@
   settings.vol = Object.assign({ bass: 0.8, keys: 0.6, drums: 0.7, perc: 0.7, click: 0 }, settings.vol);
   // Instrumentos silenciados con un toque: el deslizador conserva su volumen para cuando vuelven.
   settings.mute = Object.assign({}, settings.mute);
+  // Volumen que el usuario le dio a cada instrumento de un ritmo: { candombe: { chico: 0.3 } }. El deslizador va
+  // de 0 a 1 y en la mitad (0.5) el instrumento suena como viene; lo que está en la mitad no se guarda.
+  settings.trims = Object.assign({}, settings.trims);
+  const INSTRUMENTS = { bombo: 'Bombo', redo: 'Redoblante', hh: 'Hi-hat', aro: 'Aro', ride: 'Ride', crash: 'Crash', tom: 'Toms',
+    chancha: 'Chancha', chico: 'Chico', piano: 'Tambor piano', repique: 'Repique y madera', leguero: 'Bombo legüero', surdo: 'Surdo',
+    pandeiro: 'Pandeiro', tamborim: 'Tamborim', conga: 'Conga', tumba: 'Tumbadora', bongo: 'Bongó', guiro: 'Güiro',
+    campana: 'Campana', clave: 'Clave' };
   const applyVol = k => Engine.setVol(k, settings.mute[k] ? 0 : settings.vol[k]);
   // Modo práctica: cuánto sube el tempo (bpm) y cuánto cambia el tono (semitonos) en cada vuelta. Cero = no cambia.
   settings.practice = Object.assign({ tempo: 0, key: 0 }, settings.practice);
@@ -845,7 +852,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
               .map(o => `<option value="${o[0]}"${o[0] === settings.practice.key ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
           </div>
           <div class="mixer">
-            ${slider('bass', 'Bajo')}${slider('keys', 'Teclado')}${slider('drums', 'Batería')}${slider('perc', 'Percusión')}${slider('click', 'Claqueta')}
+            ${slider('bass', 'Bajo')}${slider('keys', 'Teclado')}${slider('drums', 'Batería')}<div class="subs" data-bus="drums"></div>${slider('perc', 'Percusión')}<div class="subs" data-bus="perc"></div>
+            <div class="mxmore" id="mxmore"></div>${slider('click', 'Claqueta')}
             <label class="chk"><input type="checkbox" id="countin"${settings.countIn ? ' checked' : ''}> Un compás de cuenta previa</label>
           </div>
         </div></div>
@@ -858,6 +866,27 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       saveSettings();
       sheet.classList.toggle('open', on);
       grab.setAttribute('aria-expanded', on);
+    };
+    // Instrumentos de la base de este ritmo (si la tiene), para darle volumen a cada uno. Se guarda por ritmo.
+    const baseOf = () => (typeof BASES !== 'undefined' && BASES[song.style]) || null;
+    const applyTrims = () => {
+      const mine = settings.trims[song.style] || {}, gains = {};
+      for (const i in mine) gains[i] = 4 * mine[i] * mine[i];
+      Engine.setTrims(gains);
+    };
+    const drawSubs = () => {
+      const ins = baseOf() ? baseOf().instrumentos : {}, mine = settings.trims[song.style] || {}, open = !!settings.mixOpen;
+      for (const box of sheet.querySelectorAll('.subs')) {
+        box.innerHTML = !open ? '' : Object.keys(ins).filter(i => ins[i] === box.dataset.bus).map(i => {
+          const name = INSTRUMENTS[i] || i;
+          return '<div class="mx sub"><span>' + esc(name) + '</span><input type="range" min="0" max="1" step="0.05" data-trim="' + i +
+            '" value="' + (mine[i] == null ? 0.5 : mine[i]) + '" aria-label="Volumen: ' + esc(name) + '"></div>';
+        }).join('');
+      }
+      $('#mxmore').innerHTML = !Object.keys(ins).length ? '' :
+        '<button type="button" data-a="mixmore" aria-expanded="' + open + '">' + (open ? 'Ocultar instrumentos' : 'Volumen de cada instrumento') + '</button>' +
+        (open ? '<button type="button" data-a="mixreset">Restablecer</button>' : '');
+      applyTrims();
     };
     const setMute = (k, on) => {
       settings.mute[k] = on;
@@ -977,6 +1006,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     };
 
     draw();
+    drawSubs();
     wake(true);
     Engine.preload(keysOf(song));
     if (list) hint('swipe', 'Deslizá la hoja hacia los costados para pasar de tema.');
@@ -1012,6 +1042,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         setSheet(!settings.sheetOpen);
       },
       mute: el => setMute(el.dataset.v, !settings.mute[el.dataset.v]),
+      mixmore: () => { settings.mixOpen = !settings.mixOpen; saveSettings(); drawSubs(); },
+      mixreset: () => { delete settings.trims[song.style]; saveSettings(); drawSubs(); },
       keys: async el => {
         const now = settings.mute.keys ? 'mute' : keysOf(song), mark = k => (k === now ? 'Es lo que está elegido' : '');
         const pick = await choose('Teclado de esta canción', [...KEYBOARDS.map(k => [k[0], k[1], mark(k[0])]), ['mute', 'Silenciar', mark('mute')]]);
@@ -1090,7 +1122,13 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       if (el) tapBar(+el.dataset.i);
     };
     app.oninput = e => {
-      const k = e.target.dataset.vol;
+      const k = e.target.dataset.vol, inst = e.target.dataset.trim;
+      if (inst) {
+        const mine = settings.trims[song.style] || (settings.trims[song.style] = {});
+        if (+e.target.value === 0.5) delete mine[inst]; else mine[inst] = +e.target.value;
+        saveSettings();
+        applyTrims();
+      }
       if (!k) return;
       vol[k] = +e.target.value;
       // Mover el deslizador de un instrumento silenciado lo vuelve a activar.
@@ -1100,7 +1138,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     app.onchange = e => {
       const t = e.target;
       if (t.id === 'tempo') setTempo(+t.value);
-      else if (t.id === 'style') { song.style = t.value; saveSongs(); restart(); }
+      else if (t.id === 'style') { song.style = t.value; saveSongs(); drawSubs(); restart(); }
       else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
       else if (t.id === 'size') { settings.size = t.value; saveSettings(); draw(); }

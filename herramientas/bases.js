@@ -18,8 +18,12 @@ const fs = require('fs'), path = require('path');
 const SRC = process.argv[2];
 if (!SRC || !fs.existsSync(path.join(SRC, 'Notas bases.txt'))) { console.error('Falta la carpeta con las bases y "Notas bases.txt".'); process.exit(1); }
 const root = path.join(__dirname, '..');
-const known = new Set();
-for (const g of Object.values(JSON.parse(fs.readFileSync(path.join(root, 'sonidos', 'indice.json'), 'utf8')))) Object.keys(g.sonidos).forEach(k => known.add(k));
+// Sonidos que tiene la app y por qué renglón de la mezcla sale cada uno (batería o percusión).
+const known = new Map();
+for (const g of Object.values(JSON.parse(fs.readFileSync(path.join(root, 'sonidos', 'indice.json'), 'utf8')))) Object.keys(g.sonidos).forEach(k => known.set(k, g.pista || 'drums'));
+// Instrumento al que pertenece un sonido: "surdo_abierto" y "surdo_dedos" son el surdo; "tom1" y "tom2", los toms.
+// (La misma regla está en audio.js.) En la mezcla el usuario le puede cambiar el volumen a cada instrumento.
+const instOf = name => name.split('_')[0].replace(/[0-9]+$/, '');
 
 const plain = s => s.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
 const PC = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
@@ -124,10 +128,13 @@ for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).so
     return [+(t / per).toFixed(4), sound, +(v / 127 * ((AJUSTE[style] || {})[sound] || 1)).toFixed(2)];
   }).sort((a, c) => a[0] - c[0]);
   const bars = Math.max(1, Math.ceil((hits[hits.length - 1][0] + 1e-3) / beats));
-  bases[style] = { tiempos: beats, compases: bars, ...(ALTERNAR.includes(style) ? { alternar: true } : {}), golpes: hits };
+  const instrumentos = {};
+  for (const h of hits) instrumentos[instOf(h[1])] = known.get(h[1]);
+  bases[style] = { tiempos: beats, compases: bars, ...(ALTERNAR.includes(style) ? { alternar: true } : {}), instrumentos, golpes: hits };
   console.log(`${style}: ${sig.join('/')}, ${bars} ${bars > 1 ? 'compases' : 'compás'}, ${hits.length} golpes`);
 }
 fs.writeFileSync(path.join(root, 'bases.js'),
   '// Bases de percusión de cada ritmo. Lo genera herramientas/bases.js a partir de los MIDI: no editar a mano.\n' +
-  '// Cada golpe: [tiempo dentro de la base, sonido grabado, fuerza de 0 a 1].\n' +
+  '// Cada golpe: [tiempo dentro de la base, sonido grabado, fuerza]. "instrumentos" dice por qué renglón de la\n' +
+  '// mezcla sale cada uno: drums (batería) o perc (percusión).\n' +
   'const BASES = ' + JSON.stringify(bases).replace(/("[a-z0-9_]+":\{)/g, '\n  $1').replace(/\}\}$/, '},\n}') + ';\n');
