@@ -158,7 +158,7 @@ catálogo público.
 - [ ] Derechos de autor de las canciones que suban los usuarios: qué se permite y cómo se da de baja
 - [ ] Licencia del código y de los sonidos grabados; registro del nombre
 - [ ] Estadísticas de uso que respeten la privacidad
-- [ ] Botón de donaciones (falta definir servicio y enlace)
+- [ ] Donaciones en formato "Invitame una birra", por MercadoPago y/o PayPal (pedido del dueño el 13 de octubre de 2026). Falta: crear los enlaces de cobro en cada servicio (los arma el dueño con sus cuentas), decidir dónde va el botón en la app y si el monto es fijo o libre. Por el orden de prioridades, va después de la Comunidad
 
 ## Problemas conocidos
 - [x] El botón Atrás del teléfono sube un nivel, igual que la flecha de arriba
