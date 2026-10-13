@@ -18,9 +18,17 @@ La Comunidad en sí necesita conexión; el resto de la app sigue andando igual s
 **Entrar.** Un botón "Comunidad" en la pantalla principal, al lado de Canciones y Listas. No es un catálogo
 metido en la biblioteca: es un buscador aparte, y lo que se baja aparece en Canciones como todo lo demás.
 
-**Buscar.** Un cuadro para escribir (título o compositor), filtro por género, y un selector Canciones / Listas.
-Se ordena por "más bajadas" o "más nuevas". Cada renglón muestra título, compositor, género, tonalidad y
-compás, quién la subió y cuántas veces se bajó.
+**Buscar.** Es un intercambio de archivos ordenado por estilo y por artista (pedido del dueño el 13 de
+octubre de 2026). Arriba, un selector Canciones / Listas y un cuadro para escribir (título o artista). Abajo
+se entra por dos caminos: **por estilo** (la lista de ritmos de la app, con cuántas canciones hay en cada uno)
+o **por artista** (los nombres en orden alfabético, tomados del dato "Autor" de cada canción). Adentro de un
+estilo o de un artista se ordena por "más bajadas" o "más nuevas". Cada renglón muestra título, autor, estilo,
+tonalidad y compás, quién la subió y cuántas veces se bajó.
+
+El mismo artista puede quedar escrito de varias maneras ("Jobim", "A. C. Jobim", "Tom Jobim"). Al subir, la
+app propone los nombres que ya existen mientras se escribe, para que se junten; los que igual queden
+duplicados los puede unir el dueño. Las listas no tienen artista: se buscan por nombre y, si se quiere, por
+un estilo que elige quien la sube.
 
 **Mirar antes de bajar.** Al tocar una canción se abre la hoja, igual que una propia, y se puede escuchar.
 Abajo: "Guardar en mis canciones" y "Denunciar". Guardar usa el mismo mecanismo que hoy recibe un archivo:
