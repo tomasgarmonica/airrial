@@ -2,7 +2,7 @@
 const fs = require('fs'), assert = require('assert');
 const src = fs.readFileSync(process.argv[2] + '/app.js', 'utf8');
 const cut = (from, to) => { const a = src.indexOf(from), b = src.indexOf(to, a); if (a < 0 || b < 0) throw new Error('no encontré ' + from); return src.slice(a, b); };
-const code = cut('  const colsOf', '  // Las canciones viajan') + cut('  const readData', '  // Las suma a la biblioteca');
+const code = cut('  const colsOf', '  // Las canciones viajan') + cut('  const readData', '  // Nombre libre');
 const STYLES = [['swing', 'Swing'], ['bossa', 'Bossa']], METERS = ['4/4', '3/4'];
 let n = 0;
 const newId = () => 'nuevo' + (++n), settings = { builtins: { 'demo-blues': '' } };
@@ -53,3 +53,38 @@ console.log('lo recibido: ok');
   await assert.rejects(pack.pipe(new Uint8Array(bomb), new DecompressionStream('deflate-raw')), /demasiado grande/);
   console.log('enlaces: ok');
 })().catch(e => { console.error(e); process.exit(1); });
+
+// Lo recibido nunca pisa lo que ya había: lo idéntico se reconoce y lo que repite el título entra con un número.
+{
+  const lib = new Function('newId', `let songs = [], lists = [];
+    const findSong = id => songs.find(s => s.id === id), saveSongs = () => {}, saveLists = () => {};
+    ${cut('  const freeName', '  // Cuadro con opciones')}
+    return { mergeData, songs: () => songs, lists: () => lists };`)(newId);
+  const mine = { id: 'a1', title: 'Tema', chart: '| C |' };
+  lib.mergeData({ songs: [mine], lists: [{ id: 'l1', name: 'Recital', songs: ['a1'] }] });
+  // la misma otra vez: no se duplica nada
+  lib.mergeData({ songs: [{ ...mine }], lists: [{ id: 'l1', name: 'Recital', songs: ['a1'] }] });
+  assert.equal(lib.songs().length, 1);
+  assert.equal(lib.lists().length, 1);
+  // mismo id y mismo título con otro cifrado: la mía queda y la otra entra como "Tema (2)", y después "Tema (3)"
+  const kept = lib.mergeData({ songs: [{ id: 'a1', title: 'Tema', chart: '| D |' }], lists: [{ id: 'l1', name: 'Recital', songs: ['a1'] }] });
+  lib.mergeData({ songs: [{ id: 'zz', title: 'Tema', chart: '| E |' }], lists: [] });
+  assert.deepEqual(lib.songs().map(s => s.title + ' ' + s.chart), ['Tema | C |', 'Tema (2) | D |', 'Tema (3) | E |']);
+  assert.equal(new Set(lib.songs().map(s => s.id)).size, 3);
+  assert.notEqual(kept.songs[0], 'a1');
+  // la lista recibida apunta a la canción nueva, y también entra con número
+  assert.deepEqual(lib.lists().map(l => l.name + ':' + l.songs.join()), ['Recital:a1', 'Recital (2):' + kept.songs[0]]);
+  assert.equal(new Set(lib.lists().map(l => l.id)).size, 2);
+  // mismo id con otro título: entra aparte, sin número
+  lib.mergeData({ songs: [{ id: 'a1', title: 'Otro', chart: '| C |' }], lists: [] });
+  assert.equal(lib.songs()[3].title, 'Otro');
+  assert.notEqual(lib.songs()[3].id, 'a1');
+  console.log('repetidas: ok');
+}
+// Los identificadores nuevos no se repiten aunque se pidan muchos juntos.
+{
+  const mk = new Function(cut('  let idCount', '  const tsOf') + '\nreturn newId;')();
+  const all = new Set(Array.from({ length: 5000 }, mk));
+  assert.equal(all.size, 5000);
+  for (const id of all) assert.match(id, /^[\w-]{1,40}$/);
+}

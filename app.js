@@ -68,7 +68,9 @@
   const saveSongs = () => store(SONGS, songs);
   const saveSettings = () => store(SETTINGS, settings);
   const findSong = id => songs.find(s => s.id === id);
-  const newId = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+  // El contador evita que dos identificadores pedidos en el mismo instante salgan iguales (al guardar una lista larga).
+  let idCount = 0;
+  const newId = () => Date.now().toString(36) + (idCount++ % 46656).toString(36).padStart(3, '0') + Math.random().toString(36).slice(2, 4);
   const tsOf = s => (s.ts || '4/4').split('/').map(Number);
 
   // --- recorrido ---
@@ -216,18 +218,44 @@
     lists: (data && Array.isArray(data.lists) ? data.lists : []).filter(l => l && Array.isArray(l.songs))
       .map(l => ({ id: cleanId(l.id), name: short(l.name, 200) || 'Lista', songs: l.songs.map(String).filter(id => /^[\w-]{1,40}$/.test(id)) })),
   });
-  // Las suma a la biblioteca; lo que tiene el mismo id se reemplaza.
+  // Nombre libre para algo que llega: si ya hay uno igual se le suma un número ("Tema (2)", "Tema (3)"…).
+  const freeName = (name, taken) => {
+    if (!taken.includes(name)) return name;
+    const base = name.replace(/ \(\d+\)$/, '');
+    for (let n = 2; ; n++) if (!taken.includes(`${base} (${n})`)) return `${base} (${n})`;
+  };
+  // Suma una canción recibida sin pisar nada: si ya está idéntica (mismo título y cifrado) se usa la que hay;
+  // si hay otra con ese título, entra con un número. Devuelve el id con el que quedó en la biblioteca.
+  function keepSong(s) {
+    const same = songs.find(x => x.title === s.title && x.chart === s.chart);
+    if (same) return same.id;
+    const song = { ...s, title: freeName(s.title, songs.map(x => x.title)) };
+    if (findSong(song.id)) song.id = newId();
+    songs.push(song);
+    return song.id;
+  }
+  // Lo mismo con una lista (`set.songs` ya trae los ids de la biblioteca).
+  function keepList(set) {
+    const same = lists.find(x => x.name === set.name && x.songs.join() === set.songs.join());
+    if (same) return same.id;
+    const list = { ...set, name: freeName(set.name, lists.map(x => x.name)) };
+    if (lists.some(x => x.id === list.id)) list.id = newId();
+    lists.push(list);
+    return list.id;
+  }
+  // Suma a la biblioteca lo que trae un archivo o un enlace, sin reemplazar lo que ya había.
+  // Devuelve los ids con los que quedaron las canciones y las listas.
   function mergeData(incoming) {
+    const ids = new Map(), out = { songs: [], lists: [] };
     for (const song of incoming.songs) {
-      const i = songs.findIndex(x => x.id === song.id);
-      if (i >= 0) songs[i] = song; else songs.push(song);
+      const id = keepSong(song);
+      ids.set(song.id, id);
+      out.songs.push(id);
     }
-    for (const set of incoming.lists) {
-      const i = lists.findIndex(x => x.id === set.id);
-      if (i >= 0) lists[i] = set; else lists.push(set);
-    }
+    for (const set of incoming.lists) out.lists.push(keepList({ ...set, songs: set.songs.map(id => ids.get(id) || id).filter(findSong) }));
     saveSongs();
     saveLists();
+    return out;
   }
   // Cuadro con opciones; devuelve la clave elegida o null.
   function choose(title, options) {
@@ -1243,14 +1271,6 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         prompt('No se pudo copiar solo. Mantené apretado, elegí Seleccionar todo y Copiar:', url);
       }
     };
-    // Si ya tengo una canción idéntica, uso esa en lugar de duplicarla.
-    const keep = s => {
-      const same = songs.find(x => x.title === s.title && x.chart === s.chart);
-      if (same) return same.id;
-      s.id = newId();
-      songs.push(s);
-      return s.id;
-    };
     if (!data) {
       app.innerHTML = head('Enlace no válido') + '<main><p class="empty">Este enlace está incompleto o no es de Airrial. Pedí que te lo manden de nuevo.</p></main>';
     } else if (data.song) {
@@ -1259,22 +1279,13 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <div class="shared"><b>${esc(song.title)}</b>
         <span>${esc([songMeta(song), song.tempo + ' bpm'].join(' · '))}</span></div>
         ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song))}</main>`;
-      actions.save = () => {
-        const id = keep(song);
-        saveSongs();
-        swap('#/s/' + id);
-      };
+      actions.save = () => swap('#/s/' + mergeData({ songs: [song], lists: [] }).songs[0]);
     } else {
       app.innerHTML = head('Lista compartida', true) + (iosNote() || installHtml()) + `<main class="list">
         <div class="shared"><b>${esc(data.name)}</b><span>${count(data.songs.length)}</span></div>
         ${data.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`;
-      actions.save = () => {
-        const l = { id: newId(), name: data.name, songs: data.songs.map(keep) };
-        saveSongs();
-        lists.push(l);
-        saveLists();
-        swap('#/l/' + l.id);
-      };
+      // Las canciones de un enlace llegan sin identificador: cada una recibe el suyo y la lista las nombra por él.
+      actions.save = () => swap('#/l/' + mergeData({ songs: data.songs, lists: [{ id: newId(), name: data.name, songs: data.songs.map(s => s.id) }] }).lists[0]);
     }
     fitChords(app);
     bind(actions);
@@ -1304,9 +1315,9 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         ${got.lists.map(l => `<div class="shared"><b>${esc(l.name)}</b><span>Lista · ${count(l.songs.length)}</span></div>`).join('')}
         ${got.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`);
       actions.save = () => {
-        mergeData(got);
-        if (got.lists.length === 1) swap('#/l/' + got.lists[0].id);
-        else if (one) swap('#/s/' + one.id);
+        const kept = mergeData(got);
+        if (kept.lists.length === 1) swap('#/l/' + kept.lists[0]);
+        else if (one) swap('#/s/' + kept.songs[0]);
         else swap('#/');
       };
     }
