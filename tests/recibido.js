@@ -59,6 +59,25 @@ console.log('lo recibido: ok');
   const bomb = await new Response(new Blob([new Uint8Array(60e6)]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
   assert.ok(bomb.byteLength < 100000);
   await assert.rejects(pack.pipe(new Uint8Array(bomb), new DecompressionStream('deflate-raw')), /demasiado grande/);
+  // Todo lo guardado viaja en un solo código (de Safari a la app instalada, en iPhone) y llega igual: canciones
+  // con sus etiquetas y su teclado, y las listas apuntando a las mismas canciones.
+  const mine = [
+    { id: 'mgk3x1ab', title: 'Tema', composer: 'Autor', style: 'bossa', key: 'Bb', tempo: 140, ts: '3/4', transpose: -2, chart: '| C | <<G7 |', cols: 4, tags: ['Peña'], keys: 'piano' },
+    { id: 'mgk3x1ac', title: 'Otro', composer: '', style: 'swing', key: '', tempo: 120, ts: '4/4', transpose: 0, chart: '| F |', cols: 3, tags: [], keys: 'piano' }];
+  const sets = [{ id: 'l1', name: 'Recital', songs: ['mgk3x1ac', 'mgk3x1ab'] }];
+  const link = new Function('STYLES', 'METERS', 'newId', 'settings', 'Music', 'songs', 'lists', `const findSong = id => songs.find(s => s.id === id);
+    ${cut('  const colsOf', '  // Las canciones viajan')}${cut('  const b64', '  function download')}${cut('  const parseFile', '  // Nombre libre')}
+    return { packAll, unpack, packSong };`)(STYLES, METERS, newId, settings, Music, mine, sets);
+  const code = await link.packAll();
+  assert.match(code, /^b\.[\w-]+$/);
+  assert.deepEqual((await link.unpack(code)).all, { songs: mine, lists: sets });
+  // sin compresión (teléfonos viejos) también
+  const flat = 'a.' + Buffer.from(JSON.stringify({ songs: mine, lists: sets })).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  assert.deepEqual((await link.unpack(flat)).all, { songs: mine, lists: sets });
+  // un código de esos vacío o roto se rechaza, y los enlaces de una sola canción siguen andando
+  await assert.rejects(link.unpack('a.' + Buffer.from('{"songs":[]}').toString('base64')));
+  await assert.rejects(link.unpack('b.AAAA'));
+  assert.equal((await link.unpack(await link.packSong(mine[0]))).song.chart, '| C | <<G7 |');
   console.log('enlaces: ok');
 })().catch(e => { console.error(e); process.exit(1); });
 

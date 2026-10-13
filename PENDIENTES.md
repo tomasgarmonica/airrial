@@ -119,7 +119,8 @@ grabaciones (ver `GRABACION.md`).
 - [ ] iPhone: probar con un usuario real el camino Guardar en Archivos → Abrir archivo recibido
 - [x] iPhone: pasar lo recibido de Safari a la app por el portapapeles (Copiar para la app → Pegar lo copiado)
 - [ ] iPhone: probar con un usuario real el copiar y pegar
-- [ ] iPhone: llevar a la app TODO lo que alguien ya guardó en Safari antes de instalarla
+- [x] iPhone: llevar a la app TODO lo que alguien ya guardó en Safari antes de instalarla. En Safari, con canciones propias, aparece un cartel con "Copiar todo"; en la app instalada, "Pegar lo copiado" muestra cuántos temas y listas llegan y los guarda sin pisar ni duplicar
+- [ ] iPhone: probar "Copiar todo" con un iPhone real (se probó simulando el iPhone en la PC, con 300 temas; falta ver que Safari deje copiar)
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
 - [x] Borrar varias canciones a la vez desde la biblioteca (modo selección)
 - [x] Etiquetas libres por canción (hasta 8), con filtro en la biblioteca, búsqueda por etiqueta y edición desde "Datos de la canción"

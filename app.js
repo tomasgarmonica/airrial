@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.0.60 → 0.0.61): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. El del medio pasa a 1 (0.1.0) cuando la app esté para compartir con gente que la pruebe.
-  const VERSION = '0.0.65';
+  const VERSION = '0.0.66';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -210,8 +210,20 @@
     try { return 'z.' + b64(await pipe(bytes, new CompressionStream('deflate-raw'))); }
     catch { return 'j.' + b64(bytes); }
   };
-  // Devuelve { song } o { name, songs }.
+  // Todo lo guardado (canciones y listas) en un solo código, para pasarlo de Safari a la app instalada en iPhone.
+  const packAll = async () => {
+    const bytes = new TextEncoder().encode(JSON.stringify({ songs, lists }));
+    try { return 'b.' + b64(await pipe(bytes, new CompressionStream('deflate-raw'))); }
+    catch { return 'a.' + b64(bytes); }
+  };
+  // Devuelve { song }, { name, songs } o { all: { songs, lists } }.
   const unpack = async code => {
+    if (code.startsWith('b.') || code.startsWith('a.')) {
+      const raw = unb64(code.slice(2));
+      const all = readData(JSON.parse(new TextDecoder().decode(code[0] === 'b' ? await pipe(raw, new DecompressionStream('deflate-raw')) : raw)));
+      if (!all.songs.length && !all.lists.length) throw new Error('vacío');
+      return { all };
+    }
     if (code.startsWith('c.')) {
       const bytes = await pipe(unb64(code.slice(2)), new DecompressionStream('deflate-raw'));
       const f = new TextDecoder().decode(bytes).split('\t');
@@ -421,9 +433,24 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     try { text = await navigator.clipboard.readText(); } catch { /* sin permiso para leer */ }
     if (!/#\/i\//.test(text)) text = prompt('Pegá acá lo que copiaste (mantené apretado y elegí Pegar):', '') || '';
     const m = /#\/i\/([\w.\-]+)/.exec(text);
-    if (m) location.hash = '#/i/' + m[1];
+    // Lo muy largo (una biblioteca entera) no se pone en la dirección: queda en `pasted` y la pantalla lo toma de ahí.
+    if (m && m[1].length > 4000) { pasted = m[1]; location.hash = '#/i/pegado' + Date.now().toString(36); }
+    else if (m) location.hash = '#/i/' + m[1];
     else if (text) toast('Eso no es una canción ni una lista de Airrial.');
   }
+  let pasted = null;
+  // En iPhone, usando la app desde Safari y con canciones propias guardadas: cómo llevarlas a la app instalada
+  // (lo guardado en Safari no pasa solo). El código con todo se prepara antes, porque el iPhone solo deja copiar
+  // en el mismo momento del toque.
+  let allCode = null;
+  const iosMoveHtml = () => {
+    if (!isIos || standalone() || settings.noMoveTip || !songs.some(s => !s.builtin)) return '';
+    allCode = null;
+    packAll().then(code => { allCode = code; });
+    return `<div class="inst col"><span><b>¿Ya instalaste la app?</b> Lo que guardaste acá, en Safari, no pasa solo. Tocá
+      <b>Copiar todo</b>, abrí Airrial desde la pantalla de inicio y tocá <b>Pegar lo copiado</b>.</span>
+      <div><button data-a="copyall">Copiar todo</button><button class="x" data-a="nomovetip" aria-label="No mostrar más">×</button></div></div>`;
+  };
   const installActions = {
     install: async () => {
       const e = installEvent;
@@ -436,6 +463,13 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     noinstall: () => { settings.noInstall = true; saveSettings(); hideInstall(); },
     paste: () => { document.querySelectorAll('dialog[open]').forEach(d => d.close()); pasteShared(); },
     noopentip: el => { settings.noOpenTip = true; saveSettings(); el.closest('.inst').remove(); },
+    nomovetip: el => { settings.noMoveTip = true; saveSettings(); el.closest('.inst').remove(); },
+    copyall: () => {
+      if (!allCode) { toast('Se está preparando: tocá de nuevo en un momento.'); return; }
+      const url = location.origin + location.pathname + '#/i/' + allCode;
+      const fail = () => prompt('No se pudo copiar solo. Mantené apretado, elegí Seleccionar todo y Copiar:', url);
+      try { navigator.clipboard.writeText(url).then(() => toast('Copiado. Ahora abrí la app Airrial y tocá "Pegar lo copiado".'), fail); } catch { fail(); }
+    },
   };
 
   function toast(msg) {
@@ -605,7 +639,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <div class="search"><input id="q" type="search" autocomplete="off"></div>
       <div class="filt" id="filt"></div>
       <div class="filt" id="tagfilt"></div>
-      ${installHtml()}${iosOpenHtml()}
+      ${installHtml()}${iosOpenHtml()}${iosMoveHtml()}
       <div class="selbar" id="selbar" hidden><button class="tx" data-a="selcancel">Cancelar</button><span id="selcount"></span>
         <button class="tx" data-a="selall">Todas</button><button class="tx del" data-a="seldel">Borrar</button></div>
       <main class="list" id="list"></main>
@@ -1321,7 +1355,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   // --- canción o lista recibida por enlace ---
   async function importView(code) {
     let data = null;
-    try { data = await unpack(code || ''); } catch { /* enlace roto */ }
+    // "pegado…" es lo que se acaba de pegar y era muy largo para la dirección; si la página se recargó, ya no está.
+    const long = /^pegado/.test(code || '');
+    if (long && !pasted) { swap('#/'); return; }
+    try { data = await unpack((long ? pasted : code) || ''); } catch { /* enlace roto */ }
     if (location.hash !== '#/i/' + (code || '')) return;
     const head = (title, save) => `<header class="top"><button class="tx" data-a="cancel">Cancelar</button>
       <div class="ttl"><h1>${title}</h1></div>${save ? '<button class="tx pri" data-a="save">Guardar</button>' : ''}</header>`;
@@ -1337,6 +1374,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     };
     if (!data) {
       app.innerHTML = head('Enlace no válido') + '<main><p class="empty">Este enlace está incompleto o no es de Airrial. Pedí que te lo manden de nuevo.</p></main>';
+    } else if (data.all) {
+      // Todo lo que había guardado en otro lado (Safari, en iPhone): entra sin pisar ni duplicar lo que ya está.
+      const { songs: ss, lists: ls } = data.all;
+      app.innerHTML = head('Todo lo copiado', true) + `<main class="list">
+        <div class="shared"><b>${count(ss.length)}${ls.length ? ` y ${ls.length} ${ls.length === 1 ? 'lista' : 'listas'}` : ''}</b>
+        <span>Tocá Guardar para sumarlo a esta biblioteca. Lo que ya tengas igual no se repite.</span></div>
+        ${ls.map(l => `<div class="item"><b>${esc(l.name)}</b><span>Lista · ${count(l.songs.length)}</span></div>`).join('')}
+        ${ss.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`;
+      actions.save = () => { if (mergeData(data.all)) { pasted = null; swap('#/'); } };
     } else if (data.song) {
       const song = data.song;
       app.innerHTML = head('Canción compartida', true) + (iosNote() || installHtml()) + `<main class="chart">
