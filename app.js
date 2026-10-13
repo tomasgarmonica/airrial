@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.0.60 → 0.0.61): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. El del medio pasa a 1 (0.1.0) cuando la app esté para compartir con gente que la pruebe.
-  const VERSION = '0.0.63';
+  const VERSION = '0.0.64';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>

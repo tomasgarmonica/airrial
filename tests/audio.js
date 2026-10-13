@@ -108,10 +108,10 @@ for (const keys of others) {
 // Samba en 2/4: dos compases tienen que sonar igual que uno de 4/4 (la clave del tamborim ocupa dos compases),
 // golpe por golpe en la percusión, y con la misma cantidad de notas de bajo y de teclado.
 {
-  const run = async (chart, ts) => {
+  const run = async (chart, ts, startPos) => {
     const bars = Music.parseChart(chart, ts);
     events = []; now = 0; lastKeys = null;
-    Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 100, style: 'samba', choruses: 1, countIn: false,
+    Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 100, style: 'samba', startPos, choruses: 1, countIn: false,
       finalChord: null, onBar() {}, onEnd() {} });
     for (let k = 0; k < 20 && !tickFn; k++) await pause();
     for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
@@ -123,6 +123,11 @@ for (const keys of others) {
   const two = await run('| Am | Am | Dm | Dm | G7 | G7 | C | C |', [2, 4]);
   if (!four.perc.length || four.perc.join('\n') !== two.perc.join('\n')) { fail++; console.log('FALLA: samba en 2/4, la percusión no coincide con la de 4/4', four.perc.length, two.perc.length); }
   else if (four.bajo !== two.bajo || four.piano !== two.piano) { fail++; console.log('FALLA: samba en 2/4, bajo o teclado', JSON.stringify([four.bajo, two.bajo, four.piano, two.piano])); }
+  // arrancando desde el segundo compás, la clave del tamborim sigue alineada con la hoja: suena lo mismo que
+  // sonaba ahí tocando el tema desde el principio (a 100 por minuto, un compás de 2/4 dura 1,2 segundos)
+  const late = await run('| Am | Am | Dm | Dm | G7 | G7 | C | C |', [2, 4], 1);
+  const tail = two.perc.map(e => [+e.split(' ')[0] - 1.2, e.split(' ')[1]]).filter(e => e[0] > -1e-6).map(e => e[0].toFixed(3) + ' ' + e[1]).sort();
+  if (late.perc.join('|') !== tail.join('|')) { fail++; console.log('FALLA: samba en 2/4 desde el segundo compás, la clave queda corrida', late.perc.length, tail.length); }
   else console.log('samba 2/4 = 4/4:', four.perc.length, 'golpes de percusión,', four.bajo, 'notas de bajo,', four.piano, 'de teclado');
 }
 console.log(fail ? `${fail} fallas` : 'todo ok');

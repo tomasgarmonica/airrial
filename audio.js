@@ -163,7 +163,10 @@ const Engine = (() => {
     // La base puede estar escrita en otro compás del mismo largo (3/4 para una canción en 6/8): se acomoda.
     // Los compases de la base suenan en orden y se repiten, salvo que sean variantes para alternar: ahí el
     // primero (el básico) suena la mitad de las veces y el resto se reparte entre los otros, sin repetir el último.
-    let bar = S.barNo % p.compases;
+    // `place` es el lugar del compás contando desde el principio del tema (no desde donde se empezó a reproducir):
+    // así una base de varios compases, o repartida en varios, queda alineada con la hoja al arrancar desde cualquier compás.
+    const place = S.barNo + (S.o.startPos || 0);
+    let bar = place % p.compases;
     // Una versión por momento del tema (abajo y arriba en el son): la canción dice cuál lleva cada compás.
     if (p.partes) bar = Math.min(p.compases - 1, (S.o.partAt && S.o.partAt(S.idx)) || 0);
     else if (p.alternar && p.compases > 1) {
@@ -174,7 +177,7 @@ const Engine = (() => {
       S.variant = bar;
     }
     // De la base suena el tramo que le toca a este compás: toda, o una parte si está repartida.
-    const T = p.tiempos, from = bar * T, len = T / split, first = (S.barNo % split) * len, step = bd * B / len;
+    const T = p.tiempos, from = bar * T, len = T / split, first = (place % split) * len, step = bd * B / len;
     for (const [at, name, v] of p.golpes) {
       if (at < from - 1e-3 || at > from + T - 1e-3) continue;
       const pos = (((at - from - shift) % T) + T + 1e-3) % T - 1e-3 - first, k = trims[instOf(name)];
@@ -405,7 +408,7 @@ const Engine = (() => {
     // Samba, en 4/4 o en 2/4. Todo está escrito sobre las 16 semicorcheas del 4/4; en 2/4 cada compás toca una
     // mitad, alternando: la clave del tamborim ocupa dos compases (surdo y pandeiro son iguales en las dos mitades).
     samba(t, bd, x, B) {
-      const s = bd / 4, n = B * 4, from = B === 2 ? (x.barNo % 2) * 8 : 0;
+      const s = bd / 4, n = B * 4, from = B === 2 ? (x.place % 2) * 8 : 0;
       // ¿la semicorchea i del dibujo entero cae en este compás?, y en qué momento
       const on = i => i >= from && i < from + n, tm = i => t + (i - from) * s;
       // Surdo, pandeiro y tamborim salen de la base escrita en MIDI. Sin sonidos grabados: maracas, surdo
@@ -750,7 +753,7 @@ const Engine = (() => {
       if (!slots.length || slots[0].beat > 0) segs.push({ beat: 0, chord: carried });
       for (const s of slots) segs.push({ beat: s.beat, chord: s.chord });
       segs.forEach((s, i) => { s.len = (i + 1 < segs.length ? segs[i + 1].beat : B) - s.beat; });
-      const x = { at, segs, next, prev: carried, barNo: S.barNo };
+      const x = { at, segs, next, prev: carried, barNo: S.barNo, place: S.barNo + (S.o.startPos || 0) };
       const meters = (METER[style] || '4/4').split(' ');
       if (!patterns[style]) generic(t, bd, x, B);
       else if (meters.includes(B + '/' + bar.den)) patterns[style](t, bd, x, B);
