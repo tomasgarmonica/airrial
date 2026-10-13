@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.0.60 → 0.0.61): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. El del medio pasa a 1 (0.1.0) cuando la app esté para compartir con gente que la pruebe.
-  const VERSION = '0.0.62';
+  const VERSION = '0.0.63';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -130,6 +130,19 @@
   const tagsOf = s => [...new Set((Array.isArray(s.tags) ? s.tags : []).map(cleanTag).filter(Boolean))].slice(0, 8);
   // Todas las etiquetas en uso en la biblioteca, en orden alfabético.
   const allTags = () => [...new Set(songs.flatMap(tagsOf))].sort((a, b) => a.localeCompare(b, 'es'));
+  // Cambia una etiqueta por otra en todas las canciones que la tienen (si la nueva ya estaba, quedan unidas);
+  // sin nombre nuevo, la quita. Devuelve en cuántas canciones estaba.
+  function retag(from, to) {
+    let n = 0;
+    for (const s of songs) {
+      const tags = tagsOf(s);
+      if (!tags.includes(from)) continue;
+      s.tags = [...new Set(tags.map(t => (t === from ? to : t)).filter(Boolean))];
+      n++;
+    }
+    if (n) saveSongs();
+    return n;
+  }
   // Teclados grabados que puede usar una canción (el primero es el de siempre).
   const KEYBOARDS = [['piano', 'Piano'], ['rhodes', 'Rhodes'], ['cp80', 'CP-80']];
   const keysOf = s => (KEYBOARDS.some(k => k[0] === s.keys) ? s.keys : 'piano');
@@ -600,9 +613,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <dialog id="menu"><div class="sheet">
         <button data-a="export">Exportar todo (copia de seguridad)</button>
         <p class="hint" id="age">${backupAge()}</p>
-        <button data-a="import">Abrir un archivo (recibido, copia de seguridad o de iReal Pro)</button>
+        <button data-a="import">Abrir un archivo (de Airrial o de iReal Pro)</button>
         <button data-a="paste">Pegar una canción o lista copiada</button>
         <button data-a="select">Seleccionar canciones para borrar</button>
+        <button data-a="tags">Etiquetas: renombrar o borrar</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="close">Cerrar</button>
       </div></dialog>
@@ -675,6 +689,27 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     bind({
       ...installActions,
       select: () => { $('#menu').close(); libTab = 'songs'; sel = new Set(); draw(); },
+      // Renombrar o borrar una etiqueta en todas las canciones a la vez: se elige la etiqueta y después qué hacer.
+      tags: async () => {
+        $('#menu').close();
+        const tags = allTags();
+        if (!tags.length) { toast('Todavía no hay etiquetas. Se agregan en Editar → Datos de la canción.'); return; }
+        const k = await choose('Elegí la etiqueta', tags.map((t, i) => [String(i), t, count(songs.filter(s => tagsOf(s).includes(t)).length)]));
+        if (k == null) return;
+        const tag = tags[+k];
+        const what = await choose(`Etiqueta "${tag}"`, [
+          ['ren', 'Renombrar', 'Cambia el nombre en todas las canciones que la tienen'],
+          ['del', 'Borrar', 'Se quita de las canciones; las canciones no se borran']]);
+        let to = '';
+        if (what === 'ren') {
+          to = cleanTag(prompt('Nuevo nombre de la etiqueta:', tag) || '');
+          if (!to || to === tag) return;
+        } else if (what !== 'del' || !confirm(`¿Borrar la etiqueta "${tag}" de todas las canciones? Las canciones no se borran.`)) return;
+        const n = retag(tag, to);
+        if (libTag === tag) libTag = to;
+        draw();
+        toast(to ? `Etiqueta renombrada en ${count(n)}.` : `Etiqueta borrada de ${count(n)}.`);
+      },
       selcancel: () => { sel = null; draw(); },
       pick: el => {
         // el toque que termina un "mantener apretado" no cuenta como otro toque

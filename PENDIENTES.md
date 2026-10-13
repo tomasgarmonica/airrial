@@ -122,7 +122,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
 - [x] Borrar varias canciones a la vez desde la biblioteca (modo selección)
 - [x] Etiquetas libres por canción (hasta 8), con filtro en la biblioteca, búsqueda por etiqueta y edición desde "Datos de la canción"
-- [ ] Etiquetas: renombrar o borrar una etiqueta en todas las canciones a la vez
+- [x] Etiquetas: renombrar o borrar una etiqueta en todas las canciones a la vez (Menú → Etiquetas; renombrar a una que ya existe las une)
 
 ## 6. Servidores, sistemas y seguridad
 Hoy no hay servidor: la app son archivos fijos en GitHub Pages y cada canción vive en el teléfono de
@@ -145,7 +145,7 @@ catálogo público.
 - [ ] Política de privacidad y términos de uso
 - [ ] Moderación y denuncias en el catálogo; límites contra spam y abuso
 - [x] Revisar que una canción recibida por enlace o importada no pueda dañar la app de quien la abre (hecho el 13 de octubre de 2026: lo recibido se recorta, un cifrado o enlace armado para trabar la app ya no la cuelga, y nunca pisa lo que había: lo repetido entra como "Tema (2)")
-- [ ] Probar en un celular real, a 390 px, el cartel rojo de falta de lugar (se verificó en la PC, sin verlo a tamaño de teléfono)
+- [x] Cartel rojo de falta de lugar a tamaño de celular: medido a 390 px en la PC (359 px de ancho, debajo del encabezado, sin tapar sus botones). No se vio en un teléfono real
 
 **Seguridad del proyecto (la tuya)**
 - [ ] Verificación en dos pasos en GitHub y en el mail asociado
