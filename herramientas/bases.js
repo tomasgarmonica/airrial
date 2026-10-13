@@ -1,12 +1,17 @@
 // Pasa a la app las bases de percusión escritas en MIDI.
 // Uso:  node herramientas/bases.js "G:/Mi unidad/Audios/Midi"
 //
-// En esa carpeta va un archivo "Base <ritmo>.mid" por ritmo y un "Notas bases.txt" que dice qué sonido es cada
-// nota, con un bloque por base:
-//     Base Candombe:
+// En esa carpeta va un archivo "Base <ritmo>.mid" por ritmo, con una pista por grupo de instrumentos, y un
+// "Notas bases.txt" que dice qué sonido es cada nota en cada pista. Un bloque por pista, que vale para todas
+// las bases:
+//     Notas Percu:
 //     C3: piano palma y palo
 //     F#3: chico palo
-// El nombre del sonido es el de la grabación (el mismo que figura en herramientas/sonidos.js, con espacios).
+//
+//     Notas batería:
+//     C2: bombo
+// El bloque se llama igual que la pista del MIDI. El nombre del sonido es el de la grabación; los que en la app
+// se llaman distinto están en OTRO_NOMBRE.
 // La intensidad de cada nota (velocity) es la fuerza del golpe. Sale bases.js, que no se edita a mano.
 const fs = require('fs'), path = require('path');
 
@@ -25,40 +30,54 @@ function midiOf(name) {
   return PC[m[1]] + (m[2] === '#' ? 1 : m[2] === 'b' ? -1 : 0) + 12 * (+m[3] + 1);
 }
 
-// Notas bases.txt -> { candombe: { 48: 'piano_palma_y_palo', ... } }
+// Sonidos que en la app tienen otro nombre que en el texto del dueño.
+const OTRO_NOMBRE = {
+  'bombo aro': 'leguero_aro', 'bombo parche suave': 'leguero_suave', 'bombo parche medio': 'leguero_medio',
+  'bombo parche fuerte': 'leguero_fuerte', 'bongo grave abierto': 'bongo_grave', 'tumbadora tono': 'tumba_tono',
+  'guiro metal abajo': 'guiro_abajo', 'guiro metal arriba': 'guiro_arriba', 'guiro metal arrastre': 'guiro_arrastre',
+  redoblante: 'redo', 'redoblante agudo': 'redo_agudo',
+};
+// Notas bases.txt -> { percu: { 48: ['piano_palma_y_palo', 'Piano palma y palo'], ... }, bateria: { ... } }
 const maps = {};
 let cur = null;
 for (const line of fs.readFileSync(path.join(SRC, 'Notas bases.txt'), 'utf8').split(/\r?\n/)) {
   if (!line.trim()) continue;
-  const head = line.match(/^\s*base\s+(.+?)\s*:\s*$/i);
+  const head = line.match(/^\s*notas\s+(.+?)\s*:?\s*$/i);
   if (head) { cur = maps[plain(head[1])] = {}; continue; }
   const [note, ...rest] = line.split(':');
   if (!cur || !rest.length) throw new Error('No entiendo este renglón de Notas bases.txt: ' + line);
-  const sound = plain(rest.join(':')).replace(/\s+/g, '_');
-  if (!known.has(sound)) throw new Error(`"${rest.join(':').trim()}" no es un sonido de la app (falta sumarlo en herramientas/sonidos.js)`);
-  cur[midiOf(note)] = sound;
+  const said = rest.join(':').trim(), name = plain(said).replace(/\s+/g, ' ');
+  cur[midiOf(note)] = [OTRO_NOMBRE[name] || name.replace(/ /g, '_'), said];
 }
 
-// Notas de un archivo MIDI: [momento en negras, nota, intensidad], más el compás y el largo.
+// Notas de un archivo MIDI: [momento en negras, nota, intensidad, pista], más el compás.
 function readMidi(file) {
   const b = fs.readFileSync(file), ppq = b.readUInt16BE(12), notes = [];
   let p = 14, sig = [4, 4];
   while (p < b.length) {
-    let q = p + 8, t = 0, run = 0;
-    const end = q + b.readUInt32BE(p + 4);
+    let q = p + 8, t = 0, run = 0, track = '';
+    const mine = [], end = q + b.readUInt32BE(p + 4);
     p = end;
     const vlq = () => { let v = 0, c; do { c = b[q++]; v = (v << 7) | (c & 127); } while (c & 128); return v; };
     while (q < end) {
       t += vlq();
       let st = b[q];
       if (st & 128) q++; else st = run;
-      if (st === 0xff) { const type = b[q++], len = vlq(); if (type === 0x58) sig = [b[q], 1 << b[q + 1]]; q += len; continue; }
+      if (st === 0xff) {
+        const type = b[q++], len = vlq();
+        if (type === 0x58) sig = [b[q], 1 << b[q + 1]];
+        // el nombre de la pista puede venir en cualquiera de las dos formas de escribir los acentos
+        if (type === 3) { track = b.toString('utf8', q, q + len); if (track.includes('�')) track = b.toString('latin1', q, q + len); }
+        q += len;
+        continue;
+      }
       if (st === 0xf0 || st === 0xf7) { q += vlq(); continue; }
       run = st;
       const kind = st & 0xf0;
-      if (kind === 0x90 || kind === 0x80) { const n = b[q++], v = b[q++]; if (kind === 0x90 && v) notes.push([t / ppq, n, v]); }
+      if (kind === 0x90 || kind === 0x80) { const n = b[q++], v = b[q++]; if (kind === 0x90 && v) mine.push([t / ppq, n, v]); }
       else q += kind === 0xc0 || kind === 0xd0 ? 1 : 2;
     }
+    for (const n of mine) notes.push([...n, track]);
   }
   return { notes, sig };
 }
@@ -71,14 +90,21 @@ const AJUSTE = {
 
 const bases = {};
 for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).sort()) {
-  const style = plain(file.replace(/^base /i, '').replace(/\.mid$/i, '')), map = maps[style];
-  if (!map) { console.log(`${file}: sin bloque en Notas bases.txt, no se pasa`); continue; }
-  const { notes, sig } = readMidi(path.join(SRC, file));
+  const style = plain(file.replace(/^base /i, '').replace(/\.mid$/i, ''));
+  const { notes: all, sig } = readMidi(path.join(SRC, file));
+  // Una pista cuyo bloque no existe o está vacío no se pasa, y se avisa.
+  const empty = [...new Set(all.map(n => n[3]))].filter(tr => !Object.keys(maps[plain(tr)] || {}).length);
+  for (const tr of empty) console.log(`${file}: la pista "${tr}" no tiene sus notas en Notas bases.txt (bloque "Notas ${tr}"): NO SE PASA`);
+  const notes = all.filter(n => !empty.includes(n[3]));
+  if (!notes.length) continue;
   // tiempos del compás, en la figura que marca el compás (negras en 4/4, corcheas en 6/8)
   const beats = sig[0], per = 4 / sig[1];
-  const hits = notes.map(([t, n, v]) => {
-    if (!map[n]) throw new Error(`${file}: hay una nota (${n}) que no figura en Notas bases.txt`);
-    return [+(t / per).toFixed(4), map[n], +(v / 127 * ((AJUSTE[style] || {})[map[n]] || 1)).toFixed(2)];
+  const hits = notes.map(([t, n, v, tr]) => {
+    const found = maps[plain(tr)][n];
+    if (!found) throw new Error(`${file}, pista "${tr}": hay una nota (${n}) que no figura en su bloque de Notas bases.txt`);
+    const [sound, said] = found;
+    if (!known.has(sound)) throw new Error(`${file}: usa "${said}", que todavía no está en la app (falta sumarlo en herramientas/sonidos.js como ${sound})`);
+    return [+(t / per).toFixed(4), sound, +(v / 127 * ((AJUSTE[style] || {})[sound] || 1)).toFixed(2)];
   }).sort((a, c) => a[0] - c[0]);
   const bars = Math.max(1, Math.ceil((hits[hits.length - 1][0] + 1e-3) / beats));
   bases[style] = { tiempos: beats, compases: bars, golpes: hits };
