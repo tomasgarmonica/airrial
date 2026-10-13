@@ -108,6 +108,9 @@ const AJUSTE = {
 
 // Bases cuyos compases no van en fila sino que son variantes para alternar (la primera es la básica).
 const ALTERNAR = ['zamba'];
+// Bases con una versión distinta para cada momento del tema: un compás por versión, en este orden. En la app se
+// elige cuál lleva cada parte de la canción (la primera es la que suena si no se elige nada).
+const PARTES = { son: ['Abajo (estrofa)', 'Arriba (montuno)'] };
 
 const bases = {};
 for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).sort()) {
@@ -130,7 +133,9 @@ for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).so
   const bars = Math.max(1, Math.ceil((hits[hits.length - 1][0] + 1e-3) / beats));
   const instrumentos = {};
   for (const h of hits) instrumentos[instOf(h[1])] = known.get(h[1]);
-  bases[style] = { tiempos: beats, compases: bars, ...(ALTERNAR.includes(style) ? { alternar: true } : {}), instrumentos, golpes: hits };
+  if (PARTES[style] && PARTES[style].length !== bars) throw new Error(file + ': tiene ' + bars + ' compases y se esperaba uno por versión (' + PARTES[style].join(', ') + ')');
+  bases[style] = { tiempos: beats, compases: bars, ...(ALTERNAR.includes(style) ? { alternar: true } : {}),
+    ...(PARTES[style] ? { partes: PARTES[style] } : {}), instrumentos, golpes: hits };
   console.log(`${style}: ${sig.join('/')}, ${bars} ${bars > 1 ? 'compases' : 'compás'}, ${hits.length} golpes`);
 }
 fs.writeFileSync(path.join(root, 'bases.js'),

@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.54';
+  const VERSION = '0.55';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -10,7 +10,7 @@
 
   const STYLES = [
     ['swing', 'Swing'], ['shuffle', 'Blues / Shuffle'], ['bossa', 'Bossa'], ['samba', 'Samba'], ['pop', 'Pop / Rock'], ['balada', 'Balada'],
-    ['funk', 'Funk'], ['reggae', 'Reggae'], ['bolero', 'Bolero'],
+    ['funk', 'Funk'], ['reggae', 'Reggae'], ['bolero', 'Bolero'], ['son', 'Son'],
     ['tango', 'Tango'], ['milonga', 'Milonga'], ['candombe', 'Candombe'], ['cumbia', 'Cumbia'],
     ['chacarera', 'Chacarera (6/8)'], ['zamba', 'Zamba (6/8)'], ['vals', 'Vals (3/4)'], ['click', 'Solo metrónomo'],
   ];
@@ -105,12 +105,22 @@
   // Teclados grabados que puede usar una canción (el primero es el de siempre).
   const KEYBOARDS = [['piano', 'Piano'], ['rhodes', 'Rhodes'], ['cp80', 'CP-80']];
   const keysOf = s => (KEYBOARDS.some(k => k[0] === s.keys) ? s.keys : 'piano');
+  // Versión de la base que lleva cada parte de la canción, en los ritmos que tienen más de una (son: abajo o
+  // arriba): { B: 1 } es "la parte B va con la segunda". Las que no figuran van con la primera.
+  const partsOf = s => {
+    const out = {};
+    for (const [k, v] of Object.entries(s.parts && typeof s.parts === 'object' ? s.parts : {})) {
+      if (k.length <= 40 && v > 0 && v < 8) out[k] = Math.round(v);
+    }
+    return out;
+  };
   const cleanSong = s => ({
     id: String(s.id || newId()), title: String(s.title || 'Sin título'), composer: String(s.composer || ''),
     style: STYLES.some(x => x[0] === s.style) ? s.style : 'swing', key: String(s.key || ''),
     tempo: Math.min(360, Math.max(30, +s.tempo || 120)), ts: METERS.includes(s.ts) ? s.ts : '4/4',
     transpose: Math.round(+s.transpose || 0) % 12, chart: String(s.chart || ''),
     cols: colsOf(s), tags: tagsOf(s), keys: keysOf(s),
+    ...(Object.keys(partsOf(s)).length ? { parts: partsOf(s) } : {}),
     ...(s.builtin ? { builtin: true } : {}),
   });
 
@@ -915,6 +925,28 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     };
     // Modo práctica: mientras suena, `liveSemis` es el tono de la vuelta que se escucha (null = el guardado).
     let liveSemis = null;
+    // Ritmos con más de una versión de la base (son: abajo y arriba): cada parte de la canción lleva una, que se
+    // elige tocando el nombre de la parte. `sections` dice a qué parte pertenece cada compás.
+    const variants = () => (baseOf() && baseOf().partes) || null;
+    let sections = [];
+    const partAt = i => partsOf(song)[sections[i]] || 0;
+    const markParts = () => {
+      let cur = '';
+      sections = bars.map(b => (cur = b.section || cur));
+      const v = variants();
+      chart.querySelectorAll('.sec').forEach(el => {
+        const i = +el.closest('.bar').dataset.i;
+        el.classList.toggle('up', !!v && partAt(i) > 0);
+      });
+    };
+    const pickPart = async i => {
+      const v = variants(), name = sections[i], now = partAt(i);
+      const pick = await choose('Parte ' + name + ': qué base lleva', v.map((p, k) => [String(k), p, k === now ? 'Es la que está elegida' : '']));
+      if (pick == null || +pick === now) return;
+      song.parts = { ...partsOf(song), [name]: +pick };
+      saveSongs();
+      markParts();
+    };
     const draw = () => {
       bars = Music.parseChart(song.chart, tsOf(song));
       const semis = liveSemis != null ? liveSemis : (song.transpose || 0);
@@ -928,6 +960,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       chart.dataset.fit = SHEET_SIZES[settings.size];
       fitChords(chart);
       markFrom();
+      markParts();
       $('#key').textContent = song.key ? Music.transposeName(song.key, semis, flats) : (semis > 0 ? '+' : '') + semis;
     };
     // Al parar, la hoja vuelve al tono guardado y se va el cartel de la vuelta.
@@ -971,6 +1004,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         getTempo: tempoAt,
         style: song.style,
         keys: keysOf(song),
+        partAt: variants() ? partAt : null,
         choruses,
         countIn: settings.countIn,
         // Llega cuando empieza a sonar cada vuelta: en modo práctica se muestra su tempo y la hoja pasa a su tono.
@@ -1005,8 +1039,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       restart();
     };
 
+    const partsHint = () => { if (variants()) hint('parts', 'Este ritmo tiene base de abajo y de arriba: tocá el nombre de una parte ([A], [B]…) para elegir cuál lleva.'); };
     draw();
     drawSubs();
+    partsHint();
     wake(true);
     Engine.preload(keysOf(song));
     if (list) hint('swipe', 'Deslizá la hoja hacia los costados para pasar de tema.');
@@ -1119,6 +1155,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     chart.onclick = e => {
       const el = e.target.closest('.bar');
       if (held) { held = false; return; }
+      // Tocar el nombre de una parte, en un ritmo con base de abajo y de arriba, elige cuál lleva.
+      if (el && e.target.closest('.sec') && variants() && !locked()) { pickPart(+el.dataset.i); return; }
       if (el) tapBar(+el.dataset.i);
     };
     app.oninput = e => {
@@ -1138,7 +1176,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     app.onchange = e => {
       const t = e.target;
       if (t.id === 'tempo') setTempo(+t.value);
-      else if (t.id === 'style') { song.style = t.value; saveSongs(); drawSubs(); restart(); }
+      else if (t.id === 'style') { song.style = t.value; saveSongs(); drawSubs(); markParts(); partsHint(); restart(); }
       else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
       else if (t.id === 'size') { settings.size = t.value; saveSettings(); draw(); }

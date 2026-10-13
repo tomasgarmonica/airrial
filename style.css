@@ -137,6 +137,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .bar { min-width: 0; }
 .lab { height: 1.35rem; display: flex; align-items: flex-end; gap: 6px; font-size: .78rem; white-space: nowrap; padding-left: 3px; }
 .sec { background: var(--accent); color: var(--on-accent); font-weight: 700; padding: 0 6px; border-radius: 4px; line-height: 1.25; }
+.sec.up::after { content: " ↑"; }
 .end { align-self: stretch; display: flex; align-items: flex-end; flex: 1; border-left: 1.5px solid var(--line); border-top: 1.5px solid var(--line); padding-left: 4px; margin-left: -3px; font-weight: 600; }
 .txt { color: var(--muted); font-style: italic; }
 .txt.mark, .txt.jump { color: var(--text); font-style: normal; font-weight: 600; }

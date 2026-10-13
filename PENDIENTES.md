@@ -61,7 +61,10 @@ grabaciones (ver `GRABACION.md`).
 - [x] Ritmos nuevos: samba, tango, milonga, candombe, cumbia, chacarera, zamba y vals (falta afinarlos de oído)
 - [ ] Revisar de oído cada ritmo nuevo y corregir lo que no suene al género (incluye shuffle, funk, reggae y bolero, escritos sin poder escucharlos)
 - [x] Ritmos nuevos: blues/shuffle, funk, reggae y bolero (en 4/4)
-- [ ] Más ritmos: salsa/son, chamamé, carnavalito/huayno, murga, vals peruano, afro 6/8
+- [x] Son, con base de abajo (estrofa) y de arriba (montuno): cada parte de la canción lleva una, que se elige tocando su nombre en la hoja
+- [ ] Son: escuchar el tumbao del bajo y los acordes del piano (escritos sin escuchar); falta el montuno de piano
+- [ ] Bases del dueño hechas: candombe, chacarera, zamba, samba y son. Faltan las de los demás ritmos
+- [ ] Más ritmos: salsa, chamamé, carnavalito/huayno, murga, vals peruano, afro 6/8
 - [ ] Shuffle: que un corte o una anticipación en el "y" de un tiempo caiga atresillado, como en swing
 - [ ] Milonga, samba y cumbia en 2/4 (hoy solo en 4/4)
 

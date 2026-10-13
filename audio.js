@@ -161,7 +161,9 @@ const Engine = (() => {
     // Los compases de la base suenan en orden y se repiten, salvo que sean variantes para alternar: ahí el
     // primero (el básico) suena la mitad de las veces y el resto se reparte entre los otros, sin repetir el último.
     let bar = S.barNo % p.compases;
-    if (p.alternar && p.compases > 1) {
+    // Una versión por momento del tema (abajo y arriba en el son): la canción dice cuál lleva cada compás.
+    if (p.partes) bar = Math.min(p.compases - 1, (S.o.partAt && S.o.partAt(S.idx)) || 0);
+    else if (p.alternar && p.compases > 1) {
       bar = 0;
       if (S.barNo && Math.random() < 0.5) {
         do bar = 1 + Math.floor(Math.random() * (p.compases - 1)); while (bar === S.variant && p.compases > 2);
@@ -601,6 +603,26 @@ const Engine = (() => {
         if (c) chordHit(t + i * e, voice(c), e * d, v);
       }
     },
+    // Son, con la clave escrita en semicorcheas (un compás de 4/4 es una clave entera). La percusión sale de la
+    // base escrita en MIDI, que tiene una versión de abajo y otra de arriba; sin sonidos grabados, clave y maracas.
+    // Bajo en tumbao: la quinta en el "y" del 2 y la fundamental del acorde que viene en el 4, anticipada y
+    // ligada. El piano marca los acordes con ese mismo dibujo, sin montuno.
+    son(t, bd, x) {
+      const s = bd / 4;
+      if (!base('son', t, bd, 4)) {
+        for (const i of [2, 4, 8, 11, 13]) wood(t + i * s, 0.4);
+        for (let i = 0; i < 16; i += 2) shaker(t + i * s, i % 4 ? 0.12 : 0.2, 0.04);
+      }
+      const c0 = x.at(0), c2 = x.at(2), up = x.next || c0;
+      // [semicorchea, acorde, duración en semicorcheas, ¿fundamental?]
+      const plan = [[3, c0, 2, false], [6, c2, 4.5, true], [11, c2, 2, false], [14, up, 4.5, true]];
+      if (x.barNo === 0) plan.unshift([0, c0, 2.5, true]);
+      for (const [i, c, d, root] of plan) {
+        if (!c) continue;
+        bass(t + i * s, root ? rootOf(c) : fifthOf(c), s * d, root ? 1 : 0.8);
+        chordHit(t + i * s, voice(c), s * d * 0.9, root ? 0.85 : 0.7);
+      }
+    },
     // Bajo en el 1 (alterna fundamental y quinta) y acordes en 2 y 3.
     vals(t, bd, x) {
       kick(t, 0.55); hat(t + bd, 0.14); hat(t + 2 * bd, 0.14);
@@ -755,6 +777,7 @@ const Engine = (() => {
       // si el compás que sigue empieza con un acorde anticipado, entra en este: `hold` es cuánto dura allá
       const ahead = ns && ns.beat === 0 && ns.push
         ? { ...ns, hold: (nb.slots[1] ? nb.slots[1].beat : nb.beats) * bd * bar.den / nb.den } : null;
+      S.idx = idx;
       schedBar(bar, S.t, bd, ns && ns.beat === 0 ? ns.chord : null, ahead);
       S.q.push({ t: S.t, i: idx });
       S.t += bar.beats * bd;
@@ -789,7 +812,8 @@ const Engine = (() => {
   // Compases ya resueltos de una vuelta: los mismos siempre, o los que dé barsFor (modo práctica).
   const barsOf = (o, chorus) => (o.barsFor ? o.barsFor(chorus) : o.bars);
 
-  // o: { seq, startPos, finalChord, bars, getTempo, style, keys, choruses, countIn, onBar, onEnd }
+  // o: { seq, startPos, finalChord, bars, getTempo, style, keys, partAt, choruses, countIn, onBar, onEnd }
+  // partAt(compás) dice qué versión de la base lleva ese compás, en los ritmos que tienen más de una (son).
   // keys es el teclado de la canción ('piano', 'rhodes' o 'cp80'; si falta, piano).
   // Opcionales para el modo práctica: barsFor(vuelta) en lugar de bars, getTempo(vuelta), finalChord(vuelta)
   // y onChorus(vuelta), que avisa cuando empieza a sonar cada vuelta (la primera es la 0).
