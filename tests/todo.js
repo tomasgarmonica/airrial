@@ -23,4 +23,5 @@ run(path.join(__dirname, 'practica.js'), root);
 run(path.join(__dirname, 'cortes.js'), root);
 run(path.join(__dirname, 'recibido.js'), root);
 run(path.join(__dirname, 'etiquetas.js'), root);
+run(path.join(__dirname, 'contador.js'), root);
 console.log('\nTodas las pruebas pasaron.');

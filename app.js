@@ -3,11 +3,25 @@
 
   // Sumar 1 al último número en cada publicación (0.1.0 → 0.1.1): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. Desde la 0.1.0 la app se comparte con gente que la prueba.
-  const VERSION = '0.1.0';
+  const VERSION = '0.1.1';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
     ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  // --- contador de uso ---
+  // Avisa a GoatCounter que pasó algo, para saber cuánto se usa la app. Sin cookies ni datos de nadie: viaja solo
+  // un nombre fijo de los escritos acá (nunca títulos, acordes ni la dirección, que puede llevar lo compartido).
+  // Cada cosa se cuenta una vez por apertura de la app, y solo en el sitio publicado. Sin conexión no se cuenta.
+  const counted = new Set();
+  const tally = (name, visit) => {
+    if (location.hostname !== 'airrial.ar' || counted.has(name)) return;
+    counted.add(name);
+    const q = new URLSearchParams({ p: name, t: 'Airrial', s: screen.width, rnd: Math.random().toString(36).slice(2, 7) });
+    // De una visita se cuenta también desde qué sitio llegó (solo el nombre del sitio).
+    if (visit) { try { q.set('r', new URL(document.referrer).hostname); } catch { /* llegó directo */ } } else q.set('e', 'true');
+    new Image().src = 'https://airrial.goatcounter.com/count?' + q;
+  };
 
   const STYLES = [
     ['swing', 'Swing'], ['shuffle', 'Blues / Shuffle'], ['bossa', 'Bossa'], ['samba', 'Samba'], ['pop', 'Pop / Rock'], ['balada', 'Balada'],
@@ -354,6 +368,7 @@
       Music.setView(null);
     }
   };
+  const WAY_NAME = { file: 'archivo', pdf: 'PDF', png: 'imagen' };
   const SHARE_WAYS = [
     ['file', 'Archivo', 'Se abre en Airrial tocando el título'],
     ['pdf', 'PDF', 'Para ver o imprimir, sin la app'],
@@ -405,6 +420,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   const isIos = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const standalone = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   const hideInstall = () => document.querySelectorAll('.inst').forEach(el => el.remove());
+  tally(standalone() ? '/instalada' : '/navegador', true);
   window.addEventListener('beforeinstallprompt', e => {
     e.preventDefault();
     installEvent = e;
@@ -653,6 +669,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <button data-a="tags">Etiquetas: renombrar o borrar</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="close">Cerrar</button>
+        <p class="hint">Airrial cuenta de forma anónima cuánto se usa (visitas, reproducir, compartir). No guarda quién sos ni qué canciones tenés.</p>
       </div></dialog>
       <input type="file" id="file" accept=".json,.txt,.html,.htm,application/json,text/plain,text/html" hidden>`;
     const list = $('#list'), q = $('#q');
@@ -800,8 +817,9 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     app.onchange = async e => {
       if (e.target.id !== 'file' || !e.target.files[0]) return;
       try {
-        const incoming = readData(parseFile(await e.target.files[0].text()));
+        const text = await e.target.files[0].text(), incoming = readData(parseFile(text));
         const kept = mergeData(incoming);
+        if (kept) tally(text.includes('irealb://') ? 'Abrir archivo · iReal Pro' : 'Abrir archivo · Airrial');
         $('#menu').close();
         draw();
         const n = incoming.lists.length;
@@ -913,6 +931,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         if (!mine.length) { toast('La lista está vacía: agregale temas antes de compartirla.'); return; }
         const pack = { app: 'airrial', version: 1, songs: mine, lists: [list] };
         const how = await choose('Compartir esta lista', SHARE_WAYS);
+        if (how) tally('Compartir lista · ' + WAY_NAME[how]);
         if (how === 'file') { shareFile(list.name, pack, () => packList(list)); return; }
         // Todas las canciones de la lista en un solo PDF, cada una empezando en hoja nueva.
         if (how === 'pdf') {
@@ -1184,6 +1203,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         onEnd: () => setPlaying(false),
       });
       setPlaying(ok);
+      if (ok) tally('Reproducir · ' + song.style);
     };
     const setTempo = v => {
       song.tempo = Math.min(360, Math.max(30, Math.round(v) || 120));
@@ -1211,6 +1231,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       edit: () => { location.hash = '#/e/' + song.id; },
       share: async () => {
         const how = await choose('Compartir esta canción', [...SHARE_WAYS, ['png', 'Imagen', 'Para ver en cualquier chat']]);
+        if (how) tally('Compartir canción · ' + WAY_NAME[how]);
         if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] }, () => packSong(song));
         else if (how === 'pdf') shareBlob(await busy('Generando el PDF…', () => Exporter.pdf(drawSong(song, true))), safeName(song.title) + '.pdf', song.title);
         else if (how === 'png') {
@@ -1382,7 +1403,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <span>Tocá Guardar para sumarlo a esta biblioteca. Lo que ya tengas igual no se repite.</span></div>
         ${ls.map(l => `<div class="item"><b>${esc(l.name)}</b><span>Lista · ${count(l.songs.length)}</span></div>`).join('')}
         ${ss.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`;
-      actions.save = () => { if (mergeData(data.all)) { pasted = null; swap('#/'); } };
+      actions.save = () => { if (mergeData(data.all)) { tally('iPhone · pasar todo a la app instalada'); pasted = null; swap('#/'); } };
     } else if (data.song) {
       const song = data.song;
       app.innerHTML = head('Canción compartida', true) + (iosNote() || installHtml()) + `<main class="chart">
@@ -1391,7 +1412,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song))}</main>`;
       actions.save = () => {
         const kept = mergeData({ songs: [song], lists: [] });
-        if (kept) swap('#/s/' + kept.songs[0]);
+        if (kept) { tally('Recibido · guardó'); swap('#/s/' + kept.songs[0]); }
       };
     } else {
       app.innerHTML = head('Lista compartida', true) + (iosNote() || installHtml()) + `<main class="list">
@@ -1400,9 +1421,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       // Las canciones de un enlace llegan sin identificador: cada una recibe el suyo y la lista las nombra por él.
       actions.save = () => {
         const kept = mergeData({ songs: data.songs, lists: [{ id: newId(), name: data.name, songs: data.songs.map(s => s.id) }] });
-        if (kept) swap('#/l/' + kept.lists[0]);
+        if (kept) { tally('Recibido · guardó'); swap('#/l/' + kept.lists[0]); }
       };
     }
+    if (data && !data.all) tally('Recibido · abrió');
     fitChords(app);
     bind(actions);
   }
@@ -1430,9 +1452,11 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         ${chartHtml(Music.parseChart(one.chart, tsOf(one)), 0, true, colsOf(one))}</main>` : `<main class="list">
         ${got.lists.map(l => `<div class="shared"><b>${esc(l.name)}</b><span>Lista · ${count(l.songs.length)}</span></div>`).join('')}
         ${got.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`);
+      tally('Recibido · abrió');
       actions.save = () => {
         const kept = mergeData(got);
         if (!kept) return;
+        tally('Recibido · guardó');
         if (kept.lists.length === 1) swap('#/l/' + kept.lists[0]);
         else if (one) swap('#/s/' + kept.songs[0]);
         else swap('#/');
@@ -1875,6 +1899,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         const i = songs.findIndex(s => s.id === song.id);
         if (i >= 0) songs[i] = song; else songs.push(song);
         saveSongs();
+        tally(i >= 0 ? 'Editar una canción' : 'Escribir una canción nueva');
         guard = null;
         if (existing) up(songHash); else swap('#/s/' + song.id);
       },
