@@ -402,26 +402,41 @@ const Engine = (() => {
         if (s.len >= 4) chordHit(t + (s.beat + 2) * bd, voice(s.chord), bd * 1.8, 0.5);
       }
     },
-    samba(t, bd, x) {
-      const s = bd / 4;
+    // Samba, en 4/4 o en 2/4. Todo está escrito sobre las 16 semicorcheas del 4/4; en 2/4 cada compás toca una
+    // mitad, alternando: la clave del tamborim ocupa dos compases (surdo y pandeiro son iguales en las dos mitades).
+    samba(t, bd, x, B) {
+      const s = bd / 4, n = B * 4, from = B === 2 ? (x.barNo % 2) * 8 : 0;
+      // ¿la semicorchea i del dibujo entero cae en este compás?, y en qué momento
+      const on = i => i >= from && i < from + n, tm = i => t + (i - from) * s;
       // Surdo, pandeiro y tamborim salen de la base escrita en MIDI. Sin sonidos grabados: maracas, surdo
       // (apagado en 1 y 3, abierto en 2 y 4) y tamborim sintetizados.
-      if (!base('samba', t, bd, 4)) {
-        for (let i = 0; i < 16; i++) shaker(t + i * s, i % 4 === 0 ? 0.22 : i % 4 === 3 ? 0.18 : 0.1, 0.035);
-        for (let b = 0; b < 4; b++) tom(t + b * bd, b % 2 ? 80 : 85, b % 2 ? 0.8 : 0.6, b % 2 ? 0.3 : 0.08);
-        for (const i of [0, 2, 3, 5, 7, 9, 10, 12, 14]) wood(t + i * s, 0.2);
+      if (!base('samba', t, bd, B, { split: 4 / B })) {
+        for (let i = from; i < from + n; i++) shaker(tm(i), i % 4 === 0 ? 0.22 : i % 4 === 3 ? 0.18 : 0.1, 0.035);
+        for (let b = 0; b < 4; b++) if (on(b * 4)) tom(tm(b * 4), b % 2 ? 80 : 85, b % 2 ? 0.8 : 0.6, b % 2 ? 0.3 : 0.08);
+        for (const i of [0, 2, 3, 5, 7, 9, 10, 12, 14]) if (on(i)) wood(tm(i), 0.2);
       }
-      const c0 = x.at(0), c2 = x.at(2);
-      if (c0) bass(t, rootOf(c0), s * 6, 0.95);
-      if (c2) {
-        const m = c2 !== c0 ? rootOf(c2) : fifthOf(c2);
-        bassNote(t + 7 * s, m, s * 0.8, 0.5);
-        bass(t + 8 * s, m, s * 6, 0.9);
+      const c0 = x.at(0);
+      if (B === 2) {
+        // El bajo hace lo mismo que en 4/4, repartido en dos compases: fundamental en el primero; en el segundo,
+        // la quinta si el acorde sigue o la fundamental si cambió; y un levare hacia el compás que viene.
+        const same = (a, b) => !!a && !!b && a.root === b.root && a.bass === b.bass;
+        if (c0) bass(t, from && same(c0, x.prev) ? fifthOf(c0) : rootOf(c0), s * 6, from ? 0.9 : 0.95);
+        if (x.next && from) bass(t + 7 * s, rootOf(x.next), s * 0.8, 0.55);
+        else if (x.next) bassNote(t + 7 * s, same(x.next, c0) ? fifthOf(x.next) : rootOf(x.next), s * 0.8, 0.5);
+      } else {
+        const c2 = x.at(2);
+        if (c0) bass(t, rootOf(c0), s * 6, 0.95);
+        if (c2) {
+          const m = c2 !== c0 ? rootOf(c2) : fifthOf(c2);
+          bassNote(t + 7 * s, m, s * 0.8, 0.5);
+          bass(t + 8 * s, m, s * 6, 0.9);
+        }
+        if (x.next) bass(t + 15 * s, rootOf(x.next), s * 0.8, 0.55);
       }
-      if (x.next) bass(t + 15 * s, rootOf(x.next), s * 0.8, 0.55);
       for (const i of [0, 3, 6, 10, 13]) {
-        const c = x.at(i / 4);
-        if (c) chordHit(t + i * s, voice(c), s * 2, 0.8);
+        if (!on(i)) continue;
+        const c = x.at((i - from) / 4);
+        if (c) chordHit(tm(i), voice(c), s * 2, 0.8);
       }
     },
     // Marcato en cuatro, con una síncopa cada cuatro compases y arrastre hacia el compás siguiente.
@@ -660,7 +675,7 @@ const Engine = (() => {
     },
   };
   // Compases que cada estilo sabe tocar; en cualquier otro suena el acompañamiento genérico.
-  const METER = { chacarera: '6/8 3/4', zamba: '6/8 3/4', vals: '3/4', festejo: '12/8 6/8' };
+  const METER = { samba: '4/4 2/4', chacarera: '6/8 3/4', zamba: '6/8 3/4', vals: '3/4', festejo: '12/8 6/8' };
 
   // Compases que no son 4/4: bajo en los acentos, acordes en el resto.
   function generic(t, bd, x, B) {

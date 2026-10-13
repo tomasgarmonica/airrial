@@ -15,7 +15,7 @@ const node = kind => ({ kind, gain: param(), frequency: param(), Q: param(), pla
       if (this.buffer.grabado === index.piano.archivo) piano++;
       if (this.buffer.grabado === lastKeys) inKeys++;
     }
-    events.push([kind, t]);
+    events.push([kind, t, this.buffer && this.buffer.grabado ? this.buffer.grabado + '@' + at.toFixed(4) : '']);
   }, stop() {} });
 // Sonidos grabados de mentira: el índice es el verdadero, y el audio solo trae la marca del principio.
 const RATE = 8000, index = JSON.parse(fs.readFileSync(path.join(dir, 'sonidos', 'indice.json'), 'utf8'));
@@ -104,6 +104,26 @@ for (const keys of others) {
   for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
   if (!wanted.includes(index[keys].archivo) || !inKeys || piano) { fail++; console.log('FALLA: teclado', keys, 'grabados', inKeys, 'de piano', piano); }
   else console.log('teclado', keys.padEnd(8), inKeys, 'notas grabadas');
+}
+// Samba en 2/4: dos compases tienen que sonar igual que uno de 4/4 (la clave del tamborim ocupa dos compases),
+// golpe por golpe en la percusión, y con la misma cantidad de notas de bajo y de teclado.
+{
+  const run = async (chart, ts) => {
+    const bars = Music.parseChart(chart, ts);
+    events = []; now = 0; lastKeys = null;
+    Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 100, style: 'samba', choruses: 1, countIn: false,
+      finalChord: null, onBar() {}, onEnd() {} });
+    for (let k = 0; k < 20 && !tickFn; k++) await pause();
+    for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
+    const t0 = Math.min(...events.map(e => e[1]));
+    const of = file => events.filter(e => e[2].startsWith(file + '@')).map(e => (e[1] - t0).toFixed(3) + ' ' + e[2]).sort();
+    return { perc: of(index.percusion.archivo), bajo: of(index.bajo.archivo).length, piano: of(index.piano.archivo).length };
+  };
+  const four = await run('| Am | Dm | G7 G7 | C |', [4, 4]);
+  const two = await run('| Am | Am | Dm | Dm | G7 | G7 | C | C |', [2, 4]);
+  if (!four.perc.length || four.perc.join('\n') !== two.perc.join('\n')) { fail++; console.log('FALLA: samba en 2/4, la percusión no coincide con la de 4/4', four.perc.length, two.perc.length); }
+  else if (four.bajo !== two.bajo || four.piano !== two.piano) { fail++; console.log('FALLA: samba en 2/4, bajo o teclado', JSON.stringify([four.bajo, two.bajo, four.piano, two.piano])); }
+  else console.log('samba 2/4 = 4/4:', four.perc.length, 'golpes de percusión,', four.bajo, 'notas de bajo,', four.piano, 'de teclado');
 }
 console.log(fail ? `${fail} fallas` : 'todo ok');
 if (fail) process.exit(1);
