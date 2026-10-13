@@ -99,6 +99,9 @@ const AJUSTE = {
   // El conjunto se sube para que el bombo, que es toda la percusión del ritmo, quede como estaba antes de la base.
   chacarera: { leguero_fuerte: 2.3, leguero_medio: 1.4, leguero_suave: 0.6 },
   // Zamba: lo mismo, con otros números porque el MIDI vino con más intensidad (114 en lugar de 87).
+  // Festejo: los golpes "normal" y "acentuado" del cajón, y las maracas "medio" y "fuerte", están grabados a
+  // distinta fuerza pero en la app quedan al mismo volumen: se les devuelve la diferencia.
+  festejo: { cajon_grave_normal: 0.6, cajon_agudo_normal: 0.75, maraca_medio_abajo: 0.35 },
   // Samba: el surdo es la base del ritmo y vino con poca intensidad: se sube, pero menos su golpe de dedos,
   // que es relleno. El pandeiro tapado toca tres de cada cuatro semicorcheas: se baja.
   samba: { surdo_abierto: 2, surdo_cerrado: 2, surdo_dedos: 0.9, pandeiro_tono_tapado: 0.6 },

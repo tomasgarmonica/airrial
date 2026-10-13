@@ -45,7 +45,10 @@ const PERCUSION = {
   cascara_timbal_1: 'Percu/CascaraTim1.wav', cascara_timbal_2: 'Percu/CascaraTim2.wav',
   conga_palma: 'Percu/conga palma.wav', conga_pta_dedo: 'Percu/conga pta dedo.wav', conga_slap_tapado: 'Percu/conga slap tapado.wav',
   guiro_madera_arrastre: 'Percu/guiro madera arrastre.wav', guiro_madera_golpe: 'Percu/guiro madera golpe.wav',
-  maraca_fuerte_abajo: 'Percu/Maraca fuerte abajo.wav',
+  maraca_fuerte_abajo: 'Percu/Maraca fuerte abajo.wav', maraca_medio_abajo: 'Percu/Maraca medio abajo.wav',
+  // percusión del festejo
+  cajon_grave_normal: 'Percu/cajón grave normal.wav', cajon_grave_acentuado: 'Percu/cajón grave acentuado.wav',
+  cajon_agudo_normal: 'Percu/cajón agudo normal.wav', cajon_agudo_acentuado: 'Percu/cajón agudo acentuado.wav',
   guiro_arrastre: 'Percu/Guiro Metal arrastre.wav', guiro_abajo: 'Percu/Guiro Metal abajo.wav', guiro_arriba: 'Percu/Guiro Metal arriba.wav',
 };
 // Teclados: las notas que alcanzan los acordes de hoy (cada una cubre también el semitono de arriba y el de

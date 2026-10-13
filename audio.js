@@ -154,9 +154,12 @@ const Engine = (() => {
   let trims = {};
   // "surdo_abierto" y "surdo_dedos" son el surdo; "tom1" y "tom2", los toms. (La misma regla está en herramientas/bases.js.)
   const instOf = name => name.split('_')[0].replace(/[0-9]+$/, '');
-  function base(style, t, bd, B) {
+  // Opciones: `shift` corre la base esa cantidad de tiempos (el son 3-2 es el 2-3 empezado por la mitad) y
+  // `split` reparte cada compás de la base en varios de la canción (el festejo, escrito en 12/8, en dos de 6/8).
+  function base(style, t, bd, B, opt) {
     const p = typeof BASES !== 'undefined' && BASES[style];
     if (!p || !S.bank || !S.bank[p.golpes[0][1]]) return false;
+    const shift = (opt && opt.shift) || 0, split = (opt && opt.split) || 1;
     // La base puede estar escrita en otro compás del mismo largo (3/4 para una canción en 6/8): se acomoda.
     // Los compases de la base suenan en orden y se repiten, salvo que sean variantes para alternar: ahí el
     // primero (el básico) suena la mitad de las veces y el resto se reparte entre los otros, sin repetir el último.
@@ -170,10 +173,12 @@ const Engine = (() => {
       }
       S.variant = bar;
     }
-    const from = bar * p.tiempos, step = bd * B / p.tiempos;
+    // De la base suena el tramo que le toca a este compás: toda, o una parte si está repartida.
+    const T = p.tiempos, from = bar * T, len = T / split, first = (S.barNo % split) * len, step = bd * B / len;
     for (const [at, name, v] of p.golpes) {
-      const k = trims[instOf(name)];
-      if (at > from - 1e-3 && at < from + p.tiempos - 1e-3) shot(name, t + (at - from) * step, v * 0.5 * (k == null ? 1 : k));
+      if (at < from - 1e-3 || at > from + T - 1e-3) continue;
+      const pos = (((at - from - shift) % T) + T + 1e-3) % T - 1e-3 - first, k = trims[instOf(name)];
+      if (pos > -1e-3 && pos < len - 1e-3) shot(name, t + pos * step, v * 0.5 * (k == null ? 1 : k));
     }
     return true;
   }
@@ -607,10 +612,11 @@ const Engine = (() => {
     // base escrita en MIDI, que tiene una versión de abajo y otra de arriba; sin sonidos grabados, clave y maracas.
     // Bajo en tumbao: la quinta en el "y" del 2 y la fundamental del acorde que viene en el 4, anticipada y
     // ligada. El piano marca los acordes con ese mismo dibujo, sin montuno.
-    son(t, bd, x) {
+    son(t, bd, x, B, clave32) {
       const s = bd / 4;
-      if (!base('son', t, bd, 4)) {
-        for (const i of [2, 4, 8, 11, 13]) wood(t + i * s, 0.4);
+      // La clave 3-2 es la misma base empezada por la mitad del compás.
+      if (!base('son', t, bd, 4, { shift: clave32 ? 2 : 0 })) {
+        for (const i of clave32 ? [0, 3, 6, 10, 12] : [2, 4, 8, 11, 14]) wood(t + i * s, 0.4);
         for (let i = 0; i < 16; i += 2) shaker(t + i * s, i % 4 ? 0.12 : 0.2, 0.04);
       }
       const c0 = x.at(0), c2 = x.at(2), up = x.next || c0;
@@ -621,6 +627,21 @@ const Engine = (() => {
         if (!c) continue;
         bass(t + i * s, root ? rootOf(c) : fifthOf(c), s * d, root ? 1 : 0.8);
         chordHit(t + i * s, voice(c), s * d * 0.9, root ? 0.85 : 0.7);
+      }
+    },
+    son32(t, bd, x, B) { patterns.son(t, bd, x, B, true); },
+    // Festejo, en 12/8 (o en 6/8, donde cada compás toca media base). La percusión sale de la base escrita en
+    // MIDI; sin sonidos grabados, cajón sintetizado. Por cada mitad: bajo en el 1, quinta en el 4 y un levare
+    // hacia lo que viene; el piano marca el acorde en el 1 y en el 4.
+    festejo(t, bd, x, B) {
+      if (!base('festejo', t, bd, B, { split: B === 6 ? 2 : 1 })) {
+        for (let i = 0; i < B; i += 3) { tom(t + i * bd, 90, 0.7, 0.2); tom(t + (i + 2) * bd, 260, 0.35, 0.08); }
+      }
+      for (let h = 0; h < B; h += 6) {
+        const c = x.at(h), c3 = x.at(h + 3), up = h + 6 < B ? x.at(h + 6) : x.next;
+        if (c) { bass(t + h * bd, rootOf(c), bd * 2.7, 1); chordHit(t + h * bd, voice(c), bd * 2.6, 0.85); }
+        if (c3) { bass(t + (h + 3) * bd, c3 === c ? fifthOf(c3) : rootOf(c3), bd * 1.8, 0.8); chordHit(t + (h + 3) * bd, voice(c3), bd * 2.6, 0.7); }
+        if (up) bass(t + (h + 5) * bd, rootOf(up), bd * 0.9, 0.6);
       }
     },
     // Bajo en el 1 (alterna fundamental y quinta) y acordes en 2 y 3.
@@ -639,7 +660,7 @@ const Engine = (() => {
     },
   };
   // Compases que cada estilo sabe tocar; en cualquier otro suena el acompañamiento genérico.
-  const METER = { chacarera: '6/8 3/4', zamba: '6/8 3/4', vals: '3/4' };
+  const METER = { chacarera: '6/8 3/4', zamba: '6/8 3/4', vals: '3/4', festejo: '12/8 6/8' };
 
   // Compases que no son 4/4: bajo en los acentos, acordes en el resto.
   function generic(t, bd, x, B) {

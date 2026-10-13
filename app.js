@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.55';
+  const VERSION = '0.56';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -10,12 +10,14 @@
 
   const STYLES = [
     ['swing', 'Swing'], ['shuffle', 'Blues / Shuffle'], ['bossa', 'Bossa'], ['samba', 'Samba'], ['pop', 'Pop / Rock'], ['balada', 'Balada'],
-    ['funk', 'Funk'], ['reggae', 'Reggae'], ['bolero', 'Bolero'], ['son', 'Son'],
+    ['funk', 'Funk'], ['reggae', 'Reggae'], ['bolero', 'Bolero'], ['son', 'Son (clave 2-3)'], ['son32', 'Son (clave 3-2)'],
     ['tango', 'Tango'], ['milonga', 'Milonga'], ['candombe', 'Candombe'], ['cumbia', 'Cumbia'],
-    ['chacarera', 'Chacarera (6/8)'], ['zamba', 'Zamba (6/8)'], ['vals', 'Vals (3/4)'], ['click', 'Solo metrónomo'],
+    ['chacarera', 'Chacarera (6/8)'], ['zamba', 'Zamba (6/8)'], ['festejo', 'Festejo (12/8)'], ['vals', 'Vals (3/4)'], ['click', 'Solo metrónomo'],
   ];
   // Estilos que necesitan un compás distinto de 4/4.
-  const STYLE_METER = { chacarera: '6/8', zamba: '6/8', vals: '3/4' };
+  const STYLE_METER = { chacarera: '6/8', zamba: '6/8', vals: '3/4', festejo: '12/8' };
+  // Estilos que usan la base escrita para otro (el son 3-2 es la base del 2-3, empezada por la mitad).
+  const BASE_FOR = { son32: 'son' };
   const METERS = ['4/4', '3/4', '2/4', '6/8', '5/4', '7/8', '12/8'];
   const styleName = id => (STYLES.find(s => s[0] === id) || STYLES[0])[1];
 
@@ -43,7 +45,7 @@
   const INSTRUMENTS = { bombo: 'Bombo', redo: 'Redoblante', hh: 'Hi-hat', aro: 'Aro', ride: 'Ride', crash: 'Crash', tom: 'Toms',
     chancha: 'Chancha', chico: 'Chico', piano: 'Tambor piano', repique: 'Repique y madera', leguero: 'Bombo legüero', surdo: 'Surdo',
     pandeiro: 'Pandeiro', tamborim: 'Tamborim', conga: 'Conga', tumba: 'Tumbadora', bongo: 'Bongó', guiro: 'Güiro',
-    campana: 'Campana', clave: 'Clave', cascara: 'Cáscara', maraca: 'Maracas' };
+    campana: 'Campana', clave: 'Clave', cascara: 'Cáscara', maraca: 'Maracas', cajon: 'Cajón' };
   const applyVol = k => Engine.setVol(k, settings.mute[k] ? 0 : settings.vol[k]);
   // Modo práctica: cuánto sube el tempo (bpm) y cuánto cambia el tono (semitonos) en cada vuelta. Cero = no cambia.
   settings.practice = Object.assign({ tempo: 0, key: 0 }, settings.practice);
@@ -878,14 +880,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       grab.setAttribute('aria-expanded', on);
     };
     // Instrumentos de la base de este ritmo (si la tiene), para darle volumen a cada uno. Se guarda por ritmo.
-    const baseOf = () => (typeof BASES !== 'undefined' && BASES[song.style]) || null;
+    const baseKey = () => BASE_FOR[song.style] || song.style;
+    const baseOf = () => (typeof BASES !== 'undefined' && BASES[baseKey()]) || null;
     const applyTrims = () => {
-      const mine = settings.trims[song.style] || {}, gains = {};
+      const mine = settings.trims[baseKey()] || {}, gains = {};
       for (const i in mine) gains[i] = 4 * mine[i] * mine[i];
       Engine.setTrims(gains);
     };
     const drawSubs = () => {
-      const ins = baseOf() ? baseOf().instrumentos : {}, mine = settings.trims[song.style] || {}, open = !!settings.mixOpen;
+      const ins = baseOf() ? baseOf().instrumentos : {}, mine = settings.trims[baseKey()] || {}, open = !!settings.mixOpen;
       for (const box of sheet.querySelectorAll('.subs')) {
         box.innerHTML = !open ? '' : Object.keys(ins).filter(i => ins[i] === box.dataset.bus).map(i => {
           const name = INSTRUMENTS[i] || i;
@@ -1079,7 +1082,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       },
       mute: el => setMute(el.dataset.v, !settings.mute[el.dataset.v]),
       mixmore: () => { settings.mixOpen = !settings.mixOpen; saveSettings(); drawSubs(); },
-      mixreset: () => { delete settings.trims[song.style]; saveSettings(); drawSubs(); },
+      mixreset: () => { delete settings.trims[baseKey()]; saveSettings(); drawSubs(); },
       keys: async el => {
         const now = settings.mute.keys ? 'mute' : keysOf(song), mark = k => (k === now ? 'Es lo que está elegido' : '');
         const pick = await choose('Teclado de esta canción', [...KEYBOARDS.map(k => [k[0], k[1], mark(k[0])]), ['mute', 'Silenciar', mark('mute')]]);
@@ -1162,7 +1165,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     app.oninput = e => {
       const k = e.target.dataset.vol, inst = e.target.dataset.trim;
       if (inst) {
-        const mine = settings.trims[song.style] || (settings.trims[song.style] = {});
+        const mine = settings.trims[baseKey()] || (settings.trims[baseKey()] = {});
         if (+e.target.value === 0.5) delete mine[inst]; else mine[inst] = +e.target.value;
         saveSettings();
         applyTrims();
