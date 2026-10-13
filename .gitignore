@@ -1,3 +1,7 @@
 desktop.ini
 grabaciones/
 pruebas/
+# Accesos directos del Drive (formularios, documentos del dueño): no van al repositorio público
+*.gform
+*.gdoc
+*.gsheet
