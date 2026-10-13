@@ -61,7 +61,7 @@ console.log('lo recibido: ok');
   const lib = new Function('newId', 'alert', `let songs = [], lists = [], room = 99;
     const unsaved = new Set(), SONGS = 's', LISTS = 'l', findSong = id => songs.find(s => s.id === id);
     const saveSongs = () => { if (songs.length > room) unsaved.add(SONGS); else unsaved.delete(SONGS); }, saveLists = () => {};
-    ${cut('  const freeName', '  // Cuadro con opciones')}
+    ${cut('  const baseName', '  // Cuadro con opciones')}
     return { mergeData, songs: () => songs, lists: () => lists, room: n => { room = n; }, unsaved };`)(newId, m => said.push(m));
   const mine = { id: 'a1', title: 'Tema', chart: '| C |' };
   lib.mergeData({ songs: [mine], lists: [{ id: 'l1', name: 'Recital', songs: ['a1'] }] });
