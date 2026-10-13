@@ -129,7 +129,8 @@ catálogo público.
 - [x] Dominio propio: la app vive en https://airrial.ar (NIC Argentina → DNS en Cloudflare → GitHub Pages). La dirección vieja redirige
 - [ ] Elegir servidor y base de datos para cuentas, sincronización y catálogo; estimar costo mensual
 - [ ] Dónde alojar los sonidos grabados y cuánto pesan en el teléfono
-- [ ] Límite de espacio en el teléfono: cuántas canciones entran y qué pasa cuando se llena
+- [x] Aviso cuando el teléfono no tiene lugar para guardar (cartel rojo hasta que se pueda); lo recibido que no entra no se guarda a medias
+- [ ] Límite de espacio en el teléfono: medir cuántas canciones entran
 - [x] Número de versión visible y recarga automática cuando hay una versión nueva
 - [x] Pruebas automáticas en el proyecto (`node tests/todo.js`), que se corren antes de cada publicación
 - [ ] Pruebas automáticas de las pantallas (hoy se prueban a mano en el navegador)
@@ -139,7 +140,8 @@ catálogo público.
 - [ ] Qué datos se guardan de cada persona, y que puedan bajarlos o borrarlos
 - [ ] Política de privacidad y términos de uso
 - [ ] Moderación y denuncias en el catálogo; límites contra spam y abuso
-- [ ] Revisar que una canción recibida por enlace o importada no pueda dañar la app de quien la abre
+- [x] Revisar que una canción recibida por enlace o importada no pueda dañar la app de quien la abre (hecho el 13 de octubre de 2026: lo recibido se recorta, un cifrado o enlace armado para trabar la app ya no la cuelga, y nunca pisa lo que había: lo repetido entra como "Tema (2)")
+- [ ] Probar en un celular real, a 390 px, el cartel rojo de falta de lugar (se verificó en la PC, sin verlo a tamaño de teléfono)
 
 **Seguridad del proyecto (la tuya)**
 - [ ] Verificación en dos pasos en GitHub y en el mail asociado
