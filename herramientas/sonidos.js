@@ -39,6 +39,13 @@ const PERCUSION = {
   piano_palo_cerrado: 'Percu/piano palo cerrado.wav', piano_madera: 'Percu/piano madera.wav',
   repique_palo: 'Percu/repique palo.wav', repique_mano: 'Percu/repique mano.wav',
   repique_rim: 'Percu/repique rim.wav', repique_madera: 'Percu/repique madera.wav',
+  // percusión del son
+  bongo_agudo_pta_dedo: 'Percu/bongo a pta dedo.wav', bongo_agudo_abierto: 'Percu/bongo agudo abierto.wav',
+  bongo_agudo_tapado: 'Percu/bongo agudo tapado.wav', campana_boca: 'Percu/Campana boca.wav',
+  cascara_timbal_1: 'Percu/CascaraTim1.wav', cascara_timbal_2: 'Percu/CascaraTim2.wav',
+  conga_palma: 'Percu/conga palma.wav', conga_pta_dedo: 'Percu/conga pta dedo.wav', conga_slap_tapado: 'Percu/conga slap tapado.wav',
+  guiro_madera_arrastre: 'Percu/guiro madera arrastre.wav', guiro_madera_golpe: 'Percu/guiro madera golpe.wav',
+  maraca_fuerte_abajo: 'Percu/Maraca fuerte abajo.wav',
   guiro_arrastre: 'Percu/Guiro Metal arrastre.wav', guiro_abajo: 'Percu/Guiro Metal abajo.wav', guiro_arriba: 'Percu/Guiro Metal arriba.wav',
 };
 // Teclados: las notas que alcanzan los acordes de hoy (cada una cubre también el semitono de arriba y el de

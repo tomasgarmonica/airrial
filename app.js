@@ -43,7 +43,7 @@
   const INSTRUMENTS = { bombo: 'Bombo', redo: 'Redoblante', hh: 'Hi-hat', aro: 'Aro', ride: 'Ride', crash: 'Crash', tom: 'Toms',
     chancha: 'Chancha', chico: 'Chico', piano: 'Tambor piano', repique: 'Repique y madera', leguero: 'Bombo legüero', surdo: 'Surdo',
     pandeiro: 'Pandeiro', tamborim: 'Tamborim', conga: 'Conga', tumba: 'Tumbadora', bongo: 'Bongó', guiro: 'Güiro',
-    campana: 'Campana', clave: 'Clave' };
+    campana: 'Campana', clave: 'Clave', cascara: 'Cáscara', maraca: 'Maracas' };
   const applyVol = k => Engine.setVol(k, settings.mute[k] ? 0 : settings.vol[k]);
   // Modo práctica: cuánto sube el tempo (bpm) y cuánto cambia el tono (semitonos) en cada vuelta. Cero = no cambia.
   settings.practice = Object.assign({ tempo: 0, key: 0 }, settings.practice);
