@@ -86,9 +86,9 @@ function readMidi(file) {
 // Candombe: todo parejo (la madera venía más fuerte que el piano) y el chico bastante más abajo.
 const AJUSTE = {
   // La batería vino escrita con intensidades más bajas que los tambores (marcan matices entre sus golpes, no
-  // su volumen contra la percusión). Se sube hasta que, medida, suena igual de fuerte que la cuerda de tambores;
-  // bombo y redoblante más que el hi-hat, que toca todas las semicorcheas.
-  candombe: { chico_mano: 0.35, chico_palo: 0.35, repique_madera: 0.76, bombo: 2.7, redo: 2.7, hh_cerrado: 1.45 },
+  // su volumen contra la percusión): bombo y redoblante se suben para quedar a la par de la cuerda de tambores.
+  // El hi-hat, que toca casi todas las semicorcheas, se baja: de oído quedaba muy por encima del resto.
+  candombe: { chico_mano: 0.35, chico_palo: 0.35, repique_madera: 0.76, bombo: 2.7, redo: 2.7, hh_cerrado: 0.55 },
 };
 
 const bases = {};
