@@ -4,7 +4,9 @@ const Music = (() => {
   const SHARPS = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
   const FLATS = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
   const CHORD = /^([A-G])([#b♯♭]?)([^/]*(?:\/(?![A-G])[^/]*)*)(?:\/([A-G])([#b♯♭]?))?$/;
-  const TOKEN = /\[[^\]]*\]|"[^"]*"|:?\|+:?|[{}]|[^\s|\[\]":{}]+/g;
+  // El nombre de una parte no puede tener otro "[" adentro: así un texto lleno de corchetes sin cerrar se lee de
+  // una pasada (si no, cada corchete obliga a recorrer el resto del renglón y un cifrado armado así cuelga la app).
+  const TOKEN = /\[[^\[\]]*\]|"[^"]*"|:?\|+:?|[{}]|[^\s|\[\]":{}]+/g;
 
   const accVal = a => (a === '#' || a === '♯' ? 1 : a === 'b' || a === '♭' ? -1 : 0);
   const pretty = s => s.replace(/b/g, '♭').replace(/#/g, '♯');

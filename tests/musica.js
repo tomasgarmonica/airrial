@@ -18,4 +18,13 @@ for (const t of charts) {
 const n = M.normalize(M.parseChart('| C | 3/4 D | E |', [4, 4]), [6, 8]);
 assert.deepEqual(n.map(b => b.ts.join('/')), ['6/8', '3/4', '3/4']);
 assert.deepEqual(M.intervals('5'), [7, 7]);
+// un cifrado armado para trabar la lectura (corchetes o comillas sin cerrar) se lee al instante
+for (const bad of ['[', '"', '[A', '{', '/x']) {
+  const t0 = Date.now();
+  M.parseChart(bad.repeat(200000), [4, 4]);
+  M.parseChord('C' + bad.repeat(200000));
+  assert.ok(Date.now() - t0 < 3000, 'la lectura tarda demasiado con: ' + bad);
+}
+// y las partes se siguen leyendo igual
+assert.equal(M.parseChart('[Estribillo] | C | [B] D |', [4, 4]).map(b => b.section).join(), 'Estribillo,B');
 console.log('ok');
