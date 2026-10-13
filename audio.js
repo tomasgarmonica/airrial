@@ -736,9 +736,15 @@ const Engine = (() => {
       for (const s of slots) segs.push({ beat: s.beat, chord: s.chord });
       segs.forEach((s, i) => { s.len = (i + 1 < segs.length ? segs[i + 1].beat : B) - s.beat; });
       const x = { at, segs, next, prev: carried, barNo: S.barNo };
-      const fits = (METER[style] || '4/4').split(' ').includes(B + '/' + bar.den);
-      if (fits && patterns[style]) patterns[style](t, bd, x, B);
-      else generic(t, bd, x, B);
+      const meters = (METER[style] || '4/4').split(' ');
+      if (!patterns[style]) generic(t, bd, x, B);
+      else if (meters.includes(B + '/' + bar.den)) patterns[style](t, bd, x, B);
+      else if (bar.den === 4 && meters.includes(B * 3 + '/8')) {
+        // Un ritmo ternario en un compás de negras se toca igual, con cada negra dividida en tres: 4/4 como
+        // 12/8 y 2/4 como 6/8. El pulso es el mismo; al patrón se le pasa todo medido en esas corcheas.
+        const third = { ...x, at: b => at(b / 3), segs: segs.map(g => ({ ...g, beat: g.beat * 3, len: g.len * 3 })) };
+        patterns[style](t, bd / 3, third, B * 3);
+      } else generic(t, bd, x, B);
     }
     quiet = [];
     ties = [];

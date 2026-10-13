@@ -115,10 +115,9 @@ const ALTERNAR = ['zamba'];
 // elige cuál lleva cada parte de la canción (la primera es la que suena si no se elige nada).
 const PARTES = { son: ['Abajo (estrofa)', 'Arriba (montuno)'] };
 
-// Golpes que en el MIDI exportado quedaron corridos y el dueño pidió acomodar: [sonido, dónde está, dónde va],
-// en tiempos desde el comienzo de la base. Si el MIDI ya viene corregido, no hacen nada (y se pueden borrar).
-// Son: el último golpe del lado de tres de la clave estaba una semicorchea antes (en los dos compases).
-const CORREGIR = { son: [['clave', 3.25, 3.5], ['clave', 7.25, 7.5]] };
+// Golpes que en un MIDI exportado quedaron corridos y el dueño pidió acomodar mientras no lo vuelva a exportar:
+// { ritmo: [[sonido, dónde está, dónde va], ...] }, en tiempos desde el comienzo de la base. Hoy no hay ninguno.
+const CORREGIR = {};
 
 const bases = {};
 for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).sort()) {

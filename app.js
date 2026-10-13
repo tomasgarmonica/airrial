@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.57';
+  const VERSION = '0.58';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -12,10 +12,11 @@
     ['swing', 'Swing'], ['shuffle', 'Blues / Shuffle'], ['bossa', 'Bossa'], ['samba', 'Samba'], ['pop', 'Pop / Rock'], ['balada', 'Balada'],
     ['funk', 'Funk'], ['reggae', 'Reggae'], ['bolero', 'Bolero'], ['son', 'Son (clave 2-3)'], ['son32', 'Son (clave 3-2)'],
     ['tango', 'Tango'], ['milonga', 'Milonga'], ['candombe', 'Candombe'], ['cumbia', 'Cumbia'],
-    ['chacarera', 'Chacarera (6/8)'], ['zamba', 'Zamba (6/8)'], ['festejo', 'Festejo (12/8)'], ['vals', 'Vals (3/4)'], ['click', 'Solo metrónomo'],
+    ['chacarera', 'Chacarera (6/8)'], ['zamba', 'Zamba (6/8)'], ['festejo', 'Festejo'], ['vals', 'Vals (3/4)'], ['click', 'Solo metrónomo'],
   ];
   // Estilos que necesitan un compás distinto de 4/4.
-  const STYLE_METER = { chacarera: '6/8', zamba: '6/8', vals: '3/4', festejo: '12/8' };
+  // (El festejo no figura: es ternario, pero se toca también en 4/4 y en 2/4, con cada negra dividida en tres.)
+  const STYLE_METER = { chacarera: '6/8', zamba: '6/8', vals: '3/4' };
   // Estilos que usan la base escrita para otro (el son 3-2 es la base del 2-3, empezada por la mitad).
   const BASE_FOR = { son32: 'son' };
   const METERS = ['4/4', '3/4', '2/4', '6/8', '5/4', '7/8', '12/8'];

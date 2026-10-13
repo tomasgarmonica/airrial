@@ -64,6 +64,7 @@ const charts = {
   '3/4': '| Am | Dm | E7 . Am | % |\n| F C | N.C. | E7 | Am |',
   '5/4': '| Am | Dm E7 | % | Am |',
   '12/8': '| Am | Dm E7 | % | Am G |',
+  '2/4': '| Am | Dm E7 | % | Am |',
 };
 const styles = ['swing', 'shuffle', 'bossa', 'samba', 'pop', 'balada', 'funk', 'reggae', 'bolero', 'son', 'son32', 'festejo', 'tango', 'milonga', 'candombe', 'cumbia', 'chacarera', 'zamba', 'vals', 'click'];
 const pause = () => new Promise(done => setImmediate(done));
