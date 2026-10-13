@@ -44,7 +44,8 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Copia de seguridad automática y sincronización entre celular y PC (necesita servidor)
 - [x] Mecanismo de canciones incluidas (`incluidas.json`): aparecen en Canciones con la marca "incluida", sin pestaña aparte
 - [x] Compartir como archivo (además del enlace); Airrial aparece en el menú Compartir de Android para abrir archivos recibidos
-- [ ] Probar en celular real el archivo compartido: enviar, y recibir con Compartir → Airrial
+- [x] Recibir en el celular con Compartir → Airrial: el dueño lo probó el 13 de octubre de 2026 con la lista de iReal y abrió bien
+- [ ] Probar en celular real el envío de un archivo `.airrial.html` (compartir una canción propia y que otra persona la abra)
 - [ ] Comunidad: secuencias subidas por usuarios. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento. La app no trae canciones propias (decidido el 2026-10-09, por los posibles derechos): el repertorio llega por la comunidad
 - [ ] Comunidad: destacar las canciones más completas o mejor puntuadas (fijadas o con puntaje). A definir
 
@@ -162,5 +163,6 @@ catálogo público.
 ## Problemas conocidos
 - [x] El botón Atrás del teléfono sube un nivel, igual que la flecha de arriba
 - [x] Salir del editor con cambios sin guardar (Cancelar o Atrás) ahora pregunta antes
-- [ ] Probar en celular real: lectura del cifrado, tamaño de los botones del editor y sonido por el parlante
+- [x] Escribir cifrados en el celular: el dueño lo probó y "funciona bastante bien" (13 de octubre de 2026)
+- [ ] Probar en celular real el sonido por el parlante
 - [ ] En iPhone, un enlace compartido se abre en Safari y la canción queda ahí, no en la app instalada
