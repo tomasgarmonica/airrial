@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.41';
+  const VERSION = '0.42';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -796,9 +796,11 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const vol = settings.vol;
     const ids = list ? list.songs.filter(findSong) : [], at = ids.indexOf(song.id);
     const goList = d => { if (ids[at + d]) swap('#/s/' + ids[at + d] + '/' + list.id); };
-    // Cada renglón de la mezcla: el nombre es un botón que silencia o devuelve el instrumento.
+    // Cada renglón de la mezcla: el nombre es un botón que silencia o devuelve el instrumento. El del teclado
+    // muestra cuál suena en esta canción y abre un menú para elegirlo o silenciarlo.
+    const keysName = () => KEYBOARDS.find(k => k[0] === keysOf(song))[1];
     const slider = (k, name) => `<div class="mx${settings.mute[k] ? ' off' : ''}">
-      <button type="button" data-a="mute" data-v="${k}" aria-pressed="${!!settings.mute[k]}" aria-label="Silenciar o activar: ${name}">${name}</button>
+      <button type="button" data-a="${k === 'keys' ? 'keys' : 'mute'}" data-v="${k}" aria-pressed="${!!settings.mute[k]}" aria-label="${k === 'keys' ? 'Elegir teclado o silenciarlo' : 'Silenciar o activar: ' + name}">${k === 'keys' ? keysName() : name}</button>
       <input type="range" min="0" max="1" step="0.05" data-vol="${k}" value="${vol[k]}" aria-label="Volumen: ${name}"></div>`;
     app.innerHTML = `
       <header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
@@ -831,9 +833,6 @@ ${rows ? `<ol>${rows}</ol>` : ''}
             <label class="fld">Vueltas<select id="reps" aria-label="Vueltas">${[1, 2, 3, 4, 6, 999].map(n => `<option value="${n}"${n === settings.choruses ? ' selected' : ''}>${n === 999 ? 'Sin fin' : n + (n === 1 ? ' vuelta' : ' vueltas')}</option>`).join('')}</select></label>
           </div>
           <div class="r">
-            <label class="fld">Teclado<select id="keys" aria-label="Teclado">${KEYBOARDS.map(k => `<option value="${k[0]}"${k[0] === keysOf(song) ? ' selected' : ''}>${k[1]}</option>`).join('')}</select></label>
-          </div>
-          <div class="r">
             <label class="fld">Ver los acordes como<select id="notation">${[['letras', 'Letras: C, Dm7, Gmaj7'], ['jazz', 'Jazz: C, D-7, G△7'], ['latino', 'Do, Re, Mi: Do, Rem7, Solmaj7'], ['grados', 'Grados: I, IIm7, Vmaj7']]
               .map(o => `<option value="${o[0]}"${o[0] === settings.notation ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
             <label class="fld narrow">Tamaño de la hoja<select id="size">${[['chico', 'Chico'], ['normal', 'Normal'], ['grande', 'Grande']]
@@ -864,7 +863,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       settings.mute[k] = on;
       saveSettings();
       applyVol(k);
-      const btn = $(`[data-a="mute"][data-v="${k}"]`, sheet);
+      const btn = $(`.mx button[data-v="${k}"]`, sheet);
       btn.setAttribute('aria-pressed', on);
       btn.parentElement.classList.toggle('off', on);
     };
@@ -1013,6 +1012,18 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         setSheet(!settings.sheetOpen);
       },
       mute: el => setMute(el.dataset.v, !settings.mute[el.dataset.v]),
+      keys: async el => {
+        const now = settings.mute.keys ? 'mute' : keysOf(song), mark = k => (k === now ? 'Es lo que está elegido' : '');
+        const pick = await choose('Teclado de esta canción', [...KEYBOARDS.map(k => [k[0], k[1], mark(k[0])]), ['mute', 'Silenciar', mark('mute')]]);
+        if (!pick || pick === now) return;
+        if (pick === 'mute') { setMute('keys', true); return; }
+        song.keys = pick;
+        saveSongs();
+        el.textContent = keysName();
+        Engine.preload(pick);
+        setMute('keys', false);
+        restart();
+      },
     });
     // La manija del panel responde al toque y también a deslizar hacia arriba o hacia abajo.
     grab.onpointerdown = e => { grabY = e.clientY; swiped = false; grab.setPointerCapture(e.pointerId); };
@@ -1090,7 +1101,6 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const t = e.target;
       if (t.id === 'tempo') setTempo(+t.value);
       else if (t.id === 'style') { song.style = t.value; saveSongs(); restart(); }
-      else if (t.id === 'keys') { song.keys = t.value; saveSongs(); Engine.preload(song.keys); restart(); }
       else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
       else if (t.id === 'size') { settings.size = t.value; saveSettings(); draw(); }
