@@ -30,6 +30,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] La reproducción sigue D.C., D.S., Fine y Coda (sin repeticiones después del salto)
 - [x] Modo práctica: subir el tempo o cambiar de tono en cada vuelta (vale solo mientras suena; la hoja muestra el tono de la vuelta)
 - [x] Silenciar instrumentos sueltos con un toque (el nombre del instrumento en la mezcla es el botón; el deslizador conserva su volumen)
+- [x] Los compases en blanco no se tocan: sirven para acomodar la hoja (la casilla 2 debajo de la casilla 1). Los que siguen a un corte sí cuentan, como silencio
 - [ ] Sumar la guitarra como otro instrumento armónico (ya se elige entre piano, Rhodes y CP-80)
 
 ## 3. Guardado y compartir
@@ -46,26 +47,48 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Comunidad: destacar las canciones más completas o mejor puntuadas (fijadas o con puntaje). A definir
 
 ## 4. Audio y pistas
-- [x] Sonidos grabados, primera tanda: batería (bombo, redoblante, aro, hi-hat), piano y la percusión de samba, candombe, cumbia, bolero, chacarera y zamba. Si no cargan, suena lo sintetizado
-- [ ] Escuchar los sonidos grabados en cada ritmo y ajustar de oído volúmenes y qué instrumento toca cada cosa
-- [x] Bajo grabado (normal y fuerte) en todos los ritmos
-- [ ] Bajo: usar las notas fantasma, el slap y el slap fantasma (ya están cargados, falta escribir dónde van) y los slides (falta medir dónde llega la nota)
+
+**Sonidos grabados (hecho el 12 y 13 de octubre de 2026)**
+- [x] La banda suena con grabaciones del dueño; lo que no cargue (o no esté grabado) suena sintetizado
+- [x] Batería: bombo, redoblante, aro, hi-hat (cerrado, abierto, con el pie), ride suave, crash. Cargados y sin usar en patrones: redoblante agudo, toms, chancha, ride fuerte, campana del ride, segundo crash
+- [x] Bajo, normal y fuerte, en todos los ritmos
+- [x] Teclado por canción: piano, Rhodes o CP-80 (se elige desde el botón del teclado en la mezcla, que también lo silencia). Al compartir la canción no viaja
+- [x] Percusión: tambores de candombe, bombo legüero, surdo, pandeiro, tamborim, congas, bongó, campana, cáscara, clave, güiros, maracas, cajón
+- [x] Mezcla: percusión aparte de la batería, y "Volumen de cada instrumento" por ritmo en los ritmos con base (se guarda en el dispositivo)
+
+**Bases de percusión escritas en MIDI por el dueño**
+- [x] Candombe (tambores y batería), chacarera y zamba (bombo legüero; la zamba alterna cuatro variantes), samba (surdo, pandeiro, tamborim), son en clave 2-3 y 3-2 (con versión de abajo y de arriba, que se elige por parte tocando el nombre de la parte) y festejo
+- [ ] Faltan las bases de: swing, shuffle, bossa, pop, balada, funk, reggae, bolero, tango, milonga, cumbia y vals. Siguen con el patrón escrito sin escuchar
+- [ ] Los niveles de cada base se definen de oído a medida que se arma cada estilo: el dueño los prueba con "Volumen de cada instrumento" y pasa los valores, que se anotan en `AJUSTE` de `herramientas/bases.js`
+- [ ] Variaciones: golpes de apoyo que suenen solo algunas veces (pista aparte en el MIDI) y frases de repique o remates que entren cada tantos compases. Conversado y aprobado, sin empezar. El mecanismo de alternar variantes ya existe (zamba)
+- [ ] Candombe: los dos redoblantes suaves de la batería son apoyos; hoy suenan siempre
+
+**Bajo y teclado**
+- [ ] Bajo y teclado desde MIDI, escritos sobre Do y trasladados a cada acorde. Conversado; el dueño eligió empezar solo por la percusión
+- [ ] Bajo: usar las notas fantasma, el slap y el slap fantasma (ya cargados, falta escribir dónde van) y los slides (falta medir dónde llega la nota)
+- [ ] Son y festejo: escuchar el bajo y el piano, escritos sin escuchar. En el son falta el montuno de piano
+- [ ] Candombe: el teclado toca el acorde en el 1 y lo deja sonar (pedido por el dueño); se vuelve a tocar en cada compás
+
+**Grabaciones para revisar o rehacer**
 - [ ] Bajo: regrabar el Fa normal ("Bajo F3.wav", quedó un semitono y medio alto) y grabar el Si normal ("Bajo B2.wav", falta)
-- [x] Teclado por canción: piano, Rhodes o CP-80 (se elige en el panel de la canción; al compartirla no viaja y el otro la escucha con piano)
 - [ ] CP-80 fuerte: las notas quedaron entre 10 y 24 centésimas altas respecto de las normales. Escuchar si molesta
-- [x] Ride (swing) y crash (acorde final) grabados
-- [ ] Grabado sin usar todavía: campana del ride, segundo crash y escobillas (giro, rápido, ataque)
-- [ ] Falta grabar: maracas o shaker (bolero). Mientras tanto siguen sintetizadas
-- [ ] Grabado pero todavía sin usar (falta escribir su ritmo o sus remates): toms, redoblante agudo, bongó, timbales, cáscara, campanas, jam block, cajón, quijada, triángulo, güiro de madera, pandeiro (tonos), golpes de conga, y la guitarra
-- [ ] Patrones más musicales por estilo, con variaciones y remates al final de cada parte
-- [x] Ritmos nuevos: samba, tango, milonga, candombe, cumbia, chacarera, zamba y vals (falta afinarlos de oído)
-- [ ] Revisar de oído cada ritmo nuevo y corregir lo que no suene al género (incluye shuffle, funk, reggae y bolero, escritos sin poder escucharlos)
-- [x] Ritmos nuevos: blues/shuffle, funk, reggae y bolero (en 4/4)
-- [x] Son, con base de abajo (estrofa) y de arriba (montuno): cada parte de la canción lleva una, que se elige tocando su nombre en la hoja
-- [ ] Son: escuchar el tumbao del bajo y los acordes del piano (escritos sin escuchar); falta el montuno de piano
-- [ ] Bases del dueño hechas: candombe, chacarera, zamba, samba y son. Faltan las de los demás ritmos
+- [ ] Ride suave: grabado muy bajo (picos a -38 dB) y guardado como `Batería/CampanaBoca.wav`. Si se le nota soplido, regrabar con más ganancia; conviene renombrarlo a `Ride suave.wav`
+- [ ] Maraca "suave atrás": grabada muy baja (picos a -35 dB); regrabar si se va a usar
+- [ ] Surdo "dedos": muy corto (0,08 s); el dueño dice que casi no se escucha pero que va bien
+- [ ] Escobillas (giro, rápido, ataque): grabadas, sin cargar. El giro está muy bajo y el rápido trae dos golpes en un archivo
+- [ ] Grabado sin cargar en la app (se suma cuando aparezca en una base): timbales, jam block, chacha, quijada, triángulo, pandeiro tapado y platinelas sueltas, golpes sueltos de conga, güiro de metal golpe y seco, guitarra
+- [ ] Falta grabar: nada pedido por ahora (las maracas ya están; el bolero todavía usa las sintetizadas)
+
+**Ritmos**
+- [x] Ritmos: swing, shuffle, bossa, samba, pop, balada, funk, reggae, bolero, son (2-3 y 3-2), tango, milonga, candombe, cumbia, chacarera, zamba, festejo y vals
+- [x] Los ritmos ternarios suenan también en compases de negras: festejo en 4/4 y 2/4, chacarera y zamba en 2/4
+- [x] El tempo cuenta el pulso: la negra, o la negra con puntillo en 6/8, 9/8 y 12/8
+- [ ] Chacarera y zamba en 4/4 (dos compases de 6/8 por compás): siguen en el acompañamiento genérico
+- [ ] Revisar de oído cada ritmo sin base y corregir lo que no suene al género
+- [ ] Bolero: pasar las maracas sintetizadas a las grabadas
 - [ ] Más ritmos: salsa, chamamé, carnavalito/huayno, murga, vals peruano, afro 6/8
 - [ ] Shuffle: que un corte o una anticipación en el "y" de un tiempo caiga atresillado, como en swing
+- [ ] En un ritmo ternario tocado en 4/4, un acorde escrito en el "y" cae en la mitad exacta del tiempo, sin atresillar
 - [ ] Milonga, samba y cumbia en 2/4 (hoy solo en 4/4)
 
 ## 5. Para tocar en vivo

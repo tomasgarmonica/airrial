@@ -12,18 +12,44 @@ y explicarle los pasos que le toquen de a uno.
 - **Repositorio:** https://github.com/tomasgarmonica/airrial (público).
 - **Dominio:** registrado en NIC Argentina, DNS en Cloudflare (cuatro registros A a GitHub y un CNAME `www`,
   con el proxy apagado). El archivo `CNAME` del repositorio mantiene el dominio conectado: no borrarlo.
-- **Archivos:** `music.js` (lectura del cifrado, tiempos, saltos, tonalidad), `audio.js` (banda sintetizada
-  con Web Audio), `export.js` (PDF e imagen), `app.js` (pantallas), `sw.js` (uso sin conexión),
+- **Archivos:** `music.js` (lectura del cifrado, tiempos, saltos, tonalidad), `audio.js` (la banda: sonidos grabados y sintetizados,
+  con Web Audio), `bases.js` (bases de percusión, generado), `export.js` (PDF e imagen), `app.js` (pantallas), `sw.js` (uso sin conexión),
   `incluidas.json` (canciones de ejemplo), `tests/` (pruebas), `PENDIENTES.md` (lo hecho y lo que falta),
   `GRABACION.md` (instructivo para grabar los sonidos).
-- **Sonidos grabados:** los originales están en la carpeta `Audios` del Drive (fuera del proyecto: `Batería`,
-  `Percu`, `Piano`, `Guitarra`). `node herramientas/sonidos.js "G:/Mi unidad/Audios"` arma con ellos los
-  archivos livianos de `sonidos/` (un MP3 por grupo más `indice.json`), que es lo que usa la app. Para sumar
-  un sonido: agregarlo a la lista de esa herramienta, correrla y usarlo por su nombre en `audio.js`.
-- **Bases de percusión:** el dueño las escribe en MIDI en `Audios/Midi` del Drive (`Base <ritmo>.mid`, y en
-  `Notas bases.txt` qué sonido es cada nota). `node herramientas/bases.js "G:/Mi unidad/Audios/Midi"` las pasa a
-  `bases.js`. Un ritmo con base la usa para la percusión cuando hay sonidos grabados (`base()` en `audio.js`).
-- **Fuera de git:** `grabaciones/` (audios originales) y `pruebas/` (archivos de prueba generados).
+- **Sonidos grabados:** los originales los graba el dueño y están en la carpeta `Audios` del Drive, fuera del
+  proyecto (`Batería`, `Percu`, `Piano` con los tres teclados, `Bajo`, `Guitarra`; `Media` son las tomas crudas
+  de Reaper). `node herramientas/sonidos.js "<carpeta Audios>"` arma con ellos los archivos livianos de
+  `sonidos/`: un MP3 por grupo (batería, percusión, bajo y uno por teclado) con todos los sonidos en fila, más
+  `indice.json` con el lugar de cada uno. Necesita `ffmpeg`. Para sumar un sonido: agregarlo a la lista de esa
+  herramienta y correrla.
+- **Bases de percusión:** el dueño las escribe en MIDI en `Audios/Midi` (`Base <ritmo>.mid`, con una pista
+  "Percu" y otra "Batería"). `Notas bases.txt`, en esa carpeta, dice qué sonido es cada nota, con un bloque por
+  pista ("Notas Percu", "Notas batería") que vale para todas las bases: **es del dueño, no editarlo**.
+  `node herramientas/bases.js "<carpeta Audios>/Midi"` las pasa a `bases.js`. Arriba de esa herramienta están las
+  tablas que hay que tocar a mano: `OTRO_NOMBRE` (sonidos que en la app se llaman distinto), `AJUSTE` (volúmenes
+  pedidos de oído, por ritmo), `ALTERNAR` (bases cuyos compases son variantes), `PARTES` (bases con una versión
+  por momento del tema, como el son) y `CORREGIR`.
+- **La carpeta `Audios` cambia de ruta según la PC** (`G:/Mi unidad/Audios` o `G:/My Drive/Audios`).
+- **Fuera de git:** `grabaciones/` y `pruebas/` (archivos de prueba generados).
+
+## Sonidos y bases: cómo funciona
+
+- **En la app:** `audio.js` baja los sonidos al abrir una canción (de los teclados, solo el de esa canción) y
+  toca cada golpe o nota por su nombre (`shot`, y las notas de bajo y teclado corridas de altura). Si un sonido
+  no está, toca el sintetizado. Un ritmo con base la usa para toda su percusión (`base()`); bajo y teclado
+  siguen saliendo de los patrones escritos en `audio.js`.
+- **Circuito con el dueño:** él graba o exporta al Drive y avisa; se corre la herramienta que corresponda, se
+  prueba, se publica y se le cuenta qué se leyó (en una grilla) para que confirme. Si una base usa un sonido que
+  la app no tiene, `bases.js` avisa cuál falta.
+- **Volumen:** cada sonido se lleva a su máximo al prepararlo, así que dos golpes del mismo instrumento
+  grabados a distinta fuerza ("suave" y "fuerte") quedan igual de fuertes: la diferencia se devuelve en
+  `AJUSTE`. La intensidad de cada nota del MIDI es la fuerza del golpe. El dueño escucha todo parejo en Reaper
+  (su sampler no responde a la intensidad), así que el equilibrio se termina de oído en la app.
+- **Medir en lugar de escuchar:** no se puede oír, pero sí medir. Sirve revisar cada grabación nueva antes de
+  usarla (nivel, saturación, afinación, si está cortada, si el nombre coincide con lo que suena) y avisarle lo
+  que se encuentre.
+- **Cuidado con el Drive:** el dueño suele estar editando sus archivos mientras se trabaja. Leerlos de nuevo
+  justo antes de usarlos y no escribir en su carpeta `Audios`.
 
 ## Cómo se trabaja
 
@@ -42,8 +68,12 @@ y explicarle los pasos que le toquen de a uno.
 - **Las pantallas** se prueban a mano en el navegador, a 390 px de ancho, simulando toques. No se puede
   probar con el dedo ni escuchar el sonido: decirlo siempre al entregar, sin darlo por verificado.
 - **Diseño dudoso:** preguntar antes de construir.
-- **En una PC nueva:** trabajar sobre una copia bajada de GitHub en una carpeta local, no sobre la carpeta
-  del Drive (el historial de git de la PC original está fuera del Drive y no se comparte).
+- **Al empezar en cualquier PC, primero `git pull`**: se trabaja desde dos computadoras. En la PC original la
+  carpeta del proyecto está en el Drive y su historial de git afuera (`C:/Users/USUARIO/.airrial-git`); en la
+  otra hay una copia bajada de GitHub en `C:/Users/huevo/dev/airrial`, y ahí la carpeta del Drive no sirve
+  (no tiene historial). En una PC nueva: bajar una copia de GitHub a una carpeta local y trabajar ahí.
+- **Editar con cuidado en la consola:** los textos con barras invertidas (expresiones regulares, saltos de
+  línea) se rompen al pasarlos por un comando; conviene escribir el cambio en un archivo y ejecutarlo.
 
 ## Decisiones tomadas (no volver a discutirlas)
 
@@ -58,13 +88,23 @@ y explicarle los pasos que le toquen de a uno.
 - **Editor por botones** como modo principal; el de texto es secundario.
 - **Orden de prioridades:** terminar la app, después el audio grabado, después la Comunidad, y recién
   entonces donaciones.
+- **Las bases las escribe el dueño en MIDI**, por ahora solo percusión y batería; bajo y teclado siguen con
+  patrones de la app. Bases estables primero; las variaciones (apoyos, frases) quedan para después.
+- **Los niveles de cada base se definen de oído** a medida que se arma cada estilo, no todos juntos.
+- **Teclado por canción** (piano, Rhodes, CP-80), elegido desde su botón de la mezcla.
+- **Volumen de cada instrumento: por instrumento** (no por golpe) **y por ritmo** (no por canción), guardado
+  en el dispositivo de cada usuario.
+- **Bases con versión de abajo y de arriba (son): se elige por parte**, tocando el nombre de la parte.
+- **Un compás en blanco no se toca** (sirve para acomodar la hoja), salvo después de un corte.
+- **El tempo cuenta el pulso:** la negra, o la negra con puntillo en 6/8, 9/8 y 12/8.
 
 ## Formato del cifrado (lo que se guarda)
 
 Texto: compases separados por `|`, un renglón de texto por renglón de la hoja.
 
 - Partes `[A]`, repetición `|:` … `:|` (`x3`), casillas `1.` `2.`, cambio de compás `3/4`, anotación `"Fine"`.
-- `%` repite el compás anterior, `N.C.` es silencio de armonía, `_` es un lugar vacío.
+- `%` repite el compás anterior, `N.C.` es silencio de armonía, `_` es un lugar vacío. Un compás que solo
+  tiene `_` está en blanco y la reproducción lo saltea (salvo después de un corte, donde es silencio).
 - Compás dividido: entre llaves sobre una grilla pareja, donde `.` alarga el acorde anterior:
   `{ C . . . . . . G }` pone el G en el "y" del 4. Sin llaves vale la regla vieja (los acordes caen sobre
   los tiempos).
