@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.0.60 → 0.0.61): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. El del medio pasa a 1 (0.1.0) cuando la app esté para compartir con gente que la pruebe.
-  const VERSION = '0.0.61';
+  const VERSION = '0.0.62';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -224,6 +224,12 @@
   // Texto de un archivo de Airrial → datos. Acepta la exportación (JSON) y la página .html que se comparte.
   const parseFile = text => {
     const m = /<script[^>]*id="airrial-data"[^>]*>([\s\S]*?)<\/script>/.exec(text);
+    // Un archivo de iReal Pro (canción o lista) también se abre: se convierte al formato de Airrial.
+    const ireal = m ? null : Music.fromIreal(text);
+    if (ireal) {
+      const songs = ireal.songs.map(s => ({ ...s, id: newId() }));
+      return { songs, lists: songs.length > 1 ? [{ id: newId(), name: ireal.name || 'iReal', songs: songs.map(s => s.id) }] : [] };
+    }
     return JSON.parse(m ? m[1] : text);
   };
   // Canciones y listas de un archivo exportado o recibido, ya revisadas.
@@ -594,7 +600,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <dialog id="menu"><div class="sheet">
         <button data-a="export">Exportar todo (copia de seguridad)</button>
         <p class="hint" id="age">${backupAge()}</p>
-        <button data-a="import">Abrir un archivo (recibido o copia de seguridad)</button>
+        <button data-a="import">Abrir un archivo (recibido, copia de seguridad o de iReal Pro)</button>
         <button data-a="paste">Pegar una canción o lista copiada</button>
         <button data-a="select">Seleccionar canciones para borrar</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
@@ -732,7 +738,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         const n = incoming.lists.length;
         if (kept) alert(`Se importaron ${count(incoming.songs.length)}` + (n ? ` y ${n} ${n === 1 ? 'lista' : 'listas'}.` : '.'));
       } catch {
-        alert('No se pudo leer ese archivo. Tiene que ser un archivo exportado desde Airrial.');
+        alert('No se pudo leer ese archivo. Tiene que ser un archivo exportado desde Airrial o desde iReal Pro.');
       }
       e.target.value = '';
     };

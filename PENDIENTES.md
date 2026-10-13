@@ -38,7 +38,9 @@ grabaciones (ver `GRABACION.md`).
 - [x] Pedirle al navegador que no borre las canciones; aviso de hace cuánto fue la última copia
 - [x] Enlaces de canción más cortos (comprimidos)
 - [ ] Compartir "con enlace": la canción o lista se sube al servidor sin aparecer en el catálogo y se abre solo con un enlace corto (como un video no listado). Tres niveles: solo en mi celular / con enlace / pública. Definir vencimiento, cómo la borra quien la subió y qué pasa con denuncias
-- [ ] Importar canciones desde iReal Pro
+- [x] Importar canciones desde iReal Pro: Menú → Abrir un archivo reconoce el archivo de iReal (una canción o una lista entera, que entra con sus temas y su lista). Pasan partes, casillas, repeticiones, compás, anotaciones, Segno, Coda, Fine y D.C./D.S.; los acordes alternativos (los chiquitos de arriba) se descartan. Probado con una lista real de 30 temas
+- [ ] iReal: los estilos que no son swing, bossa, samba y parecidos entran como Swing (por ejemplo "Latin"); afinar la tabla cuando aparezcan casos. Falta probar archivos en 3/4 y 6/8 verdaderos, y el formato viejo (`irealbook://`) no se lee
+- [ ] iReal: una Coda sin D.S. ni D.C. (en iReal se salta en la última vuelta) acá se toca de corrido en todas las vueltas
 - [ ] Copia de seguridad automática y sincronización entre celular y PC (necesita servidor)
 - [x] Mecanismo de canciones incluidas (`incluidas.json`): aparecen en Canciones con la marca "incluida", sin pestaña aparte
 - [x] Compartir como archivo (además del enlace); Airrial aparece en el menú Compartir de Android para abrir archivos recibidos

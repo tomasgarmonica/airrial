@@ -422,7 +422,150 @@ const Music = (() => {
     return name + (best.mode === 'minor' ? 'm' : '');
   }
 
-  return { starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
+  // --- importar desde iReal Pro ---
+  // Un archivo o enlace de iReal trae todo en una dirección "irealb://": las canciones separadas por "===" y, al
+  // final, el nombre de la lista. Cada canción son campos separados por "=": título, autor (apellido primero),
+  // estilo, tonalidad, el cifrado (mezclado, con una marca adelante), la pista, el tempo y las vueltas.
+  const IREAL_MARK = '1r34LbKcu7';
+  // El cifrado viene mezclado de a tramos de 50 letras, con algunas cambiadas de punta a punta.
+  function irealPlain(s) {
+    let out = '';
+    while (s.length > 50) {
+      const p = s.slice(0, 50).split('');
+      s = s.slice(50);
+      if (s.length >= 2) for (const [a, b] of [[0, 5], [10, 24]]) for (let i = a; i < b; i++) [p[i], p[49 - i]] = [p[49 - i], p[i]];
+      out += p.join('');
+    }
+    return (out + s).replace(/XyQ/g, '   ').replace(/LZ/g, ' |').replace(/Kcl/g, '| x');
+  }
+  // "C-7" → "Cm7", "C^7" → "Cmaj7", "Ch7" → "Cm7b5", "Co7" → "Cdim7".
+  const irealChord = c => c.replace(/h7?/, 'm7b5').replace(/o/, 'dim').replace(/-\^/, 'mMaj').replace(/-/, 'm')
+    .replace(/\^(?!\d)/, 'maj7').replace(/\^/, 'maj').replace(/\+/, 'aug').replace(/sus(?!\d)/, 'sus4').replace(/69/, '6/9');
+  const IREAL_CHORD = /^[A-G][b#]?(?:\^|-|\+|o|h|\d+|[#b]\d+|sus|add|alt)*(?:\/[A-G][#b]?)?/;
+  // Estilo de Airrial más cercano al de iReal; lo que no se reconoce queda en swing.
+  function irealStyle(name) {
+    const s = name.toLowerCase();
+    for (const [re, id] of [[/bossa/, 'bossa'], [/samba/, 'samba'], [/shuffle|blues/, 'shuffle'], [/funk/, 'funk'], [/reggae/, 'reggae'],
+      [/bolero/, 'bolero'], [/tango/, 'tango'], [/milonga/, 'milonga'], [/cumbia/, 'cumbia'], [/wal[tz]+|vals/, 'vals'],
+      [/3-2/, 'son32'], [/salsa|son\b|montuno|mambo|cha cha|guaracha/, 'son'], [/ballad/, 'balada'], [/rock|pop|soul|r&b|country|disco/, 'pop']]) {
+      if (re.test(s)) return id;
+    }
+    return 'swing';
+  }
+  // Cifrado de iReal (ya ordenado) → texto de Airrial. En iReal cada acorde y cada espacio ocupan una casilla del
+  // compás: de ahí sale en qué tiempo cae cada acorde.
+  function irealChart(src, defTs) {
+    const bars = [], codas = (src.match(/Q/g) || []).length;
+    // `opener` es la barra que abrió el compás que se está leyendo.
+    let ts = defTs.slice(), pend = {}, cells = [], notes = [], seenCoda = 0, twice = 0, opener = '';
+    const flush = () => {
+      const chords = cells.filter(c => c !== ' ' && c !== '.');
+      const blank = !chords.length && !notes.length && !pend.ending && !pend.section;
+      if (!cells.length && !notes.length) return;
+      // Un tramo sin nada escrito, después de cerrar una repetición o una parte (o más largo que un compás), son
+      // compases en blanco que iReal usa para acomodar la hoja (la casilla 2 debajo de la 1). Un compás vacío
+      // suelto, entre dos barras comunes, es otra cosa: sigue sonando el acorde anterior, y acá se escribe.
+      const last = bars[bars.length - 1], held = last && last.items.filter(it => it !== '_').pop();
+      if (blank && held && cells.length <= 4 && opener === '|' && !twice) cells = [held];
+      for (let k = blank ? Math.max(1, Math.round(cells.length / 4)) : 1; k > 0; k--) {
+        const b = Object.assign({ items: [], lens: [], ts: ts.slice() }, pend);
+        pend = {};
+        // "r" repite los dos compases anteriores y ocupa dos: cada uno copia al que está dos lugares atrás
+        const prev2 = bars[bars.length - 2];
+        if ((twice || chords.includes('r')) && prev2) { b.items = prev2.items.slice(); b.lens = prev2.lens.slice(); twice = twice ? 0 : 1; }
+        else if (chords.includes('x') || chords.includes('r')) { b.items = ['%']; b.lens = [1]; twice = chords.includes('r') ? 1 : 0; }
+        else {
+          cells.forEach(c => {
+            if (c === ' ' || c === '.') { if (b.items.length) b.lens[b.lens.length - 1]++; else { b.items.push('_'); b.lens.push(1); } }
+            else if (c !== 'x' && c !== 'r') { b.items.push(c); b.lens.push(1); }
+          });
+          if (!b.items.length) { b.items = ['_']; b.lens = [1]; }
+          const n = b.lens.reduce((a, l) => a + l, 0);
+          b.lens = b.lens.map(l => l / n);
+        }
+        // de las anotaciones del compás vale primero la que cambia el recorrido (salto, Fine, Coda, Segno)
+        const mark = notes.find(t => markOf({ text: t }));
+        if (mark || notes.length) b.text = mark || notes.join(' ');
+        bars.push(b);
+      }
+      cells = [];
+      notes = [];
+    };
+    for (let i = 0; i < src.length;) {
+      // Se mira de a un tramo corto, y las anotaciones y los paréntesis tienen tope de largo: así un cifrado
+      // armado con mala intención (lleno de "<" sin cerrar) se lee de una pasada.
+      const rest = src.slice(i, i + 220), ch = src[i];
+      let m;
+      if ((m = /^<([^<>]{0,200})>/.exec(rest))) {
+        const t = m[1].replace(/^\*\d\d/, '').replace(/["\[\]|{}]/g, '').replace(/\s+/g, ' ').trim();
+        const jump = /^d\.?\s*([cs])\.?(?:\s*al\s*(fine|coda))?$/i.exec(t);
+        if (jump) notes.push('D.' + jump[1].toUpperCase() + '.' + (jump[2] ? ' al ' + jump[2][0].toUpperCase() + jump[2].slice(1).toLowerCase() : ''));
+        else if (/^fine$/i.test(t)) notes.push('Fine');
+        else if (t) notes.push(t);
+      } else if ((m = /^\([^()]{0,60}\)/.exec(rest))) { /* acorde alternativo: Airrial no los tiene */ }
+      else if ((m = /^\*([A-Za-z])/.exec(rest))) pend.section = { i: 'Intro', v: 'Verso' }[m[1]] || m[1].toUpperCase();
+      else if ((m = /^T(\d)(\d)/.exec(rest))) {
+        const now = m[0] === 'T12' ? [12, 8] : [+m[1], +m[2]];
+        if (now[0] > 0 && [2, 4, 8].includes(now[1]) && now.join() !== ts.join()) { ts = now; pend.tsSet = true; pend.ts = now; }
+      } else if ((m = /^N(\d)/.exec(rest))) { if (+m[1]) pend.ending = +m[1]; }
+      else if ((m = IREAL_CHORD.exec(rest))) cells.push(irealChord(m[0]));
+      else if (ch === '[' || ch === ']' || ch === '{' || ch === '}' || ch === '|' || ch === 'Z') {
+        flush();
+        if (ch === '{') pend.repStart = true;
+        if (ch === '}' && bars.length) bars[bars.length - 1].repEnd = true;
+        opener = ch === 'Z' ? ']' : ch;
+        m = [ch];
+      } else {
+        if (ch === ' ' || ch === 'x' || ch === 'r') cells.push(ch);
+        else if (ch === 'n') cells.push('N.C.');
+        else if (ch === 'p' || ch === 'W') cells.push('.');
+        else if (ch === 'S') notes.push('Segno');
+        else if (ch === 'Q') notes.push(++seenCoda < codas ? 'Al Coda' : 'Coda');
+        m = [ch];
+      }
+      i += m[0].length;
+    }
+    flush();
+    // Los compases en blanco del final no acomodan nada: se quitan.
+    const empty = b => b.items.every(it => it === '_') && !(b.section || b.ending || b.text || b.repStart || b.repEnd || b.tsSet);
+    while (bars.length && empty(bars[bars.length - 1])) bars.pop();
+    // Renglones de a cuatro compases; cada parte empieza en renglón nuevo.
+    let row = -1, n = 0;
+    for (const b of bars) {
+      if (n === 0 || n >= 4 || b.section) { row++; n = 0; }
+      b.row = row;
+      n++;
+    }
+    return serialize(bars);
+  }
+  // Texto de un archivo o enlace de iReal → { name, songs: [{ title, composer, style, key, tempo, ts, chart }] },
+  // o null si no es de iReal. `name` es el nombre de la lista ('' si es una canción suelta).
+  function fromIreal(text) {
+    const m = /irealb:\/\/([^"<>\s]+)/.exec(String(text || ''));
+    if (!m) return null;
+    const decode = s => { try { return decodeURIComponent(s); } catch { return s; } };
+    const parts = decode(m[1].replace(/&amp;/g, '&')).split('===');
+    const name = parts.length > 1 ? parts.pop().trim() : '';
+    const songs = [];
+    for (const p of parts) {
+      const f = p.split('='), i = f.findIndex(x => x.startsWith(IREAL_MARK));
+      if (i < 4 || !f[0].trim()) continue;
+      const src = irealPlain(f[i].slice(IREAL_MARK.length)), first = /T(\d)(\d)/.exec(src);
+      const tsn = !first ? [4, 4] : first[0] === 'T12' ? [12, 8] : [+first[1], +first[2]];
+      const ts = ['4/4', '3/4', '2/4', '6/8', '5/4', '7/8', '12/8'].includes(tsn.join('/')) ? tsn : [4, 4];
+      const who = f[1].trim(), style = (f[i - 3] || '') + ' ' + (f[i + 1] || ''), slow = style.toLowerCase();
+      // iReal guarda "Apellido Nombre"; con más de dos palabras (o guiones y barras) se deja como viene.
+      const composer = /^composer unknown$/i.test(who) ? '' : /^[^\s\-\/]+ [^\s\-\/]+$/.test(who) ? who.split(' ').reverse().join(' ') : who;
+      const bpm = +f[i + 2] || (/ballad|slow/.test(slow) ? 80 : /medium up/.test(slow) ? 160 : /up tempo|fast/.test(slow) ? 200 : 120);
+      songs.push({
+        title: f[0].trim(), composer, style: irealStyle(f[i - 3] || f[i + 1] || ''), key: irealChord((f[i - 2] || '').trim()),
+        tempo: bpm, ts: ts.join('/'), chart: irealChart(src, ts),
+      });
+    }
+    return songs.length ? { name, songs } : null;
+  }
+
+  return { fromIreal, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;

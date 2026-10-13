@@ -2,11 +2,12 @@
 const fs = require('fs'), assert = require('assert');
 const src = fs.readFileSync(process.argv[2] + '/app.js', 'utf8');
 const cut = (from, to) => { const a = src.indexOf(from), b = src.indexOf(to, a); if (a < 0 || b < 0) throw new Error('no encontré ' + from); return src.slice(a, b); };
-const code = cut('  const colsOf', '  // Las canciones viajan') + cut('  const readData', '  // Nombre libre');
+const code = cut('  const colsOf', '  // Las canciones viajan') + cut('  const parseFile', '  // Nombre libre');
 const STYLES = [['swing', 'Swing'], ['bossa', 'Bossa']], METERS = ['4/4', '3/4'];
 let n = 0;
 const newId = () => 'nuevo' + (++n), settings = { builtins: { 'demo-blues': '' } };
-const { cleanSong, readData } = new Function('STYLES', 'METERS', 'newId', 'settings', code + '\nreturn { cleanSong, readData };')(STYLES, METERS, newId, settings);
+const Music = require(process.argv[2] + '/music.js');
+const { cleanSong, readData, parseFile } = new Function('STYLES', 'METERS', 'newId', 'settings', 'Music', code + '\nreturn { cleanSong, readData, parseFile };')(STYLES, METERS, newId, settings, Music);
 
 const evil = JSON.parse(`{"id":"<img src=x onerror=alert(1)>/../x","title":"${'T'.repeat(5000)}","composer":{"a":1},"key":"${'K'.repeat(999)}",
   "tempo":1e999,"transpose":1e999,"ts":"99/1","style":"<b>","chart":"${'['.repeat(100000)}","cols":1e999,"builtin":true,
@@ -39,6 +40,13 @@ assert.equal(d.lists.length, 1);
 assert.match(d.lists[0].id, /^nuevo/);
 assert.deepEqual(d.lists[0].songs, ['mgk3x1ab', '9']);
 assert.equal(d.lists[0].name, 'Lista');
+// un archivo de iReal Pro entra por el mismo lugar: canciones ya convertidas y, si trae varias, su lista
+const ireal = readData(parseFile('<a href="irealb://' + encodeURIComponent('Uno=Autor==Medium Swing=C==1r34LbKcu7[C   |G7   Z=Jazz=120=3===Dos=Autor==Bossa Nova=F==1r34LbKcu7[F   Z=x=0=0===Mi lista') + '">x</a>'));
+assert.deepEqual(ireal.songs.map(s => [s.title, s.style, s.key, s.chart].join(' / ')), ['Uno / swing / C / | C | G7 |', 'Dos / bossa / F / | F |']);
+assert.deepEqual(ireal.lists.map(l => [l.name, l.songs.join()]), [['Mi lista', ireal.songs.map(s => s.id).join()]]);
+assert.equal(readData(parseFile('irealb://' + encodeURIComponent('Sola=Autor==Swing=C==1r34LbKcu7[C   Z=x=0=0'))).lists.length, 0);
+// y un archivo de Airrial se sigue leyendo como antes
+assert.equal(readData(parseFile('<script type="application/json" id="airrial-data">{"songs":[{"chart":"| C |"}]}</script>')).songs.length, 1);
 console.log('lo recibido: ok');
 
 // Enlaces: lo que se empaqueta se vuelve a leer igual, y un enlace que al descomprimirse ocupa demasiado se rechaza.
