@@ -29,6 +29,8 @@ const PERCUSION = {
   leguero_aro: 'Percu/bombo aro.wav', leguero_medio: 'Percu/bombo parche medio.wav', leguero_fuerte: 'Percu/bombo parche fuerte.wav',
   leguero_suave: 'Percu/bombo parche suave.wav',
   pandeiro_platinelas: 'Percu/pandeiro platinelas.wav', campana_lomo: 'Percu/Campana lomo.wav',
+  pandeiro_tono: 'Percu/pandeiro tono.wav', pandeiro_tono_tapado: 'Percu/pandeiro tono tapado.wav',
+  tamborim: 'Percu/Tamborim.wav',   // hecho por el dueño subiéndole la altura al chico con palo
   surdo_cerrado: 'Percu/Surdo cerrado.wav', surdo_abierto: 'Percu/Surdo abierto.wav',
   surdo_pta_dedo: 'Percu/Surdo pta dedo.wav', surdo_palma: 'Percu/Surdo palma.wav',
   // tambores de candombe (el chico está más arriba)

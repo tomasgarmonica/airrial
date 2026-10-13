@@ -93,6 +93,9 @@ const AJUSTE = {
   // El conjunto se sube para que el bombo, que es toda la percusión del ritmo, quede como estaba antes de la base.
   chacarera: { leguero_fuerte: 2.3, leguero_medio: 1.4, leguero_suave: 0.6 },
   // Zamba: lo mismo, con otros números porque el MIDI vino con más intensidad (114 en lugar de 87).
+  // Samba: el surdo es la base del ritmo y vino con poca intensidad: se sube, pero menos sus dos golpes de mano
+  // (punta de dedo y palma), que son relleno. El pandeiro tapado toca tres de cada cuatro semicorcheas: se baja.
+  samba: { surdo_abierto: 2, surdo_cerrado: 2, surdo_pta_dedo: 0.9, surdo_palma: 0.9, pandeiro_tono_tapado: 0.6 },
   zamba: { leguero_fuerte: 1.76, leguero_medio: 1.07, leguero_suave: 0.46, leguero_aro: 0.77 },
   candombe: { chico_mano: 0.2, chico_palo: 0.2, repique_madera: 0.76, bombo: 2.7, redo: 2.7, hh_cerrado: 0.55 },
 };
