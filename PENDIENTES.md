@@ -53,7 +53,9 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Bajo: regrabar el Fa normal ("Bajo F3.wav", quedó un semitono y medio alto) y grabar el Si normal ("Bajo B2.wav", falta)
 - [x] Teclado por canción: piano, Rhodes o CP-80 (se elige en el panel de la canción; al compartirla no viaja y el otro la escucha con piano)
 - [ ] CP-80 fuerte: las notas quedaron entre 10 y 24 centésimas altas respecto de las normales. Escuchar si molesta
-- [ ] Falta grabar: ride, crash, maracas o shaker. Mientras tanto siguen sintetizados
+- [x] Ride (swing) y crash (acorde final) grabados
+- [ ] Grabado sin usar todavía: campana del ride, segundo crash y escobillas (giro, rápido, ataque)
+- [ ] Falta grabar: maracas o shaker (bolero). Mientras tanto siguen sintetizadas
 - [ ] Grabado pero todavía sin usar (falta escribir su ritmo o sus remates): toms, redoblante agudo, bongó, timbales, cáscara, campanas, jam block, cajón, quijada, triángulo, güiro de madera, pandeiro (tonos), golpes de conga, y la guitarra
 - [ ] Patrones más musicales por estilo, con variaciones y remates al final de cada parte
 - [x] Ritmos nuevos: samba, tango, milonga, candombe, cumbia, chacarera, zamba y vals (falta afinarlos de oído)

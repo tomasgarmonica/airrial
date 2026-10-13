@@ -18,6 +18,7 @@ const BATERIA = {
   bombo: 'Batería/Bombo.wav', redo: 'Batería/Redo.wav', redo_agudo: 'Batería/Redo agudo.wav', aro: 'Batería/Aro.wav',
   hh_cerrado: 'Batería/HH cerrado.wav', hh_abierto: 'Batería/HH abierto.wav', hh_pedal: 'Batería/HH pedal.wav',
   tom1: 'Batería/Tom1.wav', tom2: 'Batería/Tom2.wav', chancha: 'Batería/Chancha.wav',
+  ride: 'Batería/Ride.wav', ride_campana: 'Batería/RideCampana.wav', crash1: 'Batería/Crash1.wav', crash2: 'Batería/Crash2.wav',
 };
 // Solo lo que hoy usa algún ritmo. El resto de lo grabado se suma acá cuando se escriba su ritmo.
 const PERCUSION = {
@@ -95,7 +96,8 @@ function trim(x, max) {
   a = Math.max(0, a - Math.floor(0.002 * SR));
   let b = x.length - 1; while (b > a && Math.abs(x[b]) < pk * 0.001) b--;
   b = Math.min(x.length, b + Math.floor(0.05 * SR), a + Math.floor(max * SR));
-  const y = Float32Array.from(x.subarray(a, b)), fade = Math.min(Math.floor(0.04 * SR), Math.floor(y.length / 5));
+  // la salida es más larga en los sonidos largos (platillos, notas), que suelen venir cortados antes de apagarse
+  const y = Float32Array.from(x.subarray(a, b)), fade = Math.floor(Math.min(y.length / 5, Math.max(0.04 * SR, y.length * 0.12)));
   for (let i = 0; i < fade; i++) y[y.length - 1 - i] *= i / fade;
   return y;
 }
