@@ -90,7 +90,7 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Shuffle: que un corte o una anticipación en el "y" de un tiempo caiga atresillado, como en swing
 - [ ] En un ritmo ternario tocado en 4/4, un acorde escrito en el "y" cae en la mitad exacta del tiempo, sin atresillar
 - [x] Samba en 2/4: cada compás toca media base, alternando (la clave del tamborim ocupa dos compases); bajo y teclado hacen lo mismo que en 4/4, repartido
-- [ ] Milonga y cumbia en 2/4 (hoy solo en 4/4)
+- [ ] Cumbia en 2/4 (hoy solo en 4/4). Pedido del dueño: cuando se arme su base, tiene que sonar igual en 2/4 y en 4/4, como el samba (cada compás de 2/4 toca media base). Milonga en 2/4: a definir
 
 ## 5. Para tocar en vivo
 - [x] Encabezado y panel de reproducción fijos; panel deslizable con estilo, vueltas y mezcla
