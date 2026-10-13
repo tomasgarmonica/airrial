@@ -193,7 +193,8 @@ const Engine = (() => {
     osc('triangle', 190, t, t + 0.1, g);
   }
   const hat = (t, v, name) => shot(name || 'hh_cerrado', t, v) || nz(t, 0.04, 'highpass', 7500, v);
-  const ride = (t, v) => shot('ride', t, v) || nz(t, 0.3, 'bandpass', 8500, v, 1.2);
+  // El ride que acompaña es el suave; el otro ("ride"), tocado más fuerte, queda para las bases.
+  const ride = (t, v) => shot('ride_suave', t, v) || nz(t, 0.3, 'bandpass', 8500, v, 1.2);
   const rim = (t, v, name) => shot(name || 'aro', t, v) || nz(t, 0.03, 'bandpass', 1900, v, 4, !!name);
   // Los que siguen son percusión (en la mezcla van aparte de la batería) y llevan al final el nombre del sonido
   // grabado que los reemplaza, que cambia según el ritmo.

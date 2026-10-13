@@ -18,6 +18,8 @@ const BATERIA = {
   bombo: 'Batería/Bombo.wav', redo: 'Batería/Redo.wav', redo_agudo: 'Batería/Redo agudo.wav', aro: 'Batería/Aro.wav',
   hh_cerrado: 'Batería/HH cerrado.wav', hh_abierto: 'Batería/HH abierto.wav', hh_pedal: 'Batería/HH pedal.wav',
   tom1: 'Batería/Tom1.wav', tom2: 'Batería/Tom2.wav', chancha: 'Batería/Chancha.wav',
+  // El ride suave se guardó como "CampanaBoca.wav" dentro de Batería; si se lo renombra a "Ride suave.wav", vale ese.
+  ride_suave: fs.existsSync(path.join(SRC, 'Batería/Ride suave.wav')) ? 'Batería/Ride suave.wav' : 'Batería/CampanaBoca.wav',
   ride: 'Batería/Ride.wav', ride_campana: 'Batería/RideCampana.wav', crash1: 'Batería/Crash1.wav', crash2: 'Batería/Crash2.wav',
 };
 // Solo lo que hoy usa algún ritmo. El resto de lo grabado se suma acá cuando se escriba su ritmo.
