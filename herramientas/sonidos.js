@@ -27,6 +27,7 @@ const PERCUSION = {
   clave: 'Percu/Clave.wav', chico_mano: 'Percu/chico mano.wav', chico_palo: 'Percu/chico palo.wav',
   tumba_tono: 'Percu/tumba tono.wav', conga_tono: 'Percu/conga tono.wav', bongo_grave: 'Percu/bongo grave abierto.wav',
   leguero_aro: 'Percu/bombo aro.wav', leguero_medio: 'Percu/bombo parche medio.wav', leguero_fuerte: 'Percu/bombo parche fuerte.wav',
+  leguero_suave: 'Percu/bombo parche suave.wav',
   pandeiro_platinelas: 'Percu/pandeiro platinelas.wav', campana_lomo: 'Percu/Campana lomo.wav',
   surdo_cerrado: 'Percu/Surdo cerrado.wav', surdo_abierto: 'Percu/Surdo abierto.wav',
   surdo_pta_dedo: 'Percu/Surdo pta dedo.wav', surdo_palma: 'Percu/Surdo palma.wav',

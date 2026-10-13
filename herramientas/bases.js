@@ -88,6 +88,10 @@ const AJUSTE = {
   // La batería vino escrita con intensidades más bajas que los tambores (marcan matices entre sus golpes, no
   // su volumen contra la percusión): bombo y redoblante se suben para quedar a la par de la cuerda de tambores.
   // El hi-hat, que toca casi todas las semicorcheas, se baja: de oído quedaba muy por encima del resto.
+  // Chacarera: los tres golpes de parche (suave, medio, fuerte) están grabados a distinta fuerza pero en la app
+  // quedan todos al mismo volumen, y el MIDI los trae con la misma intensidad: acá se les devuelve la diferencia.
+  // El conjunto se sube para que el bombo, que es toda la percusión del ritmo, quede como estaba antes de la base.
+  chacarera: { leguero_fuerte: 2.3, leguero_medio: 1.4, leguero_suave: 0.6 },
   candombe: { chico_mano: 0.2, chico_palo: 0.2, repique_madera: 0.76, bombo: 2.7, redo: 2.7, hh_cerrado: 0.55 },
 };
 

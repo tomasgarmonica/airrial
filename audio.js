@@ -152,10 +152,11 @@ const Engine = (() => {
   // no tiene base para este compás o si no están los sonidos grabados; entonces vale el patrón de más abajo.
   function base(style, t, bd, B) {
     const p = typeof BASES !== 'undefined' && BASES[style];
-    if (!p || !S.bank || p.tiempos !== B || !S.bank[p.golpes[0][1]]) return false;
-    const from = (S.barNo % p.compases) * B;
+    if (!p || !S.bank || !S.bank[p.golpes[0][1]]) return false;
+    // La base puede estar escrita en otro compás del mismo largo (3/4 para una canción en 6/8): se acomoda.
+    const from = (S.barNo % p.compases) * p.tiempos, step = bd * B / p.tiempos;
     for (const [at, name, v] of p.golpes) {
-      if (at > from - 1e-3 && at < from + B - 1e-3) shot(name, t + (at - from) * bd, v * 0.5);
+      if (at > from - 1e-3 && at < from + p.tiempos - 1e-3) shot(name, t + (at - from) * step, v * 0.5);
     }
     return true;
   }
@@ -555,8 +556,11 @@ const Engine = (() => {
     // Seis corcheas por compás (6/8 o 3/4): bombo legüero con el parche en 2 y 3, bajo en negras.
     chacarera(t, bd, x, B) {
       const e = bd * B / 6, at = i => x.at(i * B / 6);
-      for (const [i, v] of [[0, 0.4], [3, 0.3], [5, 0.3]]) rim(t + i * e, v, 'leguero_aro');
-      tom(t + 2 * e, 85, 0.7, 0.25, 'leguero_medio'); tom(t + 4 * e, 80, 0.85, 0.3, 'leguero_fuerte');
+      // El bombo sale de la base escrita en MIDI; sin sonidos grabados, aro y parche sintetizados.
+      if (!base('chacarera', t, bd, B)) {
+        for (const [i, v] of [[0, 0.4], [3, 0.3], [5, 0.3]]) rim(t + i * e, v, 'leguero_aro');
+        tom(t + 2 * e, 85, 0.7, 0.25, 'leguero_medio'); tom(t + 4 * e, 80, 0.85, 0.3, 'leguero_fuerte');
+      }
       for (const i of [0, 2, 4]) {
         const c = at(i);
         if (c) bass(t + i * e, i === 2 && c === at(0) ? fifthOf(c) : rootOf(c), e * 1.8, i ? 0.8 : 1);
