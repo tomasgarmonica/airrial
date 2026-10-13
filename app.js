@@ -149,8 +149,21 @@
     return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
   };
   const unb64 = code => Uint8Array.from(atob(code.replace(/-/g, '+').replace(/_/g, '/')), ch => ch.charCodeAt(0));
-  const pipe = async (bytes, stream) =>
-    new Uint8Array(await new Response(new Blob([bytes]).stream().pipeThrough(stream)).arrayBuffer());
+  // Tope de lo que puede ocupar un enlace una vez descomprimido: un texto mínimo puede inflarse hasta llenar la
+  // memoria del teléfono. Una lista de 1000 temas ocupa menos de 1 MB.
+  const PIPE_MAX = 8e6;
+  const pipe = async (bytes, stream) => {
+    const reader = new Blob([bytes]).stream().pipeThrough(stream).getReader(), parts = [];
+    let size = 0;
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.length;
+      if (size > PIPE_MAX) { reader.cancel().catch(() => {}); throw new Error('demasiado grande'); }
+      parts.push(value);
+    }
+    return new Uint8Array(await new Blob(parts).arrayBuffer());
+  };
   const songRow = s => [s.title, s.composer, s.style, s.key, s.tempo, s.ts, s.chart, colsOf(s)];
   const rowSong = a => cleanSong({ title: a[0], composer: a[1], style: a[2], key: a[3], tempo: a[4], ts: a[5], chart: a[6], cols: a[7] });
   // Formato corto: los datos separados por tabulaciones y comprimidos. Si el navegador no comprime, va el formato viejo.

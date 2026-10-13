@@ -40,3 +40,16 @@ assert.match(d.lists[0].id, /^nuevo/);
 assert.deepEqual(d.lists[0].songs, ['mgk3x1ab', '9']);
 assert.equal(d.lists[0].name, 'Lista');
 console.log('lo recibido: ok');
+
+// Enlaces: lo que se empaqueta se vuelve a leer igual, y un enlace que al descomprimirse ocupa demasiado se rechaza.
+(async () => {
+  const pack = new Function(cut('  const b64', '  const songRow') + '\nreturn { b64, unb64, pipe };')();
+  const text = 'hola\t| C | G7 |'.repeat(500);
+  const small = await pack.pipe(new TextEncoder().encode(text), new CompressionStream('deflate-raw'));
+  const back = await pack.pipe(pack.unb64(pack.b64(small)), new DecompressionStream('deflate-raw'));
+  assert.equal(new TextDecoder().decode(back), text);
+  const bomb = await new Response(new Blob([new Uint8Array(60e6)]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer();
+  assert.ok(bomb.byteLength < 100000);
+  await assert.rejects(pack.pipe(new Uint8Array(bomb), new DecompressionStream('deflate-raw')), /demasiado grande/);
+  console.log('enlaces: ok');
+})().catch(e => { console.error(e); process.exit(1); });
