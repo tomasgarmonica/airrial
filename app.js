@@ -126,14 +126,20 @@
     }
     return out;
   };
+  // Lo que llega de afuera (archivo, enlace, copia de seguridad) se recorta a tamaños razonables, para que un
+  // archivo armado con mala intención no pueda trabar la app ni llenar el teléfono.
+  const short = (v, max) => String(v == null ? '' : v).slice(0, max);
+  // Los identificadores son los que arma la app (letras, números y guiones); cualquier otra cosa se cambia por uno nuevo.
+  const cleanId = v => (typeof v === 'string' && /^[\w-]{1,40}$/.test(v) ? v : newId());
   const cleanSong = s => ({
-    id: String(s.id || newId()), title: String(s.title || 'Sin título'), composer: String(s.composer || ''),
-    style: STYLES.some(x => x[0] === s.style) ? s.style : 'swing', key: String(s.key || ''),
+    id: cleanId(s.id), title: short(s.title, 200) || 'Sin título', composer: short(s.composer, 200),
+    style: STYLES.some(x => x[0] === s.style) ? s.style : 'swing', key: short(s.key, 12),
     tempo: Math.min(360, Math.max(30, +s.tempo || 120)), ts: METERS.includes(s.ts) ? s.ts : '4/4',
-    transpose: Math.round(+s.transpose || 0) % 12, chart: String(s.chart || ''),
+    transpose: Number.isFinite(+s.transpose) ? Math.round(+s.transpose) % 12 : 0, chart: short(s.chart, 40000),
     cols: colsOf(s), tags: tagsOf(s), keys: keysOf(s),
     ...(Object.keys(partsOf(s)).length ? { parts: partsOf(s) } : {}),
-    ...(s.builtin ? { builtin: true } : {}),
+    // La marca "incluida" solo vale para las canciones que trae la app.
+    ...(s.builtin && cleanId(s.id) in settings.builtins ? { builtin: true } : {}),
   });
 
   // Las canciones viajan dentro del enlace que lleva el archivo compartido: una sola, o una lista entera (comprimida).
@@ -175,7 +181,7 @@
       : unb64(code.startsWith('j.') ? code.slice(2) : code);
     const a = JSON.parse(new TextDecoder().decode(bytes));
     if (a[0] === 1) return { song: rowSong(a.slice(1)) };
-    if (a[0] === 2 && Array.isArray(a[2])) return { name: String(a[1] || 'Lista'), songs: a[2].map(rowSong) };
+    if (a[0] === 2 && Array.isArray(a[2])) return { name: short(a[1], 200) || 'Lista', songs: a[2].filter(Array.isArray).map(rowSong) };
     throw new Error('formato');
   };
   function download(name, data) {
@@ -195,7 +201,7 @@
   const readData = data => ({
     songs: (Array.isArray(data) ? data : (data && data.songs) || []).filter(s => s && typeof s.chart === 'string').map(cleanSong),
     lists: (data && Array.isArray(data.lists) ? data.lists : []).filter(l => l && Array.isArray(l.songs))
-      .map(l => ({ id: String(l.id || newId()), name: String(l.name || 'Lista'), songs: l.songs.map(String) })),
+      .map(l => ({ id: cleanId(l.id), name: short(l.name, 200) || 'Lista', songs: l.songs.map(String).filter(id => /^[\w-]{1,40}$/.test(id)) })),
   });
   // Las suma a la biblioteca; lo que tiene el mismo id se reemplaza.
   function mergeData(incoming) {

@@ -20,4 +20,5 @@ run(path.join(__dirname, 'tiempos.js'), path.join(root, 'music.js'));
 run(path.join(__dirname, 'audio.js'), root);
 run(path.join(__dirname, 'practica.js'), root);
 run(path.join(__dirname, 'cortes.js'), root);
+run(path.join(__dirname, 'recibido.js'), root);
 console.log('\nTodas las pruebas pasaron.');
