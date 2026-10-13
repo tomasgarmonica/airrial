@@ -2,7 +2,7 @@
 // (carpeta sonidos/) y sintetizados para el resto.
 const Engine = (() => {
   let ctx = null, noise = null, out = null, bus = null, timer = null, raf = null, S = null;
-  const vol = { bass: 0.8, keys: 0.6, drums: 0.7, click: 0 };
+  const vol = { bass: 0.8, keys: 0.6, drums: 0.7, perc: 0.7, click: 0 };
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
   function ensure() {
@@ -22,7 +22,7 @@ const Engine = (() => {
     out.connect(comp);
     comp.connect(ctx.destination);
     bus = {};
-    for (const k of ['bass', 'keys', 'drums', 'click', 'fixed']) {
+    for (const k of ['bass', 'keys', 'drums', 'perc', 'click', 'fixed']) {
       const g = ctx.createGain();
       g.gain.value = k === 'fixed' ? 0.6 : vol[k];
       g.connect(out);
@@ -72,7 +72,7 @@ const Engine = (() => {
     while (i < d.length && Math.abs(d[i]) < 0.25) i++;
     const shift = i / buf.sampleRate - info.marca;
     if (!(Math.abs(shift) < 0.2)) throw new Error(info.archivo);
-    for (const [name, [at, len]] of Object.entries(info.sonidos)) b[name] = { buf, at: at + shift, len };
+    for (const [name, [at, len]] of Object.entries(info.sonidos)) b[name] = { buf, at: at + shift, len, bus: info.pista || 'drums' };
     ready[g] = b;
     delete raw[g];
   }
@@ -144,7 +144,7 @@ const Engine = (() => {
       g.gain.setValueAtTime(v, t + dur);
       g.gain.linearRampToValueAtTime(0, t + dur + 0.03);
     }
-    src.connect(g); g.connect(bus.drums);
+    src.connect(g); g.connect(bus[s.bus]);
     src.start(t, s.at, Math.min(s.len, dur + 0.04));
     return true;
   }
@@ -159,7 +159,8 @@ const Engine = (() => {
     }
     return true;
   }
-  function nz(t, dur, type, freq, peak, q) {
+  // Ruido filtrado: platillos, aro, maracas. Va a la batería, salvo que se pida la pista de percusión.
+  function nz(t, dur, type, freq, peak, q, perc) {
     if (silent(t)) return;
     dur = until(t, dur);
     const s = ctx.createBufferSource(), f = ctx.createBiquadFilter(), g = ctx.createGain();
@@ -169,7 +170,7 @@ const Engine = (() => {
     if (q) f.Q.value = q;
     g.gain.setValueAtTime(peak, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    s.connect(f); f.connect(g); g.connect(bus.drums);
+    s.connect(f); f.connect(g); g.connect(perc ? bus.perc : bus.drums);
     s.start(t, Math.random() * 0.5);
     s.stop(t + dur + 0.02);
   }
@@ -193,16 +194,17 @@ const Engine = (() => {
   }
   const hat = (t, v, name) => shot(name || 'hh_cerrado', t, v) || nz(t, 0.04, 'highpass', 7500, v);
   const ride = (t, v) => nz(t, 0.3, 'bandpass', 8500, v, 1.2);
-  const rim = (t, v, name) => shot(name || 'aro', t, v) || nz(t, 0.03, 'bandpass', 1900, v, 4);
-  // Los que siguen llevan al final el nombre del sonido grabado que los reemplaza, que cambia según el ritmo.
-  const shaker = (t, v, dur, name) => shot(name, t, v, dur * 3) || nz(t, dur, 'bandpass', 6500, v, 0.8);
+  const rim = (t, v, name) => shot(name || 'aro', t, v) || nz(t, 0.03, 'bandpass', 1900, v, 4, !!name);
+  // Los que siguen son percusión (en la mezcla van aparte de la batería) y llevan al final el nombre del sonido
+  // grabado que los reemplaza, que cambia según el ritmo.
+  const shaker = (t, v, dur, name) => shot(name, t, v, dur * 3) || nz(t, dur, 'bandpass', 6500, v, 0.8, true);
   // Parche: tambores de candombe, surdo, bombo legüero (según la altura).
   function tom(t, f, v, dur, name, cap) {
     if (shot(name, t, v, cap) || silent(t)) return;
     const g = ctx.createGain();
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
-    g.connect(bus.drums);
+    g.connect(bus.perc);
     const o = osc('sine', f * 1.5, t, t + dur + 0.02, g);
     o.frequency.exponentialRampToValueAtTime(f, t + 0.04);
   }
@@ -212,7 +214,7 @@ const Engine = (() => {
     const g = ctx.createGain();
     g.gain.setValueAtTime(v, t);
     g.gain.exponentialRampToValueAtTime(0.0001, t + 0.06);
-    g.connect(bus.drums);
+    g.connect(bus.perc);
     osc('triangle', 2300, t, t + 0.08, g);
   }
   function click(t, accent, dest) {

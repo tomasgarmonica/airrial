@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.42';
+  const VERSION = '0.43';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -34,7 +34,7 @@
   // Canciones incluidas ya entregadas a este teléfono: { id: huella del contenido }.
   // Quien venía de una versión anterior ya tuvo los tres ejemplos: no se le vuelven a agregar si los borró.
   if (!settings.builtins) settings.builtins = firstRun ? {} : { 'demo-blues': '', 'demo-bossa': '', 'demo-vals': '' };
-  settings.vol = Object.assign({ bass: 0.8, keys: 0.6, drums: 0.7, click: 0 }, settings.vol);
+  settings.vol = Object.assign({ bass: 0.8, keys: 0.6, drums: 0.7, perc: 0.7, click: 0 }, settings.vol);
   // Instrumentos silenciados con un toque: el deslizador conserva su volumen para cuando vuelven.
   settings.mute = Object.assign({}, settings.mute);
   const applyVol = k => Engine.setVol(k, settings.mute[k] ? 0 : settings.vol[k]);
@@ -845,7 +845,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
               .map(o => `<option value="${o[0]}"${o[0] === settings.practice.key ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
           </div>
           <div class="mixer">
-            ${slider('bass', 'Bajo')}${slider('keys', 'Teclado')}${slider('drums', 'Batería')}${slider('click', 'Claqueta')}
+            ${slider('bass', 'Bajo')}${slider('keys', 'Teclado')}${slider('drums', 'Batería')}${slider('perc', 'Percusión')}${slider('click', 'Claqueta')}
             <label class="chk"><input type="checkbox" id="countin"${settings.countIn ? ' checked' : ''}> Un compás de cuenta previa</label>
           </div>
         </div></div>

@@ -177,7 +177,8 @@ function pack(group, sounds, quality) {
 fs.mkdirSync(OUT, { recursive: true });
 const indice = {
   bateria: pack('bateria', hits(BATERIA), 2),
-  percusion: pack('percusion', hits(PERCUSION), 2),
+  // "pista" dice por qué deslizador de la mezcla sale el grupo (si no dice nada, por el de batería)
+  percusion: { ...pack('percusion', hits(PERCUSION), 2), pista: 'perc' },
   // Los teclados van marcados: la app baja solo el que usa la canción.
   piano: { ...pack('piano', notes(PIANO), 3), teclado: true },
   rhodes: { ...pack('rhodes', notes(RHODES), 3), teclado: true },
