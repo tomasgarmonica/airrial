@@ -92,8 +92,13 @@ const AJUSTE = {
   // quedan todos al mismo volumen, y el MIDI los trae con la misma intensidad: acá se les devuelve la diferencia.
   // El conjunto se sube para que el bombo, que es toda la percusión del ritmo, quede como estaba antes de la base.
   chacarera: { leguero_fuerte: 2.3, leguero_medio: 1.4, leguero_suave: 0.6 },
+  // Zamba: lo mismo, con otros números porque el MIDI vino con más intensidad (114 en lugar de 87).
+  zamba: { leguero_fuerte: 1.76, leguero_medio: 1.07, leguero_suave: 0.46, leguero_aro: 0.77 },
   candombe: { chico_mano: 0.2, chico_palo: 0.2, repique_madera: 0.76, bombo: 2.7, redo: 2.7, hh_cerrado: 0.55 },
 };
+
+// Bases cuyos compases no van en fila sino que son variantes para alternar (la primera es la básica).
+const ALTERNAR = ['zamba'];
 
 const bases = {};
 for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).sort()) {
@@ -114,7 +119,7 @@ for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).so
     return [+(t / per).toFixed(4), sound, +(v / 127 * ((AJUSTE[style] || {})[sound] || 1)).toFixed(2)];
   }).sort((a, c) => a[0] - c[0]);
   const bars = Math.max(1, Math.ceil((hits[hits.length - 1][0] + 1e-3) / beats));
-  bases[style] = { tiempos: beats, compases: bars, golpes: hits };
+  bases[style] = { tiempos: beats, compases: bars, ...(ALTERNAR.includes(style) ? { alternar: true } : {}), golpes: hits };
   console.log(`${style}: ${sig.join('/')}, ${bars} ${bars > 1 ? 'compases' : 'compás'}, ${hits.length} golpes`);
 }
 fs.writeFileSync(path.join(root, 'bases.js'),

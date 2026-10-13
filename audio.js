@@ -154,7 +154,17 @@ const Engine = (() => {
     const p = typeof BASES !== 'undefined' && BASES[style];
     if (!p || !S.bank || !S.bank[p.golpes[0][1]]) return false;
     // La base puede estar escrita en otro compás del mismo largo (3/4 para una canción en 6/8): se acomoda.
-    const from = (S.barNo % p.compases) * p.tiempos, step = bd * B / p.tiempos;
+    // Los compases de la base suenan en orden y se repiten, salvo que sean variantes para alternar: ahí el
+    // primero (el básico) suena la mitad de las veces y el resto se reparte entre los otros, sin repetir el último.
+    let bar = S.barNo % p.compases;
+    if (p.alternar && p.compases > 1) {
+      bar = 0;
+      if (S.barNo && Math.random() < 0.5) {
+        do bar = 1 + Math.floor(Math.random() * (p.compases - 1)); while (bar === S.variant && p.compases > 2);
+      }
+      S.variant = bar;
+    }
+    const from = bar * p.tiempos, step = bd * B / p.tiempos;
     for (const [at, name, v] of p.golpes) {
       if (at > from - 1e-3 && at < from + p.tiempos - 1e-3) shot(name, t + (at - from) * step, v * 0.5);
     }
@@ -573,8 +583,11 @@ const Engine = (() => {
     // Más lenta y en dos pulsos: parche en 1, bajo en negras con puntillo.
     zamba(t, bd, x, B) {
       const e = bd * B / 6, at = i => x.at(i * B / 6);
-      tom(t, 80, 0.8, 0.35, 'leguero_fuerte'); tom(t + 4 * e, 85, 0.55, 0.3, 'leguero_medio');
-      for (const [i, v] of [[2, 0.3], [3, 0.35], [5, 0.25]]) rim(t + i * e, v, 'leguero_aro');
+      // El bombo sale de la base escrita en MIDI; sin sonidos grabados, parche y aro sintetizados.
+      if (!base('zamba', t, bd, B)) {
+        tom(t, 80, 0.8, 0.35, 'leguero_fuerte'); tom(t + 4 * e, 85, 0.55, 0.3, 'leguero_medio');
+        for (const [i, v] of [[2, 0.3], [3, 0.35], [5, 0.25]]) rim(t + i * e, v, 'leguero_aro');
+      }
       const c0 = at(0), c3 = at(3);
       if (c0) bass(t, rootOf(c0), e * 2.8, 1);
       if (c3) bass(t + 3 * e, c3 === c0 ? fifthOf(c3) : rootOf(c3), e * 1.8, 0.8);
