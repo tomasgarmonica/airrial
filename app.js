@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.1.0 → 0.1.1): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. Desde la 0.1.0 la app se comparte con gente que la prueba.
-  const VERSION = '0.1.1';
+  const VERSION = '0.1.2';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -80,6 +80,8 @@
   // Volumen que el usuario le dio a cada instrumento de un ritmo: { candombe: { chico: 0.3 } }. El deslizador va
   // de 0 a 1 y en la mitad (0.5) el instrumento suena como viene; lo que está en la mitad no se guarda.
   settings.trims = Object.assign({}, settings.trims);
+  // Instrumentos de un ritmo silenciados con un toque: { candombe: { chico: true } }.
+  settings.subMute = Object.assign({}, settings.subMute);
   const INSTRUMENTS = { bombo: 'Bombo', redo: 'Redoblante', hh: 'Hi-hat', aro: 'Aro', ride: 'Ride', crash: 'Crash', tom: 'Toms',
     chancha: 'Chancha', chico: 'Chico', piano: 'Tambor piano', repique: 'Repique y madera', leguero: 'Bombo legüero', surdo: 'Surdo',
     pandeiro: 'Pandeiro', tamborim: 'Tamborim', conga: 'Conga', tumba: 'Tumbadora', bongo: 'Bongó', guiro: 'Güiro',
@@ -1057,16 +1059,27 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const baseKey = () => BASE_FOR[song.style] || song.style;
     const baseOf = () => (typeof BASES !== 'undefined' && BASES[baseKey()]) || null;
     const applyTrims = () => {
-      const mine = settings.trims[baseKey()] || {}, gains = {};
+      const mine = settings.trims[baseKey()] || {}, off = settings.subMute[baseKey()] || {}, gains = {};
       for (const i in mine) gains[i] = 4 * mine[i] * mine[i];
+      for (const i in off) gains[i] = 0;
       Engine.setTrims(gains);
+    };
+    // Silencia o devuelve un instrumento de la base de este ritmo (el deslizador conserva su volumen).
+    const setSubMute = (i, on) => {
+      const off = settings.subMute[baseKey()] || (settings.subMute[baseKey()] = {});
+      if (on) off[i] = true; else delete off[i];
+      if (!Object.keys(off).length) delete settings.subMute[baseKey()];
+      saveSettings();
+      drawSubs();
     };
     const drawSubs = () => {
       const ins = baseOf() ? baseOf().instrumentos : {}, mine = settings.trims[baseKey()] || {}, open = !!settings.mixOpen;
+      const off = settings.subMute[baseKey()] || {};
       for (const box of sheet.querySelectorAll('.subs')) {
         box.innerHTML = !open ? '' : Object.keys(ins).filter(i => ins[i] === box.dataset.bus).map(i => {
           const name = INSTRUMENTS[i] || i;
-          return '<div class="mx sub"><span>' + esc(name) + '</span><input type="range" min="0" max="1" step="0.05" data-trim="' + i +
+          return '<div class="mx sub' + (off[i] ? ' off' : '') + '"><button type="button" data-a="submute" data-v="' + i + '" aria-pressed="' + !!off[i] +
+            '" aria-label="Silenciar o activar: ' + esc(name) + '">' + esc(name) + '</button><input type="range" min="0" max="1" step="0.05" data-trim="' + i +
             '" value="' + (mine[i] == null ? 0.5 : mine[i]) + '" aria-label="Volumen: ' + esc(name) + '"></div>';
         }).join('');
       }
@@ -1258,7 +1271,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       },
       mute: el => setMute(el.dataset.v, !settings.mute[el.dataset.v]),
       mixmore: () => { settings.mixOpen = !settings.mixOpen; saveSettings(); drawSubs(); },
-      mixreset: () => { delete settings.trims[baseKey()]; saveSettings(); drawSubs(); },
+      mixreset: () => { delete settings.trims[baseKey()]; delete settings.subMute[baseKey()]; saveSettings(); drawSubs(); },
+      submute: el => setSubMute(el.dataset.v, !(settings.subMute[baseKey()] || {})[el.dataset.v]),
       keys: async el => {
         const now = settings.mute.keys ? 'mute' : keysOf(song), mark = k => (k === now ? 'Es lo que está elegido' : '');
         const pick = await choose('Teclado de esta canción', [...KEYBOARDS.map(k => [k[0], k[1], mark(k[0])]), ['mute', 'Silenciar', mark('mute')]]);
@@ -1343,6 +1357,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       if (inst) {
         const mine = settings.trims[baseKey()] || (settings.trims[baseKey()] = {});
         if (+e.target.value === 0.5) delete mine[inst]; else mine[inst] = +e.target.value;
+        // Mover el deslizador de un instrumento silenciado lo vuelve a activar.
+        if ((settings.subMute[baseKey()] || {})[inst]) {
+          const off = settings.subMute[baseKey()];
+          delete off[inst];
+          if (!Object.keys(off).length) delete settings.subMute[baseKey()];
+          const row = e.target.parentElement;
+          row.classList.remove('off');
+          row.querySelector('button').setAttribute('aria-pressed', false);
+        }
         saveSettings();
         applyTrims();
       }
