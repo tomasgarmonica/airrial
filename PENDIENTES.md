@@ -66,6 +66,7 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Candombe: los dos redoblantes suaves de la batería son apoyos; hoy suenan siempre
 
 **Bajo y teclado**
+- [ ] Swing: revisar el comping del piano y el bajo (lo notó el dueño el 13 de octubre de 2026 al escuchar la lista importada de iReal; falta que diga qué cambiar)
 - [ ] Bajo y teclado desde MIDI, escritos sobre Do y trasladados a cada acorde. Conversado; el dueño eligió empezar solo por la percusión
 - [ ] Bajo: usar las notas fantasma, el slap y el slap fantasma (ya cargados, falta escribir dónde van) y los slides (falta medir dónde llega la nota)
 - [ ] Son y festejo: escuchar el bajo y el piano, escritos sin escuchar. En el son falta el montuno de piano
