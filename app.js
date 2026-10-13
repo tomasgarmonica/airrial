@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.1.0 → 0.1.1): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. Desde la 0.1.0 la app se comparte con gente que la prueba.
-  const VERSION = '0.1.2';
+  const VERSION = '0.1.3';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -670,6 +670,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <button data-a="select">Seleccionar canciones para borrar</button>
         <button data-a="tags">Etiquetas: renombrar o borrar</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
+        <button data-a="contact">Contactanos: propuestas, preguntas o comentarios</button>
         <button data-a="close">Cerrar</button>
         <p class="hint">Airrial cuenta de forma anónima cuánto se usa (visitas, reproducir, compartir). No guarda quién sos ni qué canciones tenés.</p>
       </div></dialog>
@@ -802,6 +803,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       },
       menu: () => $('#menu').showModal(),
       close: () => $('#menu').close(),
+      // Formulario del dueño (Google Forms): se abre aparte, fuera de la app.
+      contact: () => { tally('Contactanos'); window.open('https://forms.gle/F6rjcZePUW9J3i3K8', '_blank', 'noopener'); },
       theme: () => {
         settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
         document.documentElement.dataset.theme = settings.theme;
