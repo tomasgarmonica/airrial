@@ -82,9 +82,9 @@ assert(r.hit(2) >= 4); assert.equal(r.band(2, 60), 0);
 r = play('| C | G |', 'pop', [4, 4], { finalChord: { root: 0, bass: 0, iv: [4, 7] } });
 assert(r.hit(4) >= 3, 'acorde final');
 
-// 6) en 6/8 (cada corchea dura un cuarto de segundo a 120)
+// 6) en 6/8 (el tempo cuenta la negra con puntillo: a 80, cada corchea dura un cuarto de segundo)
 for (const style of ['chacarera', 'zamba']) {
-  r = play('| Am | { E7 . . Am! . . } | Am |', style, [6, 8]);
+  r = play('| Am | { E7 . . Am! . . } | Am |', style, [6, 8], { getTempo: () => 80 });
   assert(r.hit(1.5 + 0.75) >= 4, style); assert.equal(r.band(2.25, 3), 0, style); assert(r.band(3 - 0.01, 4.5) > 3, style);
 }
 // 7) vals en 3/4, corte en el tiempo 3
@@ -115,8 +115,8 @@ assert(r.hit(0.75) >= 5);
 // anticipación con corte: el golpe se adelanta, no se repite en el 1, y hay silencio hasta el próximo acorde
 r = play('| C | <G! | _ | Am |', 'pop');
 assert(r.hit(1.75) >= 4); assert.equal(r.band(1.75, 6), 0); assert(r.band(6 - 0.01, 8) > 3);
-// en 6/8 la anticipación es de una corchea (un cuarto de segundo a 120)
-r = play('| Am | <E7 | Am |', 'chacarera', [6, 8]);
+// en 6/8 la anticipación es de una corchea (un cuarto de segundo a 80, que cuenta la negra con puntillo)
+r = play('| Am | <E7 | Am |', 'chacarera', [6, 8], { getTempo: () => 80 });
 assert(r.hit(1.5 - 0.25) >= 5);
 // con repeticiones, el compás anterior es el que suena antes, no el que está escrito antes
 r = play('|: <C | G :| Am |', 'pop');

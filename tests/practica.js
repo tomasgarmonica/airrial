@@ -78,4 +78,12 @@ const p0 = plain.filter(e => e.bar === 0).map(e => e.t), p1 = plain.filter(e => 
 assert(Math.abs((p1[0] - p0[0]) - 2) < 0.03 && Math.abs((p1[1] - p0[1]) - 2) < 0.03);
 assert.equal(plain.filter(e => e.chorus != null).map(e => e.chorus).join(), '0,1');
 
+// 6) el tempo cuenta el pulso: en 6/8 la negra con puntillo (dos por compás), en 12/8 cuatro, en 3/4 tres negras
+for (const [ts, pulses] of [[[6, 8], 2], [[12, 8], 4], [[3, 4], 3], [[7, 8], 3.5]]) {
+  const b = Music.parseChart('| C | C |', ts);
+  const l = run({ seq: Music.unfold(b), bars: Music.resolve(b, 0), getTempo: () => 120, style: 'pop', choruses: 1, countIn: false });
+  const dur = l.find(e => e.bar === 1).t - l.find(e => e.bar === 0).t;
+  assert(Math.abs(dur - pulses * 0.5) < 0.03, `${ts.join('/')} a 120: el compás dura ${dur.toFixed(2)} s y debería durar ${pulses * 0.5}`);
+}
+
 console.log('modo práctica: ok');

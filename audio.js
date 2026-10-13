@@ -766,6 +766,10 @@ const Engine = (() => {
     S.last = at(B);
   }
 
+  // Cuánto dura un tiempo del compás (una negra en 4/4, una corchea en 6/8). El tempo cuenta el pulso: la negra,
+  // o la negra con puntillo en los compases compuestos (6/8, 9/8, 12/8), donde el pulso son tres corcheas.
+  const beatDur = (tempo, bar) => (bar.den === 8 && bar.beats > 3 && bar.beats % 3 === 0 ? 20 : 240 / bar.den) / tempo;
+
   // Con la app en segundo plano el navegador frena los relojes: ahí se programa con más anticipación.
   function tick() {
     if (!flush() || S.done) return;
@@ -796,14 +800,14 @@ const Engine = (() => {
         S.q.push({ t: S.t, chorus: S.chorus });
       }
       const idx = o.seq[S.pos], bar = S.bars[idx];
-      const bd = 60 / o.getTempo(S.chorus) * 4 / bar.den;
+      const bd = beatDur(o.getTempo(S.chorus), bar);
       let nextIdx = null, nextBars = S.bars;
       if (S.pos + 1 < o.seq.length) nextIdx = o.seq[S.pos + 1];
       else if (S.chorus + 1 < o.choruses) { nextIdx = o.seq[0]; nextBars = barsOf(o, S.chorus + 1); }
       const nb = nextIdx == null ? null : nextBars[nextIdx], ns = nb ? nb.slots[0] : null;
       // si el compás que sigue empieza con un acorde anticipado, entra en este: `hold` es cuánto dura allá
       const ahead = ns && ns.beat === 0 && ns.push
-        ? { ...ns, hold: (nb.slots[1] ? nb.slots[1].beat : nb.beats) * bd * bar.den / nb.den } : null;
+        ? { ...ns, hold: (nb.slots[1] ? nb.slots[1].beat : nb.beats) * beatDur(o.getTempo(S.chorus), nb) } : null;
       S.idx = idx;
       schedBar(bar, S.t, bd, ns && ns.beat === 0 ? ns.chord : null, ahead);
       S.q.push({ t: S.t, i: idx });
@@ -857,7 +861,7 @@ const Engine = (() => {
       S.t = ctx.currentTime + 0.1;
       if (o.countIn) {
         const b = S.bars[o.seq[S.pos]];
-        const bd = 60 / o.getTempo(0) * 4 / b.den;
+        const bd = beatDur(o.getTempo(0), b);
         for (let i = 0; i < b.beats; i++) click(S.t + i * bd, i === 0, bus.fixed);
         S.t += b.beats * bd;
       }

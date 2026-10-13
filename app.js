@@ -2,7 +2,7 @@
   'use strict';
 
   // Sumar 0.01 en cada publicación mientras dure la beta: se muestra en la biblioteca para saber qué versión corre el teléfono.
-  const VERSION = '0.58';
+  const VERSION = '0.59';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -32,6 +32,15 @@
   if (firstRun) songs = [];
   const settings = Object.assign({ theme: 'dark', choruses: 3, countIn: true }, load(SETTINGS, {}));
   if (typeof settings.choruses !== 'number') settings.choruses = 3;
+  // Desde la 0.59 el tempo de los compases compuestos (6/8, 9/8, 12/8) cuenta la negra con puntillo, que es el
+  // pulso. Las canciones guardadas antes contaban la negra común: se les convierte el número una sola vez, para
+  // que sigan sonando a la misma velocidad.
+  if (!settings.pulse) {
+    for (const s of songs) if (/^(6|9|12)\/8$/.test(s.ts) && s.tempo > 0) s.tempo = Math.max(30, Math.round(s.tempo * 2 / 3));
+    if (!firstRun) store(SONGS, songs);
+    settings.pulse = true;
+    store(SETTINGS, settings);
+  }
   settings.hints = settings.hints || {};
   if (!['letras', 'jazz', 'latino', 'grados'].includes(settings.notation)) settings.notation = 'letras';
   // Canciones incluidas ya entregadas a este teléfono: { id: huella del contenido }.
