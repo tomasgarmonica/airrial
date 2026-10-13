@@ -25,7 +25,20 @@
   // --- almacenamiento ---
   const SONGS = 'airrial.songs.v1', SETTINGS = 'airrial.settings.v1', LISTS = 'airrial.lists.v1';
   const load = (k, def) => { try { return JSON.parse(localStorage.getItem(k)) || def; } catch { return def; } };
-  const store = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* sin espacio */ } };
+  // Si el teléfono no tiene lugar, guardar falla: `unsaved` lleva qué quedó sin guardar y un cartel lo avisa hasta
+  // que se pueda (tocarlo lo esconde; vuelve a salir en el próximo intento que falle).
+  const unsaved = new Set();
+  const store = (k, v) => {
+    try { localStorage.setItem(k, JSON.stringify(v)); unsaved.delete(k); } catch { unsaved.add(k); }
+    let el = document.querySelector('.full');
+    if (!unsaved.size) { if (el) el.remove(); return; }
+    if (el) return;
+    el = document.createElement('button');
+    el.className = 'full';
+    el.textContent = 'No hay lugar en el teléfono: lo último que hiciste no quedó guardado. Exportá una copia desde el Menú y borrá canciones que no uses.';
+    el.onclick = () => el.remove();
+    document.body.appendChild(el);
+  };
 
   let songs = load(SONGS, null);
   const firstRun = !songs;
@@ -219,15 +232,16 @@
       .map(l => ({ id: cleanId(l.id), name: short(l.name, 200) || 'Lista', songs: l.songs.map(String).filter(id => /^[\w-]{1,40}$/.test(id)) })),
   });
   // Nombre libre para algo que llega: si ya hay uno igual se le suma un número ("Tema (2)", "Tema (3)"…).
+  const baseName = name => name.replace(/ \(\d+\)$/, '');
   const freeName = (name, taken) => {
     if (!taken.includes(name)) return name;
-    const base = name.replace(/ \(\d+\)$/, '');
-    for (let n = 2; ; n++) if (!taken.includes(`${base} (${n})`)) return `${base} (${n})`;
+    for (let n = 2; ; n++) if (!taken.includes(`${baseName(name)} (${n})`)) return `${baseName(name)} (${n})`;
   };
-  // Suma una canción recibida sin pisar nada: si ya está idéntica (mismo título y cifrado) se usa la que hay;
-  // si hay otra con ese título, entra con un número. Devuelve el id con el que quedó en la biblioteca.
+  // Suma una canción recibida sin pisar nada: si ya está idéntica (mismo título y cifrado) se usa la que hay,
+  // aunque haya entrado antes con un número; si hay otra con ese título, entra con un número.
+  // Devuelve el id con el que quedó en la biblioteca.
   function keepSong(s) {
-    const same = songs.find(x => x.title === s.title && x.chart === s.chart);
+    const same = songs.find(x => x.chart === s.chart && baseName(x.title) === baseName(s.title));
     if (same) return same.id;
     const song = { ...s, title: freeName(s.title, songs.map(x => x.title)) };
     if (findSong(song.id)) song.id = newId();
@@ -236,7 +250,7 @@
   }
   // Lo mismo con una lista (`set.songs` ya trae los ids de la biblioteca).
   function keepList(set) {
-    const same = lists.find(x => x.name === set.name && x.songs.join() === set.songs.join());
+    const same = lists.find(x => baseName(x.name) === baseName(set.name) && x.songs.join() === set.songs.join());
     if (same) return same.id;
     const list = { ...set, name: freeName(set.name, lists.map(x => x.name)) };
     if (lists.some(x => x.id === list.id)) list.id = newId();
@@ -244,9 +258,10 @@
     return list.id;
   }
   // Suma a la biblioteca lo que trae un archivo o un enlace, sin reemplazar lo que ya había.
-  // Devuelve los ids con los que quedaron las canciones y las listas.
+  // Devuelve los ids con los que quedaron las canciones y las listas; si no hay lugar en el teléfono para
+  // guardarlo, deja la biblioteca como estaba, avisa y devuelve null.
   function mergeData(incoming) {
-    const ids = new Map(), out = { songs: [], lists: [] };
+    const ids = new Map(), out = { songs: [], lists: [] }, before = [songs.slice(), lists.slice()];
     for (const song of incoming.songs) {
       const id = keepSong(song);
       ids.set(song.id, id);
@@ -255,6 +270,13 @@
     for (const set of incoming.lists) out.lists.push(keepList({ ...set, songs: set.songs.map(id => ids.get(id) || id).filter(findSong) }));
     saveSongs();
     saveLists();
+    if (unsaved.has(SONGS) || unsaved.has(LISTS)) {
+      [songs, lists] = before;
+      saveSongs();
+      saveLists();
+      alert('No hay lugar en el teléfono para guardar esto, así que no se guardó. Borrá canciones que no uses y probá de nuevo.');
+      return null;
+    }
     return out;
   }
   // Cuadro con opciones; devuelve la clave elegida o null.
@@ -703,11 +725,11 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       if (e.target.id !== 'file' || !e.target.files[0]) return;
       try {
         const incoming = readData(parseFile(await e.target.files[0].text()));
-        mergeData(incoming);
+        const kept = mergeData(incoming);
         $('#menu').close();
         draw();
         const n = incoming.lists.length;
-        alert(`Se importaron ${count(incoming.songs.length)}` + (n ? ` y ${n} ${n === 1 ? 'lista' : 'listas'}.` : '.'));
+        if (kept) alert(`Se importaron ${count(incoming.songs.length)}` + (n ? ` y ${n} ${n === 1 ? 'lista' : 'listas'}.` : '.'));
       } catch {
         alert('No se pudo leer ese archivo. Tiene que ser un archivo exportado desde Airrial.');
       }
@@ -1279,13 +1301,19 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <div class="shared"><b>${esc(song.title)}</b>
         <span>${esc([songMeta(song), song.tempo + ' bpm'].join(' · '))}</span></div>
         ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song))}</main>`;
-      actions.save = () => swap('#/s/' + mergeData({ songs: [song], lists: [] }).songs[0]);
+      actions.save = () => {
+        const kept = mergeData({ songs: [song], lists: [] });
+        if (kept) swap('#/s/' + kept.songs[0]);
+      };
     } else {
       app.innerHTML = head('Lista compartida', true) + (iosNote() || installHtml()) + `<main class="list">
         <div class="shared"><b>${esc(data.name)}</b><span>${count(data.songs.length)}</span></div>
         ${data.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`;
       // Las canciones de un enlace llegan sin identificador: cada una recibe el suyo y la lista las nombra por él.
-      actions.save = () => swap('#/l/' + mergeData({ songs: data.songs, lists: [{ id: newId(), name: data.name, songs: data.songs.map(s => s.id) }] }).lists[0]);
+      actions.save = () => {
+        const kept = mergeData({ songs: data.songs, lists: [{ id: newId(), name: data.name, songs: data.songs.map(s => s.id) }] });
+        if (kept) swap('#/l/' + kept.lists[0]);
+      };
     }
     fitChords(app);
     bind(actions);
@@ -1316,6 +1344,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         ${got.songs.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`);
       actions.save = () => {
         const kept = mergeData(got);
+        if (!kept) return;
         if (kept.lists.length === 1) swap('#/l/' + kept.lists[0]);
         else if (one) swap('#/s/' + kept.songs[0]);
         else swap('#/');
