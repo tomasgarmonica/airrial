@@ -144,7 +144,7 @@ const Exporter = (() => {
       const tx = left + pos[k] / B * inner, chord = Music.parseChord(b.items[k]);
       drawToken(g, b.items[k], tx, mid + s * 0.36, s, semis, flats);
       // anticipación y corte: la palabra chiquita debajo del acorde
-      const marks = chord ? [chord.push && 'anticipa', chord.cut && 'corte'].filter(Boolean).join(' · ') : '';
+      const marks = chord ? [chord.push && (chord.semi ? 'anticipa semi' : 'anticipa'), chord.cut && 'corte'].filter(Boolean).join(' · ') : '';
       if (marks) {
         g.font = `600 17px ${FONT}`;
         g.fillStyle = '#444';

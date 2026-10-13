@@ -13,15 +13,16 @@ const Music = (() => {
 
   // Un "!" al final marca un corte: la banda da un golpe seco en ese acorde y calla hasta el próximo.
   // Un "<" adelante marca una anticipación: el acorde está escrito en su lugar pero empieza a sonar una corchea antes.
+  // Con "<<" la anticipación es de una semicorchea (`semi`).
   function parseChord(str) {
     let s = typeof str === 'string' ? str : '';
-    const push = s.length > 1 && s[0] === '<';
-    if (push) s = s.slice(1);
+    const push = s.length > 1 && s[0] === '<', semi = push && s.length > 2 && s[1] === '<';
+    if (push) s = s.slice(semi ? 2 : 1);
     const cut = s.length > 1 && s.endsWith('!');
     const m = CHORD.exec(cut ? s.slice(0, -1) : s);
     if (!m) return null;
     return {
-      cut, push, letter: m[1], acc: m[2], qual: m[3],
+      cut, push, semi, letter: m[1], acc: m[2], qual: m[3],
       num: (NOTE[m[1]] + accVal(m[2]) + 12) % 12,
       bassLetter: m[4] || null, bassAcc: m[5] || '',
       bassNum: m[4] ? (NOTE[m[4]] + accVal(m[5]) + 12) % 12 : null,
@@ -257,6 +258,7 @@ const Music = (() => {
             beat: pos[k],
             cut: c.cut,
             push: c.push,
+            semi: c.semi,
             chord: {
               root,
               bass: c.bassNum == null ? root : (c.bassNum + semis + 120) % 12,

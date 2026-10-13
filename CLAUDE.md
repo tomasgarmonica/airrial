@@ -111,5 +111,5 @@ Texto: compases separados por `|`, un renglón de texto por renglón de la hoja.
   `{ C . . . . . . G }` pone el G en el "y" del 4. Sin llaves vale la regla vieja (los acordes caen sobre
   los tiempos).
 - `!` al final del acorde es un corte (golpe seco y silencio hasta el próximo acorde).
-- `<` adelante del acorde es una anticipación (entra una corchea antes y queda ligado).
+- `<` adelante del acorde es una anticipación (entra una corchea antes y queda ligado); `<<` es de semicorchea.
 - Saltos por anotación: `Segno`, `Coda`, `Al Coda`, `Fine`, `D.C. …`, `D.S. …`.

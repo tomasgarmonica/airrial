@@ -92,6 +92,14 @@ const ant = M.parseChord('<G7');
 assert.equal(ant.push, true); assert.equal(ant.cut, false); assert.equal(ant.qual, '7');
 assert.deepEqual([M.parseChord('<Bb/D!').push, M.parseChord('<Bb/D!').cut, M.parseChord('<Bb/D!').bassNum], [true, true, 2]);
 assert.equal(M.parseChord('G7').push, false); assert.equal(M.parseChord('<'), null);
+// "<<" es la anticipación de semicorchea
+assert.deepEqual([ant.semi, M.parseChord('G7').semi], [false, false]);
+const semi = M.parseChord('<<Bb7/D!');
+assert.deepEqual([semi.push, semi.semi, semi.cut, semi.qual, semi.bassNum], [true, true, true, '7', 2]);
+assert.equal(M.parseChord('<<'), null); assert.equal(M.parseChord('<<<G'), null);
+const semis = M.parseChart('| C | <<G7 | { Am <Dm <<E7! } |', [4, 4]);
+assert.equal(M.serialize(semis), '| C | <<G7 | { Am <Dm <<E7! } |');
+assert.deepEqual(M.resolve(semis, 0).map(x => x.slots.map(s => (s.push ? 'a' : '') + (s.semi ? 's' : '') + (s.cut ? 'c' : '')).join(',')), ['', 'as', ',a,asc']);
 const pushed = M.parseChart('| C | <G7 | { Am <Dm! } |', [4, 4]);
 assert.equal(M.serialize(pushed), '| C | <G7 | { Am <Dm! } |');
 assert.deepEqual(M.resolve(pushed, 0).map(x => x.slots.map(s => (s.push ? 'a' : '') + (s.cut ? 'c' : '')).join(',')), ['', 'a', ',ac']);

@@ -702,13 +702,14 @@ const Engine = (() => {
     // sostiene mientras dura, sin volver a atacarse en su tiempo. Si está en el primer tiempo, entra al final
     // del compás anterior: `ahead` es ese acorde del compás que sigue (con `hold`, cuánto dura allá), y
     // `S.pushed` avisa después que el primer acorde ya entró.
-    const eighth = bar.den / 8, came = S.pushed;
+    // La anticipación puede ser de una corchea o de una semicorchea (`semi`): `lead` es cuántos tiempos se adelanta.
+    const lead = s => bar.den / (s.semi ? 16 : 8), came = S.pushed;
     const slots = bar.slots.map((s, i) => {
       if (!s.push) return s;
-      if (s.beat > 0) return { ...s, beat: Math.max(s.beat - eighth, 0), early: true, written: s.beat };
+      if (s.beat > 0) return { ...s, beat: Math.max(s.beat - lead(s), 0), early: true, written: s.beat };
       return came && i === 0 ? { ...s, held: true } : s;
     });
-    if (ahead) slots.push({ beat: B - eighth, chord: ahead.chord, cut: ahead.cut, early: true, hold: ahead.hold });
+    if (ahead) slots.push({ beat: B - lead(ahead), chord: ahead.chord, cut: ahead.cut, early: true, hold: ahead.hold });
     slots.sort((a, b) => a.beat - b.beat);
     S.pushed = !!ahead;
     const at = b => {

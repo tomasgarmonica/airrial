@@ -143,4 +143,21 @@ for (const style of STYLES) {
 // con shuffle, la anticipación cae atresillada
 r = play('| C | <G | Am |', 'shuffle');
 assert(r.hit((3 + 2 / 3) * 0.5) >= 5);
+// --- anticipación de semicorchea ("<<"): entra un octavo de segundo antes (a 120), no un cuarto ---
+r = play('| C | <<G | Am |', 'pop');
+assert(r.hit(1.875) >= 5, 'la anticipación de semicorchea suma acorde, bajo y bombo una semicorchea antes del 1');
+assert.equal(r.hit(1.75), plain, 'en el "y" del 4 no se agrega nada');
+assert(r.hit(2) >= 1); assert(r.hit(2) <= downbeat - 6, 'queda ligada: no se vuelve a atacar en el primer tiempo');
+// dentro del compás: escrito en el 3, entra una semicorchea antes
+r = play('| { C <<G } | Am |', 'pop');
+assert(r.hit(0.875) >= 5); assert(r.hit(1) <= third - 6);
+// con corte: el golpe se adelanta una semicorchea y después hay silencio
+r = play('| C | <<G! | _ | Am |', 'pop');
+assert(r.hit(1.875) >= 4); assert.equal(r.band(1.875, 6), 0);
+// en 6/8, a 80, la semicorchea dura un octavo de segundo
+r = play('| Am | <<E7 | Am |', 'chacarera', [6, 8], { getTempo: () => 80 });
+assert(r.hit(1.5 - 0.125) >= 5);
+// en swing no se atresilla: es una semicorchea justa
+r = play('| C | <<G | Am |', 'swing');
+assert(r.hit(1.875) >= 5);
 console.log('cortes: ok');

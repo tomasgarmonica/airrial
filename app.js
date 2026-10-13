@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.0.60 → 0.0.61): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. El del medio pasa a 1 (0.1.0) cuando la app esté para compartir con gente que la pruebe.
-  const VERSION = '0.0.64';
+  const VERSION = '0.0.65';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -459,7 +459,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     if (tk === '%') return '<span class="rp">%</span>';
     const c = Music.parseChord(tk);
     if (!c) return `<span class="nc">${esc(tk)}</span>`;
-    const d = Music.spell(c, semis, flats), marks = [c.push && 'anticipa', c.cut && 'corte'].filter(Boolean).join(' · ');
+    const d = Music.spell(c, semis, flats), marks = [c.push && (c.semi ? 'anticipa semi' : 'anticipa'), c.cut && 'corte'].filter(Boolean).join(' · ');
     // `cn` envuelve el nombre del acorde (es lo que se mide para ajustar el tamaño); el corte va chiquito debajo.
     return `<span class="cn"><b>${esc(d.root)}</b>${d.qual ? `<i>${esc(d.qual)}</i>` : ''}${d.bass ? `<u>/${esc(d.bass)}</u>` : ''}${marks ? `<em class="cut">${marks}</em>` : ''}</span>`;
   }
@@ -1411,7 +1411,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   const PARTS = ['A', 'B', 'C', 'D', 'Intro', 'Estribillo', 'Puente', 'Solo', 'Final'];
   const NOTES = ['Segno', 'Coda', 'Al Coda', 'Fine', 'D.C.', 'D.C. al Fine', 'D.C. al Coda', 'D.S.', 'D.S. al Fine', 'D.S. al Coda'];
   const plainAcc = a => (a === '♯' ? '#' : a === '♭' ? 'b' : a);
-  const chordText = c => (c.push ? '<' : '') + c.letter + plainAcc(c.acc) + c.qual +
+  const chordText = c => (c.push ? (c.semi ? '<<' : '<') : '') + c.letter + plainAcc(c.acc) + c.qual +
     (c.bassLetter ? '/' + c.bassLetter + plainAcc(c.bassAcc) : '') + (c.cut ? '!' : '');
   const HELP =`<details class="help"><summary>Cómo se escribe</summary>
     <ul>
@@ -1424,7 +1424,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <li>Cambio de compás: <code>3/4</code> al empezar el compás. Texto libre entre comillas: <code>"Fine"</code>.</li>
       <li>Acordes: <code>C</code> <code>F#m7</code> <code>Bbmaj7</code> <code>E7b9</code> <code>Am7b5</code> <code>Gsus4</code> <code>D/F#</code>.</li>
       <li>Corte (golpe seco y silencio hasta el próximo acorde): un <code>!</code> pegado al acorde, por ejemplo <code>G7!</code>.</li>
-      <li>Anticipación (el acorde suena una corchea antes de donde está escrito): un <code>&lt;</code> adelante, por ejemplo <code>&lt;G7</code>.</li>
+      <li>Anticipación (el acorde suena una corchea antes de donde está escrito): un <code>&lt;</code> adelante, por ejemplo <code>&lt;G7</code>. Con dos, <code>&lt;&lt;G7</code>, se adelanta una semicorchea.</li>
     </ul></details>`;
 
   function editView(id) {
@@ -1506,7 +1506,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       return `<div class="kb k7">${ROOTS.map(r => btn('root', r, r, letter === r)).join('')}</div>
         <div class="kb k5">${btn('acc', 'b', '♭', acc === 'b')}${btn('acc', '#', '♯', acc === '#')}
           ${btn('bass', '', '/ bajo', bass)}${btn('rep', '', '%', item() === '%')}</div>
-        <div class="kb k3">${btn('divide', '', 'Dividir')}${btn('push', '', 'Anticipar', !!(c && c.push))}${btn('cut', '', 'Corte', !!(c && c.cut))}${btn('del', '', 'Borrar')}</div>
+        <div class="kb k3">${btn('divide', '', 'Dividir')}${btn('push', '', c && c.semi ? 'Antic. semi' : 'Anticipar', !!(c && c.push))}${btn('cut', '', 'Corte', !!(c && c.cut))}${btn('del', '', 'Borrar')}</div>
         ${bass ? `<p class="hint">Elegí arriba la nota del bajo. ${btn('nobass', '', 'Sin bajo')}</p>`
           : c ? `<div class="kb quals scroll">${QUALS.map(q => btn('qual', q, q ? q.replace(/b/g, '♭').replace(/#/g, '♯') : 'mayor', c.qual === q)).join('')}</div>`
           : '<p class="hint">Tocá una nota para escribir el acorde en el lugar marcado.</p>'}`;
@@ -1541,7 +1541,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const stripHtml = () => {
       const b = bars[cur.b];
       if (b.items.length < 2) return '';
-      return `<div class="strip">${b.items.map((it, k) => `<button type="button" data-a="slot" data-v="${k}" style="flex:${b.lens[k]}" class="${k === cur.k ? 'on' : ''}${/^<|!$/.test(it) ? ' cut' : ''}">${it === '_' ? '' : esc(it.replace(/^<|!$/g, '').replace(/b/g, '♭').replace(/#/g, '♯'))}</button>`).join('')}</div>`;
+      return `<div class="strip">${b.items.map((it, k) => `<button type="button" data-a="slot" data-v="${k}" style="flex:${b.lens[k]}" class="${k === cur.k ? 'on' : ''}${/^<|!$/.test(it) ? ' cut' : ''}">${it === '_' ? '' : esc(it.replace(/^<+|!$/g, '').replace(/b/g, '♭').replace(/#/g, '♯'))}</button>`).join('')}</div>`;
     };
     const draw = () => {
       if (mode !== 'grid') return;
@@ -1695,11 +1695,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         cur.fresh = false;
       },
       bass: () => { if (Music.parseChord(item())) target = target === 'bass' ? 'root' : 'bass'; },
-      // Anticipación: el acorde queda escrito en su lugar pero empieza a sonar una corchea antes.
+      // Anticipación: el acorde queda escrito en su lugar pero empieza a sonar antes. El botón va pasando:
+      // sin anticipar → una corchea antes → una semicorchea antes → sin anticipar.
       push: () => {
         const c = Music.parseChord(item());
         if (!c) { toast('La anticipación se pone sobre un acorde: escribilo primero.'); return; }
-        c.push = !c.push;
+        if (!c.push) c.push = true;
+        else if (!c.semi) c.semi = true;
+        else c.push = c.semi = false;
+        if (c.push) toast(c.semi ? 'Anticipa una semicorchea. Tocá de nuevo para quitarla.' : 'Anticipa una corchea. Tocá de nuevo para que sea una semicorchea.');
         setItem(chordText(c));
         cur.fresh = false;
       },
