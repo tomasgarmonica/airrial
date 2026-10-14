@@ -132,6 +132,10 @@ Cada etapa se publica y se prueba antes de pasar a la siguiente.
 
 ## Notas técnicas (para quien programe)
 
+- **El servidor está escrito en `servidor/comunidad.sql`** (tablas, reglas por fila, funciones y disparadores
+  de todas las etapas). Se pega entero en el SQL Editor de Supabase y se puede volver a correr. Su prueba,
+  `servidor/probar.mjs`, lo corre en un Postgres local y revisa las reglas (quién ve, sube, cambia y borra).
+
 - **Sin dependencias:** la app habla con Supabase por `fetch` a su API (PostgREST y Auth), sin sumar la
   librería. El código de la Comunidad va en un archivo aparte (`comunidad.js`), sumado a `FILES` en `sw.js`.
   El service worker no tiene que guardar las respuestas de Supabase.
