@@ -50,6 +50,7 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Probar en celular real el envío de un archivo `.airrial.html` (compartir una canción propia y que otra persona la abra)
 - [ ] Comunidad: secuencias subidas por usuarios. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento. La app no trae canciones propias (decidido el 2026-10-09, por los posibles derechos): el repertorio llega por la comunidad
 - [ ] Comunidad: destacar las canciones más completas o mejor puntuadas. Decidido el 14 de octubre de 2026: por cantidad de bajadas y fijadas por el dueño, sin estrellas ni votos. El diseño completo y las etapas están en `COMUNIDAD.md`
+- [x] Comunidad, etapa 1 (14 de octubre de 2026): el dueño creó el proyecto en Supabase (`https://cbiavmaznmbhgfytkwbl.supabase.co`, región São Paulo, clave publishable `sb_publishable_CgTYhMa7dyD5XcLxNXY_yw_KnXerWnA`, que es pública) y corrió `servidor/comunidad.sql`. Revisado desde afuera: sin cuenta se leen canciones, listas, ritmos y artistas; no se puede subir ni leer denuncias. La contraseña de la base y la clave secreta las guarda el dueño y no van nunca al repositorio
 
 ## 4. Audio y pistas
 
