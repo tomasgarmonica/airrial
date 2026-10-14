@@ -89,6 +89,7 @@ a.cmore { display: flex; align-items: center; justify-content: center; text-deco
 .acct .chk { display: flex; align-items: center; gap: 10px; min-height: 44px; }
 .acct .chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 .err { color: var(--danger); font-size: .9rem; }
+h2.sub { margin: 16px 0 0; font-size: .85rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
 .err:empty { display: none; }
 .cmore { display: block; width: 100%; min-height: 44px; margin: 12px 0; border: 0; border-radius: 10px; background: var(--surface); color: var(--accent); font-weight: 600; }
 .item .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }

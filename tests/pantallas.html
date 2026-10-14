@@ -316,6 +316,64 @@ const cases = {
     await a.tap('[data-g="out"]');
     check(!a.w.localStorage.getItem('airrial.cuenta.v1'), 'no salió de la cuenta');
   },
+  'Comunidad: subir una lista, guardar una lista de otro y borrar la propia': async () => {
+    const a = await start({
+      songs: [song('s1', 'Uno', '| C |'), song('s2', 'Dos', '| "Yo te quiero tanto mi amor, no me dejes" G |')],
+      lists: [{ id: 'l1', name: 'Peña', songs: ['s1'] }, { id: 'l2', name: 'Con letra', songs: ['s1', 's2'] }],
+      // ya entró a la cuenta antes
+      cuenta: { access: 'a', refresh: 'r', until: Date.now() + 36e5, id: 'u1', email: 'yo@mail.com' },
+    });
+    const asked = [], mine = [];
+    const other = { id: 3, nombre: 'De otro', cantidad: 2, bajadas: 2, fijada: false, perfiles: { nombre: 'Ana' },
+      canciones: [['Uno', '', 'swing', 'C', 120, '4/4', '| C |', 4], ['Tres', 'Otra', 'bossa', 'F', 130, '4/4', '| F | C7 |', 4]] };
+    const json = (b, status) => new a.w.Response(b == null ? null : JSON.stringify(b), { status: status || 200 });
+    a.w.server = (url, o) => {
+      const m = (o && o.method) || 'GET', body = o && o.body ? JSON.parse(o.body) : null, p = url.replace(/^.*supabase\.co\//, '');
+      asked.push(m + ' ' + p);
+      if (p.startsWith('rest/v1/perfiles')) return json([{ nombre: 'Tomás' }]);
+      if (p.startsWith('rest/v1/listas') && m === 'POST') { mine.push({ id: 7, ...body, cantidad: body.canciones.length, bajadas: 0, oculta: false }); return json([mine[0]], 201); }
+      if (p.startsWith('rest/v1/listas') && m === 'DELETE') { mine.length = 0; return json(null, 204); }
+      if (p.startsWith('rest/v1/listas') && p.includes('autor=eq.')) return json(mine);
+      if (p.startsWith('rest/v1/listas') && p.includes('id=eq.3')) return json([other]);
+      if (p.startsWith('rest/v1/listas')) return json([other]);
+      if (p.startsWith('rest/v1/canciones')) return json([]);
+      return json(null, 204);
+    };
+    // una lista con letra metida en una anotación no se sube, y dice cuál canción es
+    a.w.location.hash = '#/c/ul/l2';
+    await until(() => /hasta 30 letras/.test(a.text('main') || ''), 'el aviso de la canción que no se puede subir');
+    check(/Dos/.test(a.text('#gate')) && !a.$('[data-g="up"]'), 'el aviso: ' + a.text('#gate'));
+    // la otra sí (ya con cuenta y nombre, va directo)
+    a.w.location.hash = '#/c/ul/l1';
+    await until(() => a.$('[data-g="up"]'), 'el botón Subir');
+    check(/copia de sus 1 tema/.test(a.text('#gate')), 'no avisa que va una copia: ' + a.text('#gate'));
+    a.fits('subir una lista');
+    await a.tap('[data-g="up"]');
+    await until(() => /ya está en la Comunidad/.test(a.text('#gate') || ''), 'que se suba');
+    same([mine[0].nombre, mine[0].canciones, mine[0].autor], ['Peña', [['Uno', '', 'swing', 'C', 120, '4/4', '| C |', 4]], 'u1'], 'lo subido');
+    // buscar listas y guardar una de otro: la canción que ya estaba no se repite
+    a.w.location.hash = '#/c';
+    await until(() => a.$('[data-a="ckind"][data-v="listas"]'), 'el selector Canciones / Listas');
+    await a.tap('[data-a="ckind"][data-v="listas"]');
+    await until(() => /De otro/.test(a.text('#clist') || ''), 'las listas');
+    check(/Lista · 2 temas/.test(a.text('#clist')) && /Subida por Ana · 2 bajadas/.test(a.text('#clist')), 'el renglón: ' + a.text('#clist'));
+    a.fits('listas de la comunidad');
+    await a.tap('#clist a.item');
+    await until(() => a.$('[data-a="save"]'), 'la lista con Guardar');
+    check(/1\. Uno/.test(a.text('main')) && /2\. Tres/.test(a.text('main')), 'los temas: ' + a.text('main'));
+    await a.tap('[data-a="save"]');
+    await until(() => a.saved('lists').length === 3, 'que se guarde la lista');
+    same(a.mine().map(s => s.title), ['Uno', 'Dos', 'Tres'], 'las canciones');
+    const got = a.saved('lists')[2];
+    same([got.name, got.songs.length, got.songs[0]], ['De otro', 2, 's1'], 'la lista guardada');
+    check(asked.includes('POST rest/v1/rpc/bajar'), 'no sumó la bajada');
+    // mis subidas: aparece la lista y se borra
+    a.w.location.hash = '#/c/m';
+    await until(() => /Peña/.test(a.text('#gate') || ''), 'la lista en mis subidas');
+    await a.tap('[data-g="del"][data-k="lista"]');
+    await until(() => /Todavía no subiste/.test(a.text('#gate') || ''), 'que se borre');
+    same(a.saved('lists').map(l => l.name), ['Peña', 'Con letra', 'De otro'], 'las listas del teléfono');
+  },
 };
 
 (async () => {

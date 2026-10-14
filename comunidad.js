@@ -10,6 +10,9 @@ const Comunidad = (() => {
   // Lo que se muestra en los renglones (el cifrado se trae recién al abrir una canción).
   const ROW = 'id,titulo,compositor,ritmo,compas,tonalidad,bajadas,fijada,perfiles(nombre)';
   const FULL = ROW + ',tempo,cifrado,cols';
+  // Lo mismo para las listas: el renglón y, al abrirla, sus canciones.
+  const LIST_ROW = 'id,nombre,cantidad,bajadas,fijada,perfiles(nombre)';
+  const LIST_FULL = LIST_ROW + ',canciones';
   // Largo máximo de cada anotación entre comillas al subir: alcanza para "Solo de piano" o "D.S. al Coda", no para
   // meter la letra (la Comunidad es solo de acordes).
   const NOTE_MAX = 30;
@@ -29,6 +32,14 @@ const Comunidad = (() => {
     q.push('order=' + (o.orden === 'nuevas' ? 'id.desc' : 'fijada.desc,bajadas.desc,id.desc'));
     q.push('limit=' + (PAGE + 1), 'offset=' + PAGE * (Math.max(0, Math.floor(+o.pagina || 0))));
     return 'canciones?' + q.join('&');
+  }
+  // Lo mismo para las listas, que se buscan solo por nombre.
+  function listsQuery(o = {}) {
+    const q = ['select=' + LIST_ROW];
+    for (const w of words(o.texto)) q.push('busqueda=like.' + encodeURIComponent('*' + w + '*'));
+    q.push('order=' + (o.orden === 'nuevas' ? 'id.desc' : 'fijada.desc,bajadas.desc,id.desc'));
+    q.push('limit=' + (PAGE + 1), 'offset=' + PAGE * (Math.max(0, Math.floor(+o.pagina || 0))));
+    return 'listas?' + q.join('&');
   }
 
   // Un renglón del servidor → canción con los nombres de la app (sin revisar: eso lo hace cleanSong).
@@ -125,7 +136,7 @@ const Comunidad = (() => {
   }
 
   return {
-    plano, words, songsQuery, toSong, fromSong, check, byWhom, PAGE, NOTE_MAX,
+    plano, words, songsQuery, listsQuery, toSong, fromSong, check, byWhom, PAGE, NOTE_MAX,
     // { filas, mas }: una página de canciones y si hay más.
     buscar: async o => {
       const rows = list(await ask(songsQuery(o))).filter(r => r && Number.isFinite(r.id));
@@ -138,8 +149,14 @@ const Comunidad = (() => {
       .filter(r => r && typeof r.clave === 'string' && r.clave).map(r => ({ compositor: String(r.compositor), clave: r.clave, cantidad: intOr0(r.cantidad) })),
     // Una canción entera, o null si no está (o la escondieron).
     cancion: async id => (/^\d{1,15}$/.test(id) ? list(await ask('canciones?select=' + FULL + '&id=eq.' + id))[0] || null : null),
-    // Suma una bajada. Si falla no importa: la canción ya quedó guardada.
-    bajar: id => ask('rpc/bajar', { method: 'POST', body: JSON.stringify({ que: 'cancion', cual: Math.floor(+id) }) }).catch(() => {}),
+    buscarListas: async o => {
+      const rows = list(await ask(listsQuery(o))).filter(r => r && Number.isFinite(r.id));
+      return { filas: rows.slice(0, PAGE), mas: rows.length > PAGE };
+    },
+    // Una lista entera (sus canciones vienen como filas: título, autor, estilo, tono, tempo, compás, cifrado, renglón).
+    lista: async id => (/^\d{1,15}$/.test(id) ? list(await ask('listas?select=' + LIST_FULL + '&id=eq.' + id))[0] || null : null),
+    // Suma una bajada (`que`: 'cancion' o 'lista'). Si falla no importa: ya quedó guardada.
+    bajar: (id, que) => ask('rpc/bajar', { method: 'POST', body: JSON.stringify({ que: que === 'lista' ? 'lista' : 'cancion', cual: Math.floor(+id) }) }).catch(() => {}),
 
     // La cuenta con la que se entró en este teléfono ({ id, email }) o null.
     cuenta: () => (session ? { id: session.id, email: session.email } : null),
@@ -174,6 +191,17 @@ const Comunidad = (() => {
     // Reemplaza una canción ya subida por otra versión.
     actualizar: (id, s) => mine('canciones?id=eq.' + Math.floor(+id), { method: 'PATCH', body: JSON.stringify(fromSong(s)) }),
     borrar: id => mine('canciones?id=eq.' + Math.floor(+id), { method: 'DELETE' }),
+    // Listas de esta cuenta. `l`: { nombre, canciones: [filas] }.
+    misListas: async () => list(await mine('listas?select=' + LIST_FULL + ',oculta&autor=eq.' + me() + '&order=id.desc&limit=1000'))
+      .filter(r => r && Number.isFinite(r.id)),
+    subirLista: async l => {
+      const r = list(await mine('listas', { method: 'POST', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ nombre: String(l.nombre).trim(), canciones: l.canciones, autor: me() }) }))[0];
+      if (!r || !Number.isFinite(r.id)) throw Object.assign(new Error('respuesta rara'), { status: 500 });
+      return r.id;
+    },
+    actualizarLista: (id, l) => mine('listas?id=eq.' + Math.floor(+id), { method: 'PATCH', body: JSON.stringify({ nombre: String(l.nombre).trim(), canciones: l.canciones }) }),
+    borrarLista: id => mine('listas?id=eq.' + Math.floor(+id), { method: 'DELETE' }),
   };
 })();
 

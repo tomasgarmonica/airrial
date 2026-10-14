@@ -23,6 +23,10 @@ assert.ok(q.includes('ritmo=eq.bossa%26x%3D1') && q.includes('artista=eq.tom%20j
 q = C.songsQuery({ orden: 'nuevas', pagina: 2 });
 assert.ok(q.includes('order=id.desc') && q.includes('offset=60') && !q.includes('busqueda'), q);
 assert.ok(C.songsQuery({ pagina: -3 }).includes('offset=0'));
+// las listas se buscan por nombre, y no traen sus canciones en el renglón
+q = C.listsQuery({ texto: 'Peña del Sábado', orden: 'nuevas', pagina: 1 });
+assert.ok(q.startsWith('listas?select=') && !q.includes('canciones') && q.includes('busqueda=like.*pena*') && q.includes('busqueda=like.*sabado*'), q);
+assert.ok(q.includes('order=id.desc') && q.includes('offset=30'), q);
 
 // lo que llega pasa a los nombres de la app, y lo que se sube al revés (sin etiquetas, teclado ni volúmenes)
 assert.deepStrictEqual(C.toSong({ titulo: 'T', compositor: 'A', ritmo: 'bossa', tonalidad: 'C', tempo: 130, compas: '4/4', cifrado: '| C |', cols: 4 }),
@@ -81,6 +85,15 @@ const resp = (status, body) => ({ ok: status < 300, status, json: async () => bo
   assert.deepStrictEqual(asked[0].body, { que: 'cancion', cual: 4 });
   reply = () => resp(204, null);
   assert.strictEqual(await C.bajar(4), null);
+  asked = [];
+  await C.bajar(9, 'lista');
+  assert.deepStrictEqual(asked[0].body, { que: 'lista', cual: 9 });
+  reply = () => resp(200, [{ id: 3, nombre: 'Peña', canciones: [['T', 'A', 'bossa', 'C', 120, '4/4', '| C |', 4]] }]);
+  assert.strictEqual((await C.lista('3')).nombre, 'Peña');
+  assert.ok(asked[1].url.includes('listas?select=') && asked[1].url.includes(',canciones&id=eq.3'), asked[1].url);
+  assert.strictEqual(await C.lista('x'), null);
+  reply = () => resp(200, [{ id: 1, nombre: 'a' }, { id: 'no' }]);
+  assert.strictEqual((await C.buscarListas({})).filas.length, 1);
 
   // --- cuenta ---
   assert.strictEqual(C.cuenta(), null, 'sin cuenta al empezar');
@@ -130,6 +143,20 @@ const resp = (status, body) => ({ ok: status < 300, status, json: async () => bo
   await C.borrar('42');
   assert.deepStrictEqual([asked[0].opts.method, asked[0].body.titulo, asked[1].opts.method], ['PATCH', 'Mía', 'DELETE']);
   assert.ok(asked[1].url.endsWith('canciones?id=eq.42'));
+  // listas con la cuenta
+  const rowsOf = [['Mía', 'Yo', 'samba', 'A', 100, '2/4', '| A |', 4]];
+  asked = [];
+  reply = () => resp(201, [{ id: 5 }]);
+  assert.strictEqual(await C.subirLista({ nombre: ' Peña ', canciones: rowsOf }), 5);
+  assert.deepStrictEqual(asked[0].body, { nombre: 'Peña', canciones: rowsOf, autor: U });
+  reply = () => resp(204, null);
+  await C.actualizarLista(5, { nombre: 'Peña 2', canciones: rowsOf });
+  await C.borrarLista(5);
+  assert.deepStrictEqual([asked[1].opts.method, asked[1].body.nombre, asked[2].opts.method], ['PATCH', 'Peña 2', 'DELETE']);
+  assert.ok(asked[2].url.endsWith('listas?id=eq.5') && !('autor' in asked[1].body));
+  reply = () => resp(200, [{ id: 5, nombre: 'Peña' }]);
+  assert.strictEqual((await C.misListas()).length, 1);
+  assert.ok(asked[3].url.includes('autor=eq.' + U));
 
   // el permiso se renueva solo cuando está por vencer (una sola vez aunque se pidan dos cosas juntas)
   reply = () => auth(2, 30);
