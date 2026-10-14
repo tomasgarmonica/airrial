@@ -664,7 +664,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     app.innerHTML = `
       <header class="top"><div class="ttl"><h1>Airrial</h1><p>Mis cifrados · beta ${VERSION}</p></div>
         <button class="tx" data-a="menu">Menú</button></header>
-      <div class="seg tabs"><button data-a="tab" data-v="songs">Canciones</button><button data-a="tab" data-v="lists">Listas</button></div>
+      <div class="seg tabs"><button data-a="tab" data-v="songs">Canciones</button><button data-a="tab" data-v="lists">Listas</button><button data-a="community">Comunidad</button></div>
       <div class="search"><input id="q" type="search" autocomplete="off"></div>
       <div class="filt" id="filt"></div>
       <div class="filt" id="tagfilt"></div>
@@ -803,6 +803,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         toast(n === 1 ? 'Canción borrada.' : n + ' canciones borradas.');
       },
       tab: el => { libTab = el.dataset.v; q.value = ''; draw(); },
+      community: () => { location.hash = '#/c'; },
       style: el => { libStyle = el.dataset.v; draw(); },
       ltag: async () => {
         const tags = allTags();
@@ -1524,6 +1525,119 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     bind(actions);
   }
 
+  // --- Comunidad: buscar y bajar canciones que subieron otros (comunidad.js habla con el servidor) ---
+  // Pantallas: #/c (buscador, y por estilo o por artista), #/c/r/<ritmo>, #/c/a/<artista>, #/c/s/<número>.
+  // Necesita conexión; lo que ya está guardado en el teléfono no depende de ella.
+  let comTab = 'ritmo', comText = '', comOrder = 'bajadas';
+  const comStyle = id => (STYLES.find(s => s[0] === id) || [id, id])[1];
+  const times = n => (n === 1 ? '1 bajada' : (+n || 0) + ' bajadas');
+  const byLine = r => 'Subida por ' + Comunidad.byWhom(r) + ' · ' + times(r.bajadas);
+  const comRow = r => `<a class="item" href="#/c/s/${r.id}"><b>${esc(r.titulo)}${r.fijada ? ' <em class="inc">destacada</em>' : ''}</b>
+    <span>${esc([r.compositor, comStyle(r.ritmo), r.tonalidad, r.compas].filter(Boolean).join(' · '))}</span>
+    <span class="who">${esc(byLine(r))}</span></a>`;
+  const offline = '<p class="empty">No se pudo conectar con la Comunidad. Revisá la conexión y probá de nuevo.</p><button class="cmore" data-a="retry">Probar de nuevo</button>';
+
+  function comunidadView(what, val) {
+    if (what === 's') { comSongView(val); return; }
+    tally('Comunidad · abrir');
+    const sub = (what === 'r' || what === 'a') && val ? what : '';
+    app.innerHTML = `
+      <header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
+        <div class="ttl"><h1 id="ctitle">${esc(!sub ? 'Comunidad' : sub === 'r' ? comStyle(val) : val)}</h1>
+        <p>${!sub ? 'Canciones que subieron otros músicos' : (sub === 'r' ? 'Estilo' : 'Artista') + ' · Comunidad'}</p></div></header>
+      ${sub ? '' : `<div class="search"><input id="cq" type="search" autocomplete="off" placeholder="Buscar título o artista…" value="${esc(comText)}"></div>`}
+      <div class="seg tabs" id="ctabs"></div>
+      <main class="list" id="clist"></main>`;
+    const list = $('#clist'), tabs = $('#ctabs'), q = $('#cq');
+    // `ticket` descarta las respuestas que llegan tarde (si se siguió escribiendo o se cambió de pestaña).
+    let ticket = 0, page = 0, typing = null;
+    // Sin nada escrito se recorre por estilo o por artista; con algo escrito (o adentro de uno), son canciones.
+    const searching = () => !!sub || Comunidad.words(comText).length > 0;
+    const drawTabs = () => {
+      const opts = searching() ? [['bajadas', 'Más bajadas'], ['nuevas', 'Más nuevas']] : [['ritmo', 'Por estilo'], ['artista', 'Por artista']];
+      const on = searching() ? comOrder : comTab;
+      tabs.innerHTML = opts.map(o => `<button data-a="ctab" data-v="${o[0]}"${o[0] === on ? ' class="on"' : ''}>${o[1]}</button>`).join('');
+    };
+    const load = async more => {
+      const mine = ++ticket;
+      drawTabs();
+      if (!more) { page = 0; list.innerHTML = '<p class="empty">Cargando…</p>'; }
+      try {
+        if (!searching()) {
+          const got = comTab === 'ritmo' ? await Comunidad.ritmos() : await Comunidad.artistas();
+          if (mine !== ticket) return;
+          list.innerHTML = got.length ? got.map(g => (comTab === 'ritmo'
+            ? `<a class="item" href="#/c/r/${encodeURIComponent(g.ritmo)}"><b>${esc(comStyle(g.ritmo))}</b>`
+            : `<a class="item" href="#/c/a/${encodeURIComponent(g.clave)}"><b>${esc(g.compositor)}</b>`) + `<span>${count(g.cantidad)}</span></a>`).join('')
+            : '<p class="empty">Todavía no hay canciones en la Comunidad.</p>';
+          return;
+        }
+        const got = await Comunidad.buscar({ texto: sub ? '' : comText, ritmo: sub === 'r' ? val : '', artista: sub === 'a' ? val : '', orden: comOrder, pagina: page });
+        if (mine !== ticket) return;
+        if (sub === 'a' && got.filas[0]) $('#ctitle').textContent = got.filas[0].compositor;
+        const html = got.filas.map(comRow).join('') + (got.mas ? '<button class="cmore" data-a="cmore">Ver más</button>' : '');
+        if (more) { $('[data-a="cmore"]', list).remove(); list.insertAdjacentHTML('beforeend', html); }
+        else list.innerHTML = html || `<p class="empty">${sub ? 'Acá no hay canciones todavía.' : 'Ninguna canción coincide con la búsqueda.'}</p>`;
+      } catch {
+        if (mine !== ticket) return;
+        if (!more) { list.innerHTML = offline; return; }
+        page--;
+        $('[data-a="cmore"]', list).disabled = false;
+        toast('No se pudo conectar. Probá de nuevo.');
+      }
+    };
+    bind({
+      back: () => up(sub ? '#/c' : '#/'),
+      ctab: el => { if (searching()) comOrder = el.dataset.v; else comTab = el.dataset.v; load(); },
+      cmore: el => { el.disabled = true; page++; load(true); },
+      retry: () => load(),
+    });
+    app.oninput = e => {
+      if (e.target !== q) return;
+      comText = q.value;
+      clearTimeout(typing);
+      typing = setTimeout(() => load(), 350);
+    };
+    load();
+  }
+
+  // Una canción de la Comunidad: se ve la hoja y se guarda en las propias (sin pisar ni duplicar nada).
+  async function comSongView(id) {
+    const head = btn => `<header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
+      <div class="ttl"><h1>Comunidad</h1></div>${btn || ''}</header>`;
+    // vuelve a la búsqueda o al estilo de donde se vino
+    const back = () => { const p = trail[trail.length - 2]; up(p && p.startsWith('#/c') ? p : '#/c'); };
+    const show = async () => {
+      app.innerHTML = head() + '<main class="list"><p class="empty">Cargando…</p></main>';
+      let r = null, failed = false;
+      try { r = await Comunidad.cancion(id); } catch { failed = true; }
+      if (here() !== '#/c/s/' + id) return;
+      if (!r) { app.innerHTML = head() + `<main class="list">${failed ? offline : '<p class="empty">Esta canción ya no está en la Comunidad.</p>'}</main>`; return; }
+      const song = cleanSong({ ...Comunidad.toSong(r), id: newId() });
+      const have = songs.find(x => x.chart === song.chart && baseName(x.title) === baseName(song.title));
+      app.innerHTML = head(have ? '<button class="tx" data-a="open">Abrir</button>' : '<button class="tx pri" data-a="save">Guardar</button>') + `<main class="chart">
+        <div class="shared"><b>${esc(song.title)}</b>
+        <span>${esc([songMeta(song), song.tempo + ' bpm'].join(' · '))}</span>
+        <span>${esc(byLine(r))}</span>${have ? '<span>Ya la tenés en tus canciones.</span>' : ''}</div>
+        ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song))}</main>`;
+      fitChords(app);
+      bind({
+        back,
+        open: () => { location.hash = '#/s/' + have.id; },
+        save: () => {
+          const kept = mergeData({ songs: [song], lists: [] });
+          if (!kept) return;
+          Comunidad.bajar(r.id);
+          tally('Comunidad · bajar');
+          toast('Guardada en tus canciones.');
+          swap('#/s/' + kept.songs[0]);
+        },
+      });
+    };
+    bind({ back, retry: show });
+    await show();
+  }
+
   // --- editor ---
   const INSERTS = [
     ['|', ' | '], ['|:', '|: '], [':|', ' :|'], ['%', '% '], ['[A]', '[]', 1], ['1.', '1. '], ['2.', '2. '],
@@ -2121,6 +2235,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     else if (kind === 'e') editView(id);
     else if (kind === 'i') importView(id);
     else if (kind === 'r') receiveView();
+    else if (kind === 'c') { let v = ''; try { v = decodeURIComponent(extra || ''); } catch { /* dirección rota */ } comunidadView(id, v); }
     else libraryView();
     window.scrollTo(0, 0);
   }

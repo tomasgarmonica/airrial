@@ -41,6 +41,11 @@ async function start(seed, hash) {
     window.confirm = m => { said.push(m); return true; };
     window.prompt = (m, v) => { said.push(m); return answers.length ? answers.shift() : null; };
     Object.defineProperty(navigator, 'serviceWorker', { get: () => ({ controller: null, addEventListener() {}, register: () => Promise.resolve() }) });
+    // La Comunidad habla con un servidor de mentira (window.server); sin él, es como estar sin conexión.
+    const realFetch = window.fetch.bind(window);
+    window.server = null;
+    window.fetch = (u, o) => (String(u).includes('.supabase.co') ? (window.server ? Promise.resolve().then(() => window.server(String(u), o))
+      : Promise.reject(new TypeError('sin conexión'))) : realFetch(u, o));
     Object.defineProperty(navigator, 'clipboard', { get: () => ({ writeText: () => Promise.reject(new Error('no')), readText: () => Promise.reject(new Error('no')) }) });
   <\/script>`;
   const doc = frame.contentDocument;
@@ -196,6 +201,50 @@ const cases = {
     same(a.mine().map(s => [s.title, s.style, s.key, s.tempo, s.ts, s.chart]), [['Tema', 'swing', 'C', 120, '4/4', '| Cmaj7 |']], 'el tema');
     const said = a.w.said.join(' ');
     check(/Se importaron 1 tema/.test(said) && /roto\.sgu/.test(said), 'faltan los avisos: ' + said);
+  },
+  'Comunidad: recorrer por estilo, ver una canción, guardarla, buscar y quedarse sin conexión': async () => {
+    const a = await start({ songs: [] });
+    const asked = [];
+    const rows = [{ id: 7, titulo: 'Águas de Março', compositor: 'Tom Jobim', ritmo: 'bossa', compas: '4/4', tonalidad: 'C', bajadas: 12, fijada: true,
+      perfiles: null, tempo: 138, cifrado: '| C | C7 |\n| F | Fm |', cols: 4 }];
+    // servidor de mentira: contesta los estilos, las canciones y la bajada
+    a.w.server = url => {
+      asked.push(url.replace(/^.*\/rest\/v1\//, ''));
+      const body = url.includes('/ritmos?') ? [{ ritmo: 'bossa', cantidad: 1 }] : url.includes('/rpc/bajar') ? null : rows;
+      return new a.w.Response(body ? JSON.stringify(body) : null, { status: body ? 200 : 204 });
+    };
+    await a.tap('[data-a="community"]');
+    await until(() => /Bossa/.test(a.text('#clist') || ''), 'que aparezcan los estilos');
+    a.fits('comunidad');
+    await a.tap('#clist a.item');
+    await until(() => /Águas de Março/.test(a.text('#clist') || ''), 'las canciones del estilo');
+    check(asked.some(u => u.includes('ritmo=eq.bossa')), 'no pidió las de bossa: ' + asked.join(' '));
+    check(/destacada/.test(a.text('#clist')) && /Subida por Airrial · 12 bajadas/.test(a.text('#clist')), 'el renglón: ' + a.text('#clist'));
+    await a.tap('#clist a.item');
+    await until(() => a.$('[data-a="save"]'), 'la hoja con Guardar');
+    check(a.$('main.chart') && /138 bpm/.test(a.text('.shared')), 'la hoja: ' + a.text('main'));
+    a.fits('canción de la comunidad');
+    await a.tap('[data-a="save"]');
+    await until(() => a.mine().length === 1, 'que se guarde');
+    same(a.mine().map(s => [s.title, s.composer, s.style, s.tempo, s.chart]), [['Águas de Março', 'Tom Jobim', 'bossa', 138, '| C | C7 |\n| F | Fm |']], 'la guardada');
+    check(asked.some(u => u.startsWith('rpc/bajar')), 'no sumó la bajada');
+    await until(() => a.w.location.hash.startsWith('#/s/'), 'que abra la canción guardada');
+    // si ya la tiene, no la ofrece de nuevo
+    a.w.location.hash = '#/c/s/7';
+    await until(() => /Ya la tenés/.test(a.text('main') || ''), 'que avise que ya la tiene');
+    check(!a.$('[data-a="save"]') && a.$('[data-a="open"]'), 'ofrece guardarla de nuevo');
+    // buscar escribiendo
+    a.w.location.hash = '#/c';
+    await until(() => a.$('#cq'), 'el buscador');
+    await a.type('#cq', 'Aguas');
+    await until(() => asked.some(u => u.includes('busqueda=like.*aguas*')), 'que busque');
+    await until(() => /Águas/.test(a.text('#clist') || '') && a.$('[data-a="ctab"][data-v="nuevas"]'), 'el resultado');
+    // sin conexión avisa, y al volver la conexión se puede reintentar
+    a.w.server = null;
+    await a.tap('[data-a="ctab"][data-v="nuevas"]');
+    await until(() => a.$('[data-a="retry"]'), 'el aviso sin conexión');
+    a.fits('comunidad sin conexión');
+    check(a.mine().length === 1, 'se perdió lo guardado');
   },
 };
 

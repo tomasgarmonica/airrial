@@ -76,6 +76,8 @@ main { flex: 1; min-height: 0; overflow-x: hidden; overflow-y: auto; overscroll-
 .item { display: block; padding: 12px 0; border-bottom: 1px solid var(--surface); color: inherit; text-decoration: none; }
 .item b { display: block; font-size: 1.05rem; }
 .item span { font-size: .85rem; color: var(--muted); }
+.item span.who { display: block; }
+.cmore { display: block; width: 100%; min-height: 44px; margin: 12px 0; border: 0; border-radius: 10px; background: var(--surface); color: var(--accent); font-weight: 600; }
 .item .tags { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .tags i { font-style: normal; font-size: .72rem; line-height: 1.5; padding: 0 8px; border-radius: 10px; background: var(--surface); color: var(--muted); }
 .inc { font-style: normal; font-weight: 500; font-size: .68rem; color: var(--muted); border: 1px solid var(--line); border-radius: 8px; padding: 0 6px; vertical-align: middle; white-space: nowrap; }
@@ -169,7 +171,7 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 #chart .cell { cursor: pointer; }
 .shared { padding: 4px 0 8px; }
 .shared b { display: block; font-size: 1.2rem; }
-.shared span { font-size: .85rem; color: var(--muted); }
+.shared span { display: block; font-size: .85rem; color: var(--muted); }
 .ts { display: flex; flex-direction: column; font-size: .8rem; line-height: 1; margin-right: 4px; color: var(--muted); }
 .tm { position: absolute; right: 12px; top: 1px; font-size: .7rem; color: var(--muted); }
 .chs { flex: 1; min-width: 0; display: grid; align-items: center; }
