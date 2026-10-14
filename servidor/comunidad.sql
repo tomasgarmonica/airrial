@@ -38,8 +38,12 @@ create table if not exists public.canciones (
   actualizado timestamptz not null default now(),
   busqueda text generated always as (public.plano(titulo || ' ' || compositor)) stored
 );
+-- El artista sin acentos ni mayúsculas, para juntar "Jobim" y "jobim" al recorrer por artista (agregado después:
+-- por eso va aparte, así se suma a la tabla si ya estaba creada).
+alter table public.canciones add column if not exists artista text generated always as (public.plano(compositor)) stored;
 create index if not exists canciones_ritmo on public.canciones (ritmo);
-create index if not exists canciones_compositor on public.canciones (public.plano(compositor));
+create index if not exists canciones_artista on public.canciones (artista);
+drop index if exists public.canciones_compositor;
 create index if not exists canciones_autor on public.canciones (autor);
 
 -- Listas: nombre y una copia de sus canciones (como el archivo de lista: filas de songRow).
@@ -80,8 +84,8 @@ create table if not exists public.denuncias (
 create or replace view public.ritmos with (security_invoker = true) as
   select ritmo, count(*)::int as cantidad from public.canciones group by ritmo;
 create or replace view public.artistas with (security_invoker = true) as
-  select min(compositor) as compositor, public.plano(compositor) as clave, count(*)::int as cantidad
-  from public.canciones where btrim(compositor) <> '' group by public.plano(compositor);
+  select min(compositor) as compositor, artista as clave, count(*)::int as cantidad
+  from public.canciones where btrim(compositor) <> '' group by artista;
 
 -- --- Reglas por fila ---
 alter table public.perfiles enable row level security;
@@ -152,7 +156,7 @@ create or replace function public.por_enlace(codigo text) returns jsonb
   set search_path = ''
   as $$
   select coalesce(
-    (select to_jsonb(c) - 'autor' - 'busqueda' || jsonb_build_object('que', 'cancion') from public.canciones c
+    (select to_jsonb(c) - 'autor' - 'busqueda' - 'artista' || jsonb_build_object('que', 'cancion') from public.canciones c
       where c.codigo = por_enlace.codigo and not c.oculta),
     (select to_jsonb(l) - 'autor' - 'busqueda' || jsonb_build_object('que', 'lista') from public.listas l
       where l.codigo = por_enlace.codigo and not l.oculta))
