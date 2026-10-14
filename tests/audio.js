@@ -153,6 +153,16 @@ for (const keys of others) {
   else if (show(perc(late)) !== show(tail)) { fail++; console.log('FALLA: cumbia en 2/4 desde el segundo compás, queda corrida', late.length, tail.length); }
   else console.log('cumbia 2/4 = 4/4:', four.length, 'sonidos,', perc(four).length, 'de percusión y batería');
 }
+// En iPhone: pide sonar aunque el teléfono esté en silencio.
+{
+  const session = { type: 'auto' };
+  sandbox.navigator = { audioSession: session };
+  Engine.play({ seq: [0], bars: Music.resolve(Music.parseChart('| C |', [4, 4]), 0), getTempo: () => 100, style: 'click', choruses: 1, countIn: false, finalChord: null, onBar() {}, onEnd() {} });
+  Engine.stop();
+  sandbox.navigator = undefined;
+  if (session.type !== 'playback') { fail++; console.log('FALLA: en iPhone no pide sonar con el teléfono en silencio'); }
+  else console.log('iPhone en silencio: ok');
+}
 console.log(fail ? `${fail} fallas` : 'todo ok');
 if (fail) process.exit(1);
 })();

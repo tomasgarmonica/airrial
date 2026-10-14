@@ -6,13 +6,23 @@ const Engine = (() => {
   const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
 
   function ensure() {
+    // En iPhone el sonido de una página se apaga con el botón de silencio del costado, salvo que pida sonar como
+    // un reproductor de música (iOS 17 en adelante). Una app de acompañamiento tiene que sonar igual.
+    const nav = typeof navigator === 'undefined' ? {} : navigator;
+    if (nav.audioSession && nav.audioSession.type !== 'playback') {
+      try { nav.audioSession.type = 'playback'; } catch { /* navegador que no lo deja */ }
+    }
     if (!ctx) {
       ctx = new (window.AudioContext || window.webkitAudioContext)();
       noise = ctx.createBuffer(1, ctx.sampleRate, ctx.sampleRate);
       const d = noise.getChannelData(0);
       for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
     }
-    if (ctx.state === 'suspended') ctx.resume();
+    // "interrupted" es como lo deja el iPhone después de una llamada o al volver de otra app.
+    if (ctx.state !== 'running') {
+      const r = ctx.resume();
+      if (r) r.catch(() => {});
+    }
   }
 
   function makeBuses() {
