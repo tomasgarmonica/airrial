@@ -13,7 +13,10 @@ y entrar a <code>localhost:8000/tests/pantallas.html</code>).</p>
 // Cada caso arranca la app de cero dentro de un marco, con lo que se le quiera dejar guardado de antes.
 const out = document.getElementById('out'), lines = [];
 let fails = 0, frame = null;
-const wait = ms => new Promise(done => setTimeout(done, ms));
+// Con la pestaña en segundo plano el navegador demora las esperas hasta un minuto cada una; los mensajes entre
+// partes de la página no, así que se espera mirando el reloj entre mensaje y mensaje.
+const tick = () => new Promise(done => { const c = new MessageChannel(); c.port1.onmessage = () => done(); c.port2.postMessage(0); });
+const wait = async ms => { const end = performance.now() + ms; while (performance.now() < end) await tick(); };
 const until = async (test, what) => { for (let i = 0; i < 60; i++) { if (test()) return; await wait(50); } throw new Error('no pasó: ' + what); };
 const check = (cond, what) => { if (!cond) throw new Error(what); };
 const same = (a, b, what) => check(JSON.stringify(a) === JSON.stringify(b), what + ': esperaba ' + JSON.stringify(b) + ' y hay ' + JSON.stringify(a));
