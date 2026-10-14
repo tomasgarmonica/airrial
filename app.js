@@ -1990,14 +1990,14 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     };
     drawCols();
 
-    // Etiquetas: se prenden y apagan las que ya existen en la biblioteca, o se escribe una nueva.
+    // Etiquetas: a la vista quedan solo las de esta canción (tocar una la quita); "Agregar…" abre la lista de las
+    // que ya existen en la biblioteca, con la opción de escribir una nueva.
     // La canción en edición es una copia, así que su lista se arma aparte para no tocar la guardada.
     song.tags = tagsOf(song);
     const drawTags = () => {
-      const known = [...new Set([...allTags(), ...song.tags])].sort((a, b) => a.localeCompare(b, 'es'));
-      $('#tagrow').innerHTML = known.map(t =>
-        `<button type="button" data-a="tagset" data-v="${esc(t)}"${song.tags.includes(t) ? ' class="on"' : ''}>${esc(t)}</button>`).join('') +
-        '<button type="button" data-a="tagnew">Nueva…</button>';
+      $('#tagrow').innerHTML = song.tags.map(t =>
+        `<button type="button" class="on" data-a="tagset" data-v="${esc(t)}" aria-label="Quitar ${esc(t)}">${esc(t)} ✕</button>`).join('') +
+        '<button type="button" data-a="tagnew">Agregar…</button>';
     };
     const addTag = t => {
       if (song.tags.includes(t)) return;
@@ -2009,8 +2009,12 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       if (song.tags.includes(t)) song.tags = song.tags.filter(x => x !== t); else addTag(t);
       drawTags();
     };
-    actions.tagnew = () => {
-      const t = cleanTag(prompt('Nombre de la etiqueta (por ejemplo: Peña, Para estudiar):', '') || '');
+    actions.tagnew = async () => {
+      const others = allTags().filter(t => !song.tags.includes(t));
+      const k = others.length ? await choose('Agregar una etiqueta', [['new', 'Nueva etiqueta…', 'Escribir una que todavía no existe'],
+        ...others.map((t, i) => [String(i), t, count(songs.filter(s => tagsOf(s).includes(t)).length)])]) : 'new';
+      if (k == null) return;
+      const t = k === 'new' ? cleanTag(prompt('Nombre de la etiqueta (por ejemplo: Peña, Para estudiar):', '') || '') : others[+k];
       if (t) { addTag(t); drawTags(); }
     };
     drawTags();

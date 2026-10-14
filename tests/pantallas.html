@@ -143,6 +143,24 @@ const cases = {
     same(a.mine().map(s => s.tags), [['Fogón', 'Estudiar'], ['Fogón']], 'etiquetas guardadas');
     same(a.$$('#tagfilt button').map(b => b.textContent), ['Todas las etiquetas', 'Estudiar', 'Fogón'], 'el filtro de la biblioteca');
   },
+  'Etiquetas al editar: se ven solo las de la canción y se suman desde una lista': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '| C |', { tags: ['Peña'] }), song('s2', 'Dos', '| F |', { tags: ['Estudiar', 'Fogón'] })] }, '#/e/s1');
+    const row = () => a.$$('#tagrow button').map(b => b.textContent);
+    same(row(), ['Peña ✕', 'Agregar…'], 'las etiquetas a la vista');
+    await a.tap('[data-a=tagnew]');
+    await until(() => a.dialog(), 'la lista de etiquetas');
+    same([...a.dialog().querySelectorAll('button b')].map(b => b.textContent), ['Nueva etiqueta…', 'Estudiar', 'Fogón'], 'las que se pueden agregar');
+    await a.tap([...a.dialog().querySelectorAll('button')].find(b => /Fogón/.test(b.innerText)));
+    same(row(), ['Peña ✕', 'Fogón ✕', 'Agregar…'], 'después de agregar');
+    await a.tap('#tagrow [data-v="Peña"]');
+    a.w.answers.push('Recital');
+    await a.tap('[data-a=tagnew]');
+    await until(() => a.dialog(), 'la lista de etiquetas');
+    await a.tap(a.dialog().querySelector('[data-k=new]'));
+    a.fits('editor');
+    await a.tap('[data-a=save]');
+    same(a.mine()[0].tags, ['Fogón', 'Recital'], 'etiquetas guardadas');
+  },
   'Abrir un archivo de iReal Pro trae los temas y arma la lista': async () => {
     const a = await start({ songs: [] });
     const ireal = '<a href="irealb://' + encodeURIComponent('Uno=Autor Un==Medium Swing=C==1r34LbKcu7[C   |G7   Z=Jazz=120=3===Dos=Otra Una==Bossa Nova=F==1r34LbKcu7[F   Z=x=0=0===Mi lista') + '">x</a>';
