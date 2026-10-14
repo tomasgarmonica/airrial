@@ -3,12 +3,16 @@
 // Las tablas y las reglas del servidor están en servidor/comunidad.sql.
 const Comunidad = (() => {
   // La clave pública está pensada para ir en la app: lo que protege los datos son las reglas del servidor.
-  const BASE = 'https://cbiavmaznmbhgfytkwbl.supabase.co/rest/v1/';
+  const ROOT = 'https://cbiavmaznmbhgfytkwbl.supabase.co/';
+  const BASE = ROOT + 'rest/v1/', AUTH = ROOT + 'auth/v1/';
   const KEY = 'sb_publishable_CgTYhMa7dyD5XcLxNXY_yw_KnXerWnA';
   const PAGE = 30;
   // Lo que se muestra en los renglones (el cifrado se trae recién al abrir una canción).
   const ROW = 'id,titulo,compositor,ritmo,compas,tonalidad,bajadas,fijada,perfiles(nombre)';
   const FULL = ROW + ',tempo,cifrado,cols';
+  // Largo máximo de cada anotación entre comillas al subir: alcanza para "Solo de piano" o "D.S. al Coda", no para
+  // meter la letra (la Comunidad es solo de acordes).
+  const NOTE_MAX = 30;
 
   // Igual que public.plano en el servidor: minúsculas y sin acentos, para buscar.
   const plano = t => String(t == null ? '' : t).toLowerCase().replace(/[áéíóúàèìòùäëïöüâêîôûãõñç]/g, ch =>
@@ -32,29 +36,96 @@ const Comunidad = (() => {
     title: r.titulo, composer: r.compositor, style: r.ritmo, key: r.tonalidad, tempo: r.tempo, ts: r.compas,
     chart: r.cifrado, cols: r.cols,
   });
+  // Al revés: una canción de la app → lo que se sube. No viajan etiquetas, teclado ni volúmenes (son de cada uno).
+  const fromSong = s => ({
+    titulo: String(s.title).trim(), compositor: String(s.composer || '').trim(), ritmo: s.style, compas: s.ts,
+    tonalidad: s.key || '', tempo: s.tempo, cifrado: s.chart, cols: s.cols,
+  });
+  // Por qué no se puede subir una canción ('' si se puede).
+  const check = s => {
+    if (!/[A-G]/.test(String(s.chart).replace(/"[^"]*"/g, ''))) return 'La canción no tiene acordes.';
+    if ((String(s.chart).match(/"[^"]*"/g) || []).some(n => n.length - 2 > NOTE_MAX)) {
+      return `Las anotaciones entre comillas pueden tener hasta ${NOTE_MAX} letras: la Comunidad es solo de acordes, sin letra. Acortalas en Editar y probá de nuevo.`;
+    }
+    return '';
+  };
   // Quién la subió y cuántas veces se bajó, para mostrar.
   const byWhom = r => (r.perfiles && r.perfiles.nombre) || 'Airrial';
   const intOr0 = v => (Number.isFinite(+v) && +v > 0 ? Math.floor(+v) : 0);
 
-  // Pide algo al servidor; si no contesta en 15 s o contesta con error, falla.
-  async function ask(path, opts = {}) {
+  // Pide algo al servidor; si no contesta en 15 s o contesta con error, falla. El error lleva `status` (0 si no
+  // hubo conexión) y el mensaje del servidor en `said`.
+  async function ask(url, opts = {}) {
     const ctl = typeof AbortController === 'undefined' ? null : new AbortController();
     const t = ctl && setTimeout(() => ctl.abort(), 15000);
+    let res;
     try {
-      const res = await fetch(BASE + path, {
+      res = await fetch(url.startsWith('http') ? url : BASE + url, {
         ...opts, signal: ctl && ctl.signal,
         headers: { apikey: KEY, 'Content-Type': 'application/json', ...(opts.headers || {}) },
       });
-      if (!res.ok) throw new Error('servidor ' + res.status);
-      return res.status === 204 ? null : await res.json();
+    } catch (e) {
+      throw Object.assign(new Error('sin conexión'), { status: 0 });
     } finally {
       if (t) clearTimeout(t);
     }
+    if (!res.ok) {
+      let body = {};
+      try { body = await res.json(); } catch { /* sin detalle */ }
+      const said = String((body && (body.message || body.msg || body.error_description)) || '');
+      throw Object.assign(new Error('servidor ' + res.status + ' ' + said), { status: res.status, said });
+    }
+    if (res.status === 204) return null;
+    const text = await res.text();
+    return text ? JSON.parse(text) : null;
   }
   const list = v => (Array.isArray(v) ? v : []);
 
+  // --- cuenta ---
+  // Se entra con un código que llega por mail. La sesión queda guardada en el teléfono (sin contraseña): un
+  // permiso que dura una hora y otro para renovarlo.
+  const SESSION = 'airrial.cuenta.v1';
+  const disk = () => { try { return typeof localStorage === 'undefined' ? null : localStorage; } catch { return null; } };
+  let session = null;
+  try { session = JSON.parse(disk().getItem(SESSION)); } catch { /* sin sesión */ }
+  if (!session || typeof session.access !== 'string' || typeof session.id !== 'string') session = null;
+  const keep = s => {
+    session = s;
+    try { if (s) disk().setItem(SESSION, JSON.stringify(s)); else disk().removeItem(SESSION); } catch { /* sin lugar */ }
+  };
+  const fromAuth = d => {
+    if (!d || typeof d.access_token !== 'string' || typeof d.refresh_token !== 'string' || !d.user || typeof d.user.id !== 'string') {
+      throw Object.assign(new Error('respuesta rara'), { status: 500 });
+    }
+    return { access: d.access_token, refresh: d.refresh_token, until: Date.now() + (intOr0(d.expires_in) || 3600) * 1000,
+      id: d.user.id, email: String(d.user.email || '') };
+  };
+  // Permiso vigente (lo renueva si le falta menos de un minuto), o null si no hay cuenta o se venció del todo.
+  let renewing = null;
+  async function token() {
+    if (!session) return null;
+    if (session.until - Date.now() > 60000) return session.access;
+    if (!renewing) {
+      const s = session;
+      renewing = ask(AUTH + 'token?grant_type=refresh_token', { method: 'POST', body: JSON.stringify({ refresh_token: s.refresh }) })
+        .then(d => { if (session === s) keep(fromAuth(d)); })
+        .catch(e => { if (e.status >= 400 && e.status < 500 && session === s) keep(null); else throw e; })
+        .finally(() => { renewing = null; });
+    }
+    await renewing;
+    return session && session.access;
+  }
+  // La cuenta de este teléfono; sin cuenta, falla como un pedido no autorizado.
+  const me = () => { if (!session) throw Object.assign(new Error('sin cuenta'), { status: 401 }); return session.id; };
+  // Pedido con la cuenta.
+  async function mine(url, opts = {}) {
+    const t = await token();
+    if (!t) throw Object.assign(new Error('sin cuenta'), { status: 401 });
+    return ask(url, { ...opts, headers: { Authorization: 'Bearer ' + t, ...(opts.headers || {}) } });
+  }
+
   return {
-    plano, words, songsQuery, toSong, byWhom, PAGE,
+    plano, words, songsQuery, toSong, fromSong, check, byWhom, PAGE, NOTE_MAX,
     // { filas, mas }: una página de canciones y si hay más.
     buscar: async o => {
       const rows = list(await ask(songsQuery(o))).filter(r => r && Number.isFinite(r.id));
@@ -69,6 +140,40 @@ const Comunidad = (() => {
     cancion: async id => (/^\d{1,15}$/.test(id) ? list(await ask('canciones?select=' + FULL + '&id=eq.' + id))[0] || null : null),
     // Suma una bajada. Si falla no importa: la canción ya quedó guardada.
     bajar: id => ask('rpc/bajar', { method: 'POST', body: JSON.stringify({ que: 'cancion', cual: Math.floor(+id) }) }).catch(() => {}),
+
+    // La cuenta con la que se entró en este teléfono ({ id, email }) o null.
+    cuenta: () => (session ? { id: session.id, email: session.email } : null),
+    pedirCodigo: email => ask(AUTH + 'otp', { method: 'POST', body: JSON.stringify({ email: String(email).trim(), create_user: true }) }),
+    entrar: async (email, code) => {
+      keep(fromAuth(await ask(AUTH + 'verify', { method: 'POST',
+        body: JSON.stringify({ type: 'email', email: String(email).trim(), token: String(code).replace(/\D/g, '') }) })));
+    },
+    salir: () => {
+      const t = session && session.access;
+      keep(null);
+      if (t) ask(AUTH + 'logout', { method: 'POST', headers: { Authorization: 'Bearer ' + t } }).catch(() => {});
+    },
+    // El nombre para mostrar de esta cuenta ('' si todavía no eligió uno).
+    miNombre: async () => {
+      const r = list(await mine('perfiles?select=nombre&id=eq.' + me()))[0];
+      return r && typeof r.nombre === 'string' ? r.nombre : '';
+    },
+    ponerNombre: (nombre, nuevo) => (nuevo
+      ? mine('perfiles', { method: 'POST', body: JSON.stringify({ id: me(), nombre }) })
+      : mine('perfiles?id=eq.' + me(), { method: 'PATCH', body: JSON.stringify({ nombre }) })),
+    // Lo que subió esta cuenta, con el cifrado (para saber si una canción ya está subida).
+    mias: async () => list(await mine('canciones?select=' + FULL + ',oculta&autor=eq.' + me() + '&order=id.desc&limit=1000'))
+      .filter(r => r && Number.isFinite(r.id)),
+    // Sube una canción y devuelve su número en la Comunidad.
+    subir: async s => {
+      const r = list(await mine('canciones', { method: 'POST', headers: { Prefer: 'return=representation' },
+        body: JSON.stringify({ ...fromSong(s), autor: me() }) }))[0];
+      if (!r || !Number.isFinite(r.id)) throw Object.assign(new Error('respuesta rara'), { status: 500 });
+      return r.id;
+    },
+    // Reemplaza una canción ya subida por otra versión.
+    actualizar: (id, s) => mine('canciones?id=eq.' + Math.floor(+id), { method: 'PATCH', body: JSON.stringify(fromSong(s)) }),
+    borrar: id => mine('canciones?id=eq.' + Math.floor(+id), { method: 'DELETE' }),
   };
 })();
 

@@ -381,7 +381,7 @@
       Music.setView(null);
     }
   };
-  const WAY_NAME = { file: 'archivo', pdf: 'PDF', png: 'imagen' };
+  const WAY_NAME = { file: 'archivo', pdf: 'PDF', png: 'imagen', up: 'Comunidad' };
   const SHARE_WAYS = [
     ['file', 'Archivo', 'Se abre en Airrial tocando el título'],
     ['pdf', 'PDF', 'Para ver o imprimir, sin la app'],
@@ -1278,8 +1278,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       nextsong: () => goList(1),
       edit: () => { location.hash = '#/e/' + song.id; },
       share: async () => {
-        const how = await choose('Compartir esta canción', [...SHARE_WAYS, ['png', 'Imagen', 'Para ver en cualquier chat']]);
+        const how = await choose('Compartir esta canción', [...SHARE_WAYS, ['png', 'Imagen', 'Para ver en cualquier chat'],
+          ['up', 'Subir a la Comunidad', 'Para que otros la encuentren y la bajen']]);
         if (how) tally('Compartir canción · ' + WAY_NAME[how]);
+        if (how === 'up') location.hash = '#/c/u/' + song.id;
         if (how === 'file') shareFile(song.title, { app: 'airrial', version: 1, songs: [song] }, () => packSong(song));
         else if (how === 'pdf') shareBlob(await busy('Generando el PDF…', () => Exporter.pdf(drawSong(song, true))), safeName(song.title) + '.pdf', song.title);
         else if (how === 'png') {
@@ -1539,12 +1541,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
 
   function comunidadView(what, val) {
     if (what === 's') { comSongView(val); return; }
+    if (what === 'u') { upView(val); return; }
+    if (what === 'm') { mineView(); return; }
     tally('Comunidad · abrir');
     const sub = (what === 'r' || what === 'a') && val ? what : '';
     app.innerHTML = `
       <header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
         <div class="ttl"><h1 id="ctitle">${esc(!sub ? 'Comunidad' : sub === 'r' ? comStyle(val) : val)}</h1>
-        <p>${!sub ? 'Canciones que subieron otros músicos' : (sub === 'r' ? 'Estilo' : 'Artista') + ' · Comunidad'}</p></div></header>
+        <p>${!sub ? 'Canciones que subieron otros músicos' : (sub === 'r' ? 'Estilo' : 'Artista') + ' · Comunidad'}</p></div>
+        ${sub ? '' : '<a class="tx" href="#/c/m">Mis subidas</a>'}</header>
       ${sub ? '' : `<div class="search"><input id="cq" type="search" autocomplete="off" placeholder="Buscar título o artista…" value="${esc(comText)}"></div>`}
       <div class="seg tabs" id="ctabs"></div>
       <main class="list" id="clist"></main>`;
@@ -1636,6 +1641,179 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     };
     bind({ back, retry: show });
     await show();
+  }
+
+  // Reglas de la Comunidad, en corto (el borrador entero está en REGLAS.md).
+  const RULES = `<details class="help"><summary>Reglas de la Comunidad</summary><ul>
+    <li>Se suben cifrados: los acordes de una canción con su título, autor, estilo, compás, tono y tempo.</li>
+    <li>Nada de letras ni melodías, tampoco metidas en las anotaciones.</li>
+    <li>Nada que no sea una canción: publicidad, enlaces, mensajes, insultos ni datos de otras personas.</li>
+    <li>Lo que subís lo escribiste vos o tenés permiso para compartirlo, y cualquiera lo puede ver, bajar, usar y cambiar.</li>
+    <li>Tu nombre para mostrar aparece al lado de lo que subís. Lo podés borrar cuando quieras desde "Mis subidas".</li>
+    <li>Lo que no cumpla las reglas se puede esconder o borrar, y la cuenta, bloquear.</li></ul></details>`;
+  // Qué decir cuando algo de la cuenta falla.
+  const accountError = e => (!e || !e.status ? 'No se pudo conectar. Revisá la conexión y probá de nuevo.'
+    : /tope/.test(e.said || '') ? e.said
+    : e.status === 429 ? 'Se pidieron muchos códigos seguidos. Esperá unos minutos y probá de nuevo.'
+    : e.status === 401 ? 'Se cerró tu sesión. Volvé a entrar.'
+    : 'Algo salió mal en el servidor. Probá de nuevo en un rato.');
+
+  // Pide entrar a la cuenta (mail y código) y elegir el nombre para mostrar, lo que falte; después llama a
+  // `done(nombre)`. Dibuja adentro de `box`, con sus propios botones (data-g), y no toca el resto de la pantalla.
+  async function accountGate(box, done) {
+    let mail = '';
+    const err = msg => { const p = $('.err', box); if (p) p.textContent = msg; };
+    // mientras espera al servidor, los botones quedan apagados
+    const busyRun = async fn => {
+      box.querySelectorAll('button').forEach(b => { b.disabled = true; });
+      try { await fn(); } catch (e) { err(accountError(e)); } finally { box.querySelectorAll('button').forEach(b => { b.disabled = false; }); }
+    };
+    const askMail = () => {
+      box.innerHTML = `<div class="acct"><p>Para subir canciones hace falta una cuenta. Escribí tu mail y te mandamos un código para entrar: no hay contraseña.</p>
+        <input id="mail" type="email" autocomplete="email" inputmode="email" placeholder="tu@mail.com" value="${esc(mail)}" aria-label="Tu mail">
+        <p class="err"></p><button class="cmore pri" data-g="send">Mandar el código</button>
+        <p class="hint">Tu mail no se muestra a nadie. Solo lo usamos para mandarte el código.</p></div>`;
+    };
+    const askCode = () => {
+      box.innerHTML = `<div class="acct"><p>Te mandamos un código a <b>${esc(mail)}</b>. Escribilo acá. Si no llega en un par de minutos, mirá en Spam.</p>
+        <input id="code" inputmode="numeric" autocomplete="one-time-code" maxlength="12" placeholder="Código" aria-label="Código">
+        <p class="err"></p><button class="cmore pri" data-g="enter">Entrar</button>
+        <button class="cmore" data-g="again">Mandar otro código</button><button class="cmore" data-g="other">Usar otro mail</button></div>`;
+    };
+    const askName = () => {
+      box.innerHTML = `<div class="acct"><p>¿Con qué nombre querés aparecer al lado de lo que subas? Es público; no hace falta que sea tu nombre real, y lo podés cambiar.</p>
+        <input id="nick" maxlength="30" autocomplete="nickname" placeholder="Tu nombre para mostrar" aria-label="Nombre para mostrar">
+        ${RULES}<label class="chk"><input type="checkbox" id="okrules"> Leí y acepto las reglas</label>
+        <p class="err"></p><button class="cmore pri" data-g="name">Listo</button></div>`;
+    };
+    const named = async () => {
+      const nombre = await Comunidad.miNombre();
+      if (nombre) done(nombre); else askName();
+    };
+    box.onclick = e => {
+      const b = e.target.closest('[data-g]');
+      if (!b) return;
+      const g = b.dataset.g;
+      if (g === 'send' || g === 'again') {
+        if (g === 'send') mail = $('#mail', box).value.trim();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(mail)) { err('Revisá el mail: tiene que ser como nombre@algo.com'); return; }
+        busyRun(async () => { await Comunidad.pedirCodigo(mail); askCode(); if (g === 'again') err('Listo, te mandamos otro.'); });
+      } else if (g === 'other') askMail();
+      else if (g === 'enter') {
+        const code = $('#code', box).value.replace(/\D/g, '');
+        if (code.length < 6) { err('El código tiene 6 números o más.'); return; }
+        busyRun(async () => {
+          try { await Comunidad.entrar(mail, code); } catch (e) {
+            if (e.status >= 400 && e.status < 500 && e.status !== 429) { err('El código no es correcto o ya venció. Revisalo o pedí otro.'); return; }
+            throw e;
+          }
+          tally('Comunidad · crear o entrar a la cuenta');
+          await named();
+        });
+      } else if (g === 'name') {
+        const nombre = $('#nick', box).value.trim().replace(/\s+/g, ' ');
+        if (!nombre) { err('Escribí un nombre.'); return; }
+        if (!$('#okrules', box).checked) { err('Para subir hay que aceptar las reglas.'); return; }
+        busyRun(async () => { await Comunidad.ponerNombre(nombre, true); done(nombre); });
+      }
+    };
+    if (!Comunidad.cuenta()) { askMail(); return; }
+    box.innerHTML = '<p class="empty">Cargando…</p>';
+    try { await named(); } catch (e) {
+      if (!Comunidad.cuenta()) { askMail(); return; }
+      box.innerHTML = `<div class="acct"><p class="err">${esc(accountError(e))}</p><button class="cmore" data-g="retry">Probar de nuevo</button></div>`;
+      box.onclick = e2 => { if (e2.target.closest('[data-g="retry"]')) accountGate(box, done); };
+    }
+  }
+
+  // Subir una canción propia: entra a la cuenta si hace falta, avisa si ya estaba subida y la sube.
+  function upView(id) {
+    const song = findSong(id);
+    if (!song) { swap('#/'); return; }
+    app.innerHTML = `<header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
+      <div class="ttl"><h1>Subir a la Comunidad</h1></div></header>
+      <main class="list"><div class="shared"><b>${esc(song.title)}</b><span>${esc(songMeta(song))}</span></div><div id="gate"></div></main>`;
+    bind({ back: () => up('#/s/' + id) });
+    const box = $('#gate'), problem = Comunidad.check(song);
+    if (problem) { box.innerHTML = `<p class="err">${esc(problem)}</p>`; return; }
+    const ready = nombre => {
+      box.innerHTML = `<div class="acct"><p>Se va a subir con tu nombre, <b>${esc(nombre)}</b>. Cualquiera la va a poder ver y bajar.
+        Tus etiquetas, el teclado y los volúmenes no viajan.</p>
+        <p class="err"></p><button class="cmore pri" data-g="up">Subir</button>
+        <p class="hint">Entraste como ${esc(Comunidad.cuenta().email)}.</p></div>`;
+      box.onclick = async e => {
+        if (!e.target.closest('[data-g="up"]')) return;
+        const b = $('[data-g="up"]', box), err = $('.err', box);
+        b.disabled = true;
+        err.textContent = '';
+        try {
+          const s = { ...song, cols: colsOf(song) }, mineNow = await Comunidad.mias();
+          const same = mineNow.find(r => Comunidad.plano(r.titulo) === Comunidad.plano(s.title.trim()));
+          const up1 = Comunidad.fromSong(s);
+          let at;
+          if (same && Object.keys(up1).every(k => String(same[k]) === String(up1[k]))) at = same.id;
+          else if (same) {
+            if (!confirm('Ya subiste una canción con este título. ¿La reemplazo por esta versión?')) { b.disabled = false; return; }
+            await Comunidad.actualizar(same.id, s);
+            at = same.id;
+          } else at = await Comunidad.subir(s);
+          tally('Comunidad · subir');
+          box.innerHTML = `<div class="acct"><p><b>${same ? 'Listo, quedó actualizada' : 'Listo, ya está en la Comunidad'}.</b></p>
+            <a class="cmore" href="#/c/s/${at}">Verla en la Comunidad</a><a class="cmore" href="#/c/m">Mis subidas</a></div>`;
+        } catch (e2) {
+          b.disabled = false;
+          err.textContent = accountError(e2);
+        }
+      };
+    };
+    accountGate(box, ready);
+  }
+
+  // Mis subidas: lo que subió esta cuenta, para abrirlo o borrarlo; también cambiar el nombre y salir.
+  function mineView() {
+    app.innerHTML = `<header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
+      <div class="ttl"><h1>Mis subidas</h1></div></header>
+      <main class="list" id="gate"></main>`;
+    bind({ back: () => up('#/c') });
+    const box = $('#gate');
+    const show = async nombre => {
+      box.innerHTML = '<p class="empty">Cargando…</p>';
+      let rows;
+      try { rows = await Comunidad.mias(); } catch (e) {
+        if (!Comunidad.cuenta()) { accountGate(box, show); return; }
+        box.innerHTML = `<p class="empty">${esc(accountError(e))}</p><button class="cmore" data-g="retry">Probar de nuevo</button>`;
+        box.onclick = e2 => { if (e2.target.closest('[data-g="retry"]')) show(nombre); };
+        return;
+      }
+      box.innerHTML = `<p class="hint">Aparecés como <b>${esc(nombre)}</b>.</p>
+        <div class="seg"><button data-g="rename">Cambiar el nombre</button><button data-g="out">Salir de la cuenta</button></div>
+        ${rows.length ? rows.map(r => `<div class="item mine"><a href="#/c/s/${r.id}"><b>${esc(r.titulo)}${r.oculta ? ' <em class="inc">escondida por denuncias</em>' : ''}</b>
+          <span>${esc([r.compositor, comStyle(r.ritmo), times(r.bajadas)].filter(Boolean).join(' · '))}</span></a>
+          <button class="tx del" data-g="del" data-v="${r.id}">Borrar</button></div>`).join('')
+        : '<p class="empty">Todavía no subiste nada. Para subir una canción, abrila y tocá Compartir → Subir a la Comunidad.</p>'}`;
+      box.onclick = async e => {
+        const b = e.target.closest('[data-g]');
+        if (!b) return;
+        try {
+          if (b.dataset.g === 'out') { Comunidad.salir(); toast('Saliste de la cuenta.'); up('#/c'); }
+          else if (b.dataset.g === 'rename') {
+            const to = (prompt('Tu nombre para mostrar (hasta 30 letras):', nombre) || '').trim().replace(/\s+/g, ' ').slice(0, 30);
+            if (!to || to === nombre) return;
+            await Comunidad.ponerNombre(to, false);
+            show(to);
+          } else if (b.dataset.g === 'del') {
+            const r = rows.find(x => String(x.id) === b.dataset.v);
+            if (!r || !confirm(`¿Borrar "${r.titulo}" de la Comunidad? Tu copia en el teléfono no se borra.`)) return;
+            await Comunidad.borrar(r.id);
+            toast('Borrada de la Comunidad.');
+            show(nombre);
+          }
+        } catch (e2) {
+          alert(accountError(e2));
+        }
+      };
+    };
+    accountGate(box, show);
   }
 
   // --- editor ---

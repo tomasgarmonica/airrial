@@ -249,6 +249,73 @@ const cases = {
     a.fits('comunidad sin conexión');
     check(a.mine().length === 1, 'se perdió lo guardado');
   },
+  'Comunidad: entrar con el código, elegir el nombre, subir una canción, no duplicarla y borrarla': async () => {
+    const a = await start({ songs: [song('s1', 'Mía', '| C | G7 |', { composer: 'Yo', tags: ['privada'] })] });
+    const asked = [], up = [];
+    let nick = '';
+    const json = (b, status) => new a.w.Response(b == null ? null : JSON.stringify(b), { status: status || 200 });
+    // servidor de mentira con cuentas: el código bueno es 123456
+    a.w.server = (url, o) => {
+      const m = (o && o.method) || 'GET', body = o && o.body ? JSON.parse(o.body) : null, p = url.replace(/^.*supabase\.co\//, '');
+      asked.push(m + ' ' + p);
+      if (p.startsWith('auth/v1/otp')) return json({});
+      if (p.startsWith('auth/v1/verify')) return body.token === '123456'
+        ? json({ access_token: 'a', refresh_token: 'r', expires_in: 3600, user: { id: 'u1', email: body.email } })
+        : json({ msg: 'Token has expired or is invalid' }, 403);
+      if (p.startsWith('rest/v1/perfiles')) { if (m === 'POST') { nick = body.nombre; return json(null, 201); } return json(nick ? [{ nombre: nick }] : []); }
+      if (p.startsWith('rest/v1/canciones') && m === 'POST') { up.push({ id: 99, ...body, bajadas: 0, oculta: false }); return json([up[0]], 201); }
+      if (p.startsWith('rest/v1/canciones') && m === 'DELETE') { up.length = 0; return json(null, 204); }
+      if (p.startsWith('rest/v1/canciones')) return json(up);
+      return json(null, 204);
+    };
+    a.w.location.hash = '#/s/s1';
+    await until(() => a.$('[data-a="share"]'), 'la canción');
+    await a.tap('[data-a="share"]');
+    await until(() => a.dialog(), 'el menú Compartir');
+    await a.tap(a.dialog().querySelector('[data-k="up"]'));
+    await until(() => a.$('#mail'), 'que pida el mail');
+    a.fits('subir: el mail');
+    a.$('#mail').value = 'yo@mail.com';
+    await a.tap('[data-g="send"]');
+    await until(() => a.$('#code'), 'que pida el código');
+    check(asked.includes('POST auth/v1/otp'), 'no pidió el código');
+    a.$('#code').value = '111111';
+    await a.tap('[data-g="enter"]');
+    await until(() => /no es correcto/.test(a.text('#gate .err') || ''), 'el aviso de código equivocado');
+    a.$('#code').value = '123 456';
+    await a.tap('[data-g="enter"]');
+    await until(() => a.$('#nick'), 'que pida el nombre');
+    a.fits('subir: el nombre');
+    a.$('#nick').value = '  Tomás  ';
+    await a.tap('[data-g="name"]');
+    check(/aceptar las reglas/.test(a.text('#gate .err')), 'dejó seguir sin aceptar las reglas');
+    a.$('#okrules').checked = true;
+    await a.tap('[data-g="name"]');
+    await until(() => a.$('[data-g="up"]'), 'el botón Subir');
+    same(nick, 'Tomás', 'el nombre guardado');
+    check(/Tomás/.test(a.text('#gate')) && /yo@mail\.com/.test(a.text('#gate')), 'no dice con qué nombre y mail se sube');
+    a.fits('subir');
+    await a.tap('[data-g="up"]');
+    await until(() => /ya está en la Comunidad/.test(a.text('#gate') || ''), 'que se suba');
+    same([up[0].titulo, up[0].compositor, up[0].cifrado, up[0].autor, 'tags' in up[0], 'keys' in up[0]], ['Mía', 'Yo', '| C | G7 |', 'u1', false, false], 'lo subido');
+    // la misma otra vez: no se duplica (y ya no pide entrar)
+    a.w.location.hash = '#/s/s1';
+    await until(() => a.$('[data-a="share"]'), 'la canción de nuevo');
+    a.w.location.hash = '#/c/u/s1';
+    await until(() => a.$('[data-g="up"]'), 'el botón Subir, ya con cuenta');
+    await a.tap('[data-g="up"]');
+    await until(() => /Listo/.test(a.text('#gate') || ''), 'el aviso');
+    same(asked.filter(x => x.startsWith('POST rest/v1/canciones')).length, 1, 'veces que se subió');
+    // mis subidas: aparece, se borra, y la copia del teléfono queda
+    a.w.location.hash = '#/c/m';
+    await until(() => /Mía/.test(a.text('#gate') || ''), 'mis subidas');
+    a.fits('mis subidas');
+    await a.tap('[data-g="del"]');
+    await until(() => /Todavía no subiste/.test(a.text('#gate') || ''), 'que se borre');
+    same(a.mine().map(s => s.title), ['Mía'], 'lo del teléfono');
+    await a.tap('[data-g="out"]');
+    check(!a.w.localStorage.getItem('airrial.cuenta.v1'), 'no salió de la cuenta');
+  },
 };
 
 (async () => {
