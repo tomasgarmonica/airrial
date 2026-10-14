@@ -130,6 +130,29 @@ for (const keys of others) {
   if (late.perc.join('|') !== tail.join('|')) { fail++; console.log('FALLA: samba en 2/4 desde el segundo compás, la clave queda corrida', late.perc.length, tail.length); }
   else console.log('samba 2/4 = 4/4:', four.perc.length, 'golpes de percusión,', four.bajo, 'notas de bajo,', four.piano, 'de teclado');
 }
+// Cumbia en 2/4: dos compases tienen que sonar igual que uno de 4/4, sonido por sonido (percusión, batería,
+// bajo y teclado), y arrancando desde el segundo compás sigue alineada con la hoja.
+{
+  const run = async (chart, ts, startPos) => {
+    const bars = Music.parseChart(chart, ts);
+    events = []; now = 0; lastKeys = null;
+    Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 100, style: 'cumbia', startPos, choruses: 1, countIn: false,
+      finalChord: null, onBar() {}, onEnd() {} });
+    for (let k = 0; k < 20 && !tickFn; k++) await pause();
+    for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
+    const t0 = Math.min(...events.map(e => e[1]));
+    return events.filter(e => e[2]).map(e => [e[1] - t0, e[2]]);
+  };
+  const show = list => list.map(e => e[0].toFixed(3) + ' ' + e[1]).sort().join('\n');
+  const four = await run('| Am | Dm | G7 C | C |', [4, 4]);
+  const two = await run('| Am | Am | Dm | Dm | G7 | C | C | C |', [2, 4]);
+  const late = await run('| Am | Am | Dm | Dm | G7 | C | C | C |', [2, 4], 1);
+  const perc = list => list.filter(e => !e[1].startsWith(index.bajo.archivo) && !e[1].startsWith(index.piano.archivo));
+  const tail = perc(two).map(e => [e[0] - 1.2, e[1]]).filter(e => e[0] > -1e-6);
+  if (!perc(four).length || show(four) !== show(two)) { fail++; console.log('FALLA: cumbia en 2/4, no suena igual que en 4/4', four.length, two.length); }
+  else if (show(perc(late)) !== show(tail)) { fail++; console.log('FALLA: cumbia en 2/4 desde el segundo compás, queda corrida', late.length, tail.length); }
+  else console.log('cumbia 2/4 = 4/4:', four.length, 'sonidos,', perc(four).length, 'de percusión y batería');
+}
 console.log(fail ? `${fail} fallas` : 'todo ok');
 if (fail) process.exit(1);
 })();

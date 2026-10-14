@@ -489,16 +489,17 @@ const Engine = (() => {
       // Teclado planchado: el acorde entra en el 1 (o donde cambie) y queda sonando. A contratiempo sonaba a cumbia.
       for (const g of x.segs) if (g.chord) chordHit(t + g.beat * bd, voice(g.chord), g.len * bd * 0.95, 0.85);
     },
-    // Güiro en "chiqui-chiqui", bombo en 1 y 3 y acordes a contratiempo.
-    cumbia(t, bd, x) {
-      const e = bd / 2, s = bd / 4;
-      for (let b = 0; b < 4; b++) {
+    // Güiro en "chiqui-chiqui", bombo en 1 y 3 y acordes a contratiempo. En 4/4 o en 2/4: en 2/4 cada compás
+    // toca una mitad, alternando (la segunda mitad lleva un golpe más de conga).
+    cumbia(t, bd, x, B) {
+      const e = bd / 2, s = bd / 4, second = B === 2 && x.place % 2 === 1;
+      for (let b = 0; b < B; b++) {
         const tb = t + b * bd;
         shaker(tb, 0.3, 0.09, 'guiro_arrastre'); shaker(tb + 2 * s, 0.18, 0.04, 'guiro_abajo'); shaker(tb + 3 * s, 0.18, 0.04, 'guiro_arriba');
         wood(tb, 0.15, 'campana_lomo');
       }
       // Bajo: fundamental, tercera y quinta en negra, corchea, corchea; dos veces por compás.
-      for (const h of [0, 2]) {
+      for (let h = 0; h < B; h += 2) {
         const c = x.at(h), c1 = x.at(h + 1);
         if (c) bass(t + h * bd, rootOf(c), bd * 0.9, 1);
         if (!c1) continue;
@@ -507,9 +508,11 @@ const Engine = (() => {
         bass(t + (h + 1) * bd, c1 === c ? up(c1.iv[0]) : r, e * 0.9, 0.85);
         bass(t + (h + 1.5) * bd, up(c1.iv[1]), e * 0.9, 0.9);
       }
-      kick(t, 0.8); kick(t + 2 * bd, 0.7);
-      tom(t + 1.5 * bd, 200, 0.35, 0.12, 'conga_tono'); tom(t + 3.5 * bd, 200, 0.35, 0.12, 'conga_tono'); tom(t + 3.75 * bd, 240, 0.3, 0.1, 'conga_tono');
-      for (const i of [1, 3, 5, 7]) {
+      kick(t, second ? 0.7 : 0.8);
+      tom(t + 1.5 * bd, 200, 0.35, 0.12, 'conga_tono');
+      if (second) tom(t + 1.75 * bd, 240, 0.3, 0.1, 'conga_tono');
+      if (B === 4) { kick(t + 2 * bd, 0.7); tom(t + 3.5 * bd, 200, 0.35, 0.12, 'conga_tono'); tom(t + 3.75 * bd, 240, 0.3, 0.1, 'conga_tono'); }
+      for (let i = 1; i < B * 2; i += 2) {
         const c = x.at(i / 2);
         if (c) chordHit(t + i * e, voice(c), e * 0.6, 0.85);
       }
@@ -678,7 +681,7 @@ const Engine = (() => {
     },
   };
   // Compases que cada estilo sabe tocar; en cualquier otro suena el acompañamiento genérico.
-  const METER = { samba: '4/4 2/4', chacarera: '6/8 3/4', zamba: '6/8 3/4', vals: '3/4', festejo: '12/8 6/8' };
+  const METER = { samba: '4/4 2/4', cumbia: '4/4 2/4', chacarera: '6/8 3/4', zamba: '6/8 3/4', vals: '3/4', festejo: '12/8 6/8' };
 
   // Compases que no son 4/4: bajo en los acentos, acordes en el resto.
   function generic(t, bd, x, B) {

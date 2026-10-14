@@ -95,7 +95,8 @@ grabaciones (ver `GRABACION.md`).
 - [ ] En un ritmo ternario tocado en 4/4, un acorde escrito en el "y" cae en la mitad exacta del tiempo, sin atresillar
 - [x] Samba en 2/4: cada compás toca media base, alternando (la clave del tamborim ocupa dos compases); bajo y teclado hacen lo mismo que en 4/4, repartido
 - [x] Las bases quedan alineadas con la hoja al reproducir desde cualquier compás (la clave del tamborim del samba en 2/4 no se corre al arrancar desde un compás par)
-- [ ] Cumbia en 2/4 (hoy solo en 4/4). Pedido del dueño: cuando se arme su base, tiene que sonar igual en 2/4 y en 4/4, como el samba (cada compás de 2/4 toca media base). Milonga en 2/4: a definir
+- [x] Cumbia en 2/4 (0.1.5): cada compás toca media base, alternando, y suena igual que en 4/4 (güiro, campana, bombo, conga, bajo y teclado). Falta que el dueño la escuche. Cuando se arme su base en MIDI tiene que seguir igual en los dos compases, como el samba
+- [ ] Milonga en 2/4: a definir
 
 ## 5. Para tocar en vivo
 - [x] Encabezado y panel de reproducción fijos; panel deslizable con estilo, vueltas y mezcla
