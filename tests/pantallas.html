@@ -141,7 +141,16 @@ const cases = {
     a.w.answers.push('Fogón');
     await a.tap(a.dialog().querySelector('[data-k=ren]'));
     same(a.mine().map(s => s.tags), [['Fogón', 'Estudiar'], ['Fogón']], 'etiquetas guardadas');
-    same(a.$$('#tagfilt button').map(b => b.textContent), ['Todas las etiquetas', 'Estudiar', 'Fogón'], 'el filtro de la biblioteca');
+    // el filtro de la biblioteca es un solo botón, que abre la lista de etiquetas
+    same(a.$$('#tagfilt button').map(b => b.textContent), ['Etiquetas ▾'], 'el filtro de la biblioteca');
+    await a.tap('[data-a=ltag]');
+    await until(() => a.dialog(), 'la lista del filtro');
+    same([...a.dialog().querySelectorAll('button b')].map(b => b.textContent), ['Todas las etiquetas', 'Estudiar', 'Fogón'], 'las etiquetas del filtro');
+    await a.tap([...a.dialog().querySelectorAll('button')].find(b => /Estudiar/.test(b.innerText)));
+    same([a.$$('#tagfilt button').map(b => b.textContent), a.$$('#list .item b').map(b => b.textContent)], [['Estudiar ▾', '✕ Todas'], ['Uno']], 'filtrando por Estudiar');
+    await a.tap('[data-a=ltagoff]');
+    same(a.$$('#list .item').length, 2, 'al quitar el filtro vuelven todas');
+    a.fits('biblioteca');
   },
   'Etiquetas al editar: se ven solo las de la canción y se suman desde una lista': async () => {
     const a = await start({ songs: [song('s1', 'Uno', '| C |', { tags: ['Peña'] }), song('s2', 'Dos', '| F |', { tags: ['Estudiar', 'Fogón'] })] }, '#/e/s1');

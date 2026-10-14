@@ -127,6 +127,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Borrar varias canciones a la vez desde la biblioteca (modo selección)
 - [x] Etiquetas libres por canción (hasta 8), con filtro en la biblioteca, búsqueda por etiqueta y edición desde "Datos de la canción"
 - [x] Etiquetas: renombrar o borrar una etiqueta en todas las canciones a la vez (Menú → Etiquetas; renombrar a una que ya existe las une)
+- [x] Etiquetas, cuando son muchas (0.1.6, pedido del dueño): al editar se ven solo las de esa canción y las demás se suman desde "Agregar…"; en la biblioteca el filtro es un solo botón "Etiquetas" que abre la lista, con cuántos temas tiene cada una. Falta que el dueño lo pruebe con el dedo
 
 ## 6. Servidores, sistemas y seguridad
 Hoy no hay servidor: la app son archivos fijos en GitHub Pages y cada canción vive en el teléfono de

@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.1.0 → 0.1.1): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. Desde la 0.1.0 la app se comparte con gente que la prueba.
-  const VERSION = '0.1.5';
+  const VERSION = '0.1.6';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -694,12 +694,14 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       $('#filt').hidden = onLists || used.length < 2;
       $('#filt').innerHTML = [['', 'Todos'], ...used].map(st =>
         `<button data-a="style" data-v="${st[0]}"${st[0] === libStyle ? ' class="on"' : ''}>${esc(st[1].replace(/ \(.*/, ''))}</button>`).join('');
-      // Filtro por etiqueta: aparece si hay alguna en uso, y una etiqueta sin canciones deja de mostrarse.
+      // Filtro por etiqueta: un solo botón que abre la lista de etiquetas (aparece si hay alguna en uso). Con una
+      // elegida, el botón lleva su nombre y al lado hay otro para volver a ver todas.
       const tags = allTags();
       if (!tags.includes(libTag)) libTag = '';
       $('#tagfilt').hidden = onLists || !tags.length;
-      $('#tagfilt').innerHTML = [['', 'Todas las etiquetas'], ...tags.map(t => [t, t])].map(t =>
-        `<button data-a="ltag" data-v="${esc(t[0])}"${t[0] === libTag ? ' class="on"' : ''}>${esc(t[1])}</button>`).join('');
+      $('#tagfilt').innerHTML = libTag
+        ? `<button data-a="ltag" class="on">${esc(libTag)} ▾</button><button data-a="ltagoff">✕ Todas</button>`
+        : '<button data-a="ltag">Etiquetas ▾</button>';
       if (onLists) {
         const shown = lists.filter(l => !f || l.name.toLowerCase().includes(f));
         list.innerHTML = shown.length ? shown.map(l => `
@@ -791,7 +793,15 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       },
       tab: el => { libTab = el.dataset.v; q.value = ''; draw(); },
       style: el => { libStyle = el.dataset.v; draw(); },
-      ltag: el => { libTag = el.dataset.v; draw(); },
+      ltag: async () => {
+        const tags = allTags();
+        const k = await choose('Ver solo las canciones con la etiqueta', [['all', 'Todas las etiquetas', count(songs.length)],
+          ...tags.map((t, i) => [String(i), t, count(songs.filter(s => tagsOf(s).includes(t)).length)])]);
+        if (k == null) return;
+        libTag = k === 'all' ? '' : tags[+k];
+        draw();
+      },
+      ltagoff: () => { libTag = ''; draw(); },
       new: () => {
         if (libTab !== 'lists') { location.hash = '#/e/new'; return; }
         const name = (prompt('Nombre de la lista:', '') || '').trim();
