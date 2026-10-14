@@ -8,7 +8,7 @@ const run = (...args) => execFileSync(process.execPath, args, { stdio: 'inherit'
 for (const f of ['music.js', 'bases.js', 'audio.js', 'export.js', 'app.js', 'sw.js']) run('--check', path.join(root, f));
 // 2) que estén todas las funciones que la app usa de la lógica musical
 const Music = require(path.join(root, 'music.js'));
-for (const name of ['fromIreal', 'setView', 'markOf', 'normalize', 'serialize', 'parseChord', 'spell', 'transposeName', 'useFlats',
+for (const name of ['fromBiab', 'fromIreal','setView', 'markOf', 'normalize', 'serialize', 'parseChord', 'spell', 'transposeName', 'useFlats',
   'firstChord', 'positions', 'parseChart', 'intervals', 'resolve', 'unfold', 'guessKey', 'starts', 'grid', 'natural', 'split', 'join', 'audible']) {
   if (typeof Music[name] !== 'function') throw new Error('Falta la función Music.' + name);
 }
@@ -18,6 +18,7 @@ run(path.join(__dirname, 'saltos.js'), path.join(root, 'music.js'));
 run(path.join(__dirname, 'tonalidad.js'), path.join(root, 'music.js'));
 run(path.join(__dirname, 'tiempos.js'), path.join(root, 'music.js'));
 run(path.join(__dirname, 'ireal.js'), path.join(root, 'music.js'));
+run(path.join(__dirname, 'biab.js'), path.join(root, 'music.js'));
 run(path.join(__dirname, 'audio.js'), root);
 run(path.join(__dirname, 'practica.js'), root);
 run(path.join(__dirname, 'cortes.js'), root);

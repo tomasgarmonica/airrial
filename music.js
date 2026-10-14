@@ -567,7 +567,125 @@ const Music = (() => {
     return songs.length ? { name, songs } : null;
   }
 
-  return { fromIreal, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
+  // --- importar desde Band-in-a-Box ---
+  // Sus archivos (.MGU, .SGU) son binarios y el formato no es público: esto sigue lo que se descifró de afuera
+  // (el módulo Data::BiaB, de Johan Vromans). Trae título, ritmo, tono, tempo, el nombre del estilo, los acordes
+  // en 255 compases de cuatro lugares cada uno, y qué compases son el coro (lo de antes es la introducción y lo
+  // de después, el final). La melodía que pueda traer no se toma.
+  const BIAB_QUAL = {
+    1: '', 2: '', 3: 'b5', 4: 'aug', 5: '6', 6: 'maj7', 7: 'maj9', 8: 'maj9#11', 9: 'maj13#11', 10: 'maj13', 12: 'aug',
+    13: 'maj7#5', 14: '6/9', 15: 'add9', 16: 'm', 17: 'm#5', 18: 'mMaj7', 19: 'm7', 20: 'm9', 21: 'm11', 22: 'm13', 23: 'm6',
+    24: 'm#5', 25: 'm7#5', 26: 'm6/9', 32: 'm7b5', 33: 'dim', 34: 'm9b5', 40: '5', 56: '7#5', 57: 'aug', 58: '13#5', 64: '7',
+    65: '13', 66: '7b13', 67: '7#11', 70: '9', 73: '9#11', 74: '13#11', 76: '7b9', 77: '13b9', 79: '7b9#11', 82: '7#9', 83: '13#9',
+    84: '7#9b13', 85: '9#11', 88: '7b5', 89: '13b5', 91: '9b5', 93: '7b5b9', 96: '7b5#9', 99: '7#5', 103: '9#5', 105: '7#5b9',
+    109: '7#5#9', 113: '7alt', 128: '7sus4', 129: '13sus4', 134: '11', 140: '7sus4b9', 146: '7sus4#9', 163: '7sus4#5',
+    177: 'sus4', 184: 'sus4',
+  };
+  // Un tipo que no está en la tabla se toma por su familia: mayores, menores, dominantes y suspendidos.
+  const biabQual = t => (t in BIAB_QUAL ? BIAB_QUAL[t] : t < 16 ? '' : t < 32 ? 'm' : t < 40 ? 'm7b5' : t < 128 ? '7' : '7sus4');
+  const BIAB_ROOT = ['', 'C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B', 'C#', 'D#', 'F#', 'G#', 'A#'];
+  // Bajo distinto de la fundamental: viene sumado de a 18 y se cuenta desde Si.
+  const BIAB_BASS = { b: ['B', 'C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb'], '#': ['B', 'C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#'] };
+  function biabChord(n, t) {
+    const root = BIAB_ROOT[n % 18];
+    if (!root) return null;
+    const bass = n >= 18 ? '/' + BIAB_BASS[root.includes('b') ? 'b' : '#'][(Math.floor(n / 18) + n % 18) % 12] : '';
+    return root + biabQual(t) + bass;
+  }
+  // Estilo de Airrial según el nombre del estilo de Band-in-a-Box (o su número de ritmo básico).
+  function biabStyle(file, basic) {
+    const s = file.toLowerCase();
+    if (/wal/.test(s) || basic === 8 || basic === 17) return 'vals';
+    if (/bos/.test(s) || basic === 4) return 'bossa';
+    if (/tang/.test(s)) return 'tango';
+    if (/samb/.test(s)) return 'samba';
+    if (/reg/.test(s)) return 'reggae';
+    if (/funk/.test(s)) return 'funk';
+    if (/bolero/.test(s)) return 'bolero';
+    if (/salsa|mamb|cha|son/.test(s)) return 'son';
+    if (/shuf|blu/.test(s)) return 'shuffle';
+    if (/rock|pop/.test(s)) return 'pop';
+    return 'swing';
+  }
+  // Bytes de un archivo de Band-in-a-Box → { name: '', songs: [una canción] }, o null si no se puede leer.
+  function fromBiab(bytes) {
+    const d = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes || []);
+    let i = 0;
+    const gb = () => { if (i >= d.length) throw new Error('corto'); return d[i++]; };
+    // Lista comprimida: un valor distinto de cero ocupa un lugar; un cero seguido de n saltea n lugares.
+    const runs = size => {
+      const out = [];
+      for (let k = 0; k < size;) {
+        const v = gb();
+        if (v) out[k++] = v;
+        else { const n = gb(); if (!n) throw new Error('formato'); k += n; }
+      }
+      return out;
+    };
+    try {
+      i = 1;
+      const len = gb();
+      let title = '';
+      for (let k = 0; k < len; k++) title += String.fromCharCode(gb());
+      i += 2;
+      const basic = gb(), key = gb(), bpm = gb();
+      runs(256);                            // estilo de cada compás (a o b): Airrial no lo usa
+      const types = runs(1020), roots = runs(1021);
+      const start = gb(), end = gb();
+      // El nombre del archivo de estilo ("TANGO.STY") viene un poco más adelante.
+      const after = String.fromCharCode(...d.subarray(i, i + 3000));
+      const sty = (/([A-Z0-9_~\-]{1,8})\.STY/i.exec(after) || [])[1] || '';
+      const style = biabStyle(sty, basic), beats = style === 'vals' ? 3 : 4;
+      const last = Math.min(end || 0, 255);
+      if (!title.trim() || !(start >= 1) || last < start) return null;
+      const bars = [];
+      let held = null;
+      for (let b = 0; b < last; b++) {
+        const cells = [];
+        for (let s = 0; s < 4; s++) {
+          const c = roots[b * 4 + s] ? biabChord(roots[b * 4 + s], types[b * 4 + s] || 1) : null;
+          // en 3/4 el cuarto lugar no se usa; si trae algo, va al tercer tiempo
+          if (s < beats) cells.push(c); else if (c) cells[beats - 1] = c;
+        }
+        // un compás sin acordes sigue con el último que sonó; uno que empieza vacío, también hasta su primer acorde
+        if (!cells.some(Boolean)) { if (held) cells[0] = held; else cells[0] = 'N.C.'; }
+        // (el mismo acorde repetido en el compás se escribe una vez)
+        const items = [], lens = [];
+        cells.forEach(c => {
+          if (c && c !== items[items.length - 1]) { items.push(c); lens.push(1); held = c; } else if (items.length) lens[lens.length - 1]++; else { items.push('_'); lens.push(1); }
+        });
+        const bar = { items, lens: lens.map(l => l / beats), ts: [beats, 4] };
+        if (b === 0 && start > 1) bar.section = 'Intro';
+        if (b === start - 1 && start > 1) bar.section = 'A';
+        bars.push(bar);
+      }
+      if (!bars.some(b => b.items.some(it => it !== '_' && it !== 'N.C.'))) return null;
+      let row = -1, n = 0;
+      for (const b of bars) {
+        if (n === 0 || n >= 4 || b.section) { row++; n = 0; }
+        b.row = row;
+        n++;
+      }
+      // "Título - Autor" es la forma habitual de nombrar los temas en Band-in-a-Box.
+      const parts = title.trim().split(' - ');
+      const chart = serialize(bars);
+      // El tono viene siempre como mayor: si los acordes dicen que es su relativo menor, se toma el menor.
+      const written = BIAB_ROOT[key] || '', guess = guessKey(parseChart(chart, [beats, 4]));
+      const g = parseChord(guess), w = parseChord(written);
+      const tone = g && w && /m$/.test(guess) && (g.num + 3) % 12 === w.num ? guess : written || guess;
+      return {
+        name: '', songs: [{
+          title: parts.length === 2 ? parts[0].trim() : title.trim(), composer: parts.length === 2 ? parts[1].trim() : '',
+          style, key: tone, tempo: Math.min(360, Math.max(30, bpm || 120)),
+          ts: beats + '/4', chart,
+        }],
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  return { fromBiab, fromIreal, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;

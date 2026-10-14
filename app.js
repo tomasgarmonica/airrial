@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.1.0 → 0.1.1): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. Desde la 0.1.0 la app se comparte con gente que la prueba.
-  const VERSION = '0.1.7';
+  const VERSION = '0.1.8';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -272,6 +272,17 @@
       return { songs, lists: songs.length > 1 ? [{ id: newId(), name: ireal.name || 'iReal', songs: songs.map(s => s.id) }] : [] };
     }
     return JSON.parse(m ? m[1] : text);
+  };
+  // Un archivo elegido desde el Menú → { data: canciones y listas ya revisadas, kind: de dónde viene }.
+  // Los de Band-in-a-Box son binarios (se leen como bytes); el resto, texto.
+  const readFile = async file => {
+    if (/\.(mgu|sgu)$/i.test(file.name)) {
+      const got = Music.fromBiab(new Uint8Array(await file.arrayBuffer()));
+      if (!got) throw new Error('band-in-a-box');
+      return { data: readData({ songs: got.songs.map(s => ({ ...s, id: newId() })) }), kind: 'Band-in-a-Box' };
+    }
+    const text = await file.text();
+    return { data: readData(parseFile(text)), kind: text.includes('irealb://') ? 'iReal Pro' : 'Airrial' };
   };
   // Canciones y listas de un archivo exportado o recibido, ya revisadas.
   const readData = data => ({
@@ -665,7 +676,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       <dialog id="menu"><div class="sheet">
         <button data-a="export">Exportar todo (copia de seguridad)</button>
         <p class="hint" id="age">${backupAge()}</p>
-        <button data-a="import">Abrir un archivo (de Airrial o de iReal Pro)</button>
+        <button data-a="import">Abrir archivos (de Airrial, iReal Pro o Band-in-a-Box)</button>
         <button data-a="paste">Pegar una canción o lista copiada</button>
         <button data-a="select">Seleccionar canciones para borrar</button>
         <button data-a="tags">Etiquetas: renombrar o borrar</button>
@@ -674,7 +685,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <button data-a="close">Cerrar</button>
         <p class="hint">Airrial cuenta de forma anónima cuánto se usa (visitas, reproducir, compartir). No guarda quién sos ni qué canciones tenés.</p>
       </div></dialog>
-      <input type="file" id="file" accept=".json,.txt,.html,.htm,application/json,text/plain,text/html" hidden>`;
+      <input type="file" id="file" accept=".json,.txt,.html,.htm,.mgu,.sgu,application/json,text/plain,text/html" multiple hidden>`;
     const list = $('#list'), q = $('#q');
     // Modo selección: `sel` tiene los ids marcados (null si no se está seleccionando). `shownIds` son las canciones a la vista.
     let sel = null, shownIds = [], held = false, hold = null, down = null;
@@ -831,18 +842,28 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     app.oninput = e => { if (e.target === q) draw(); };
     app.onchange = async e => {
       if (e.target.id !== 'file' || !e.target.files[0]) return;
-      try {
-        const text = await e.target.files[0].text(), incoming = readData(parseFile(text));
-        const kept = mergeData(incoming);
-        if (kept) tally(text.includes('irealb://') ? 'Abrir archivo · iReal Pro' : 'Abrir archivo · Airrial');
-        $('#menu').close();
-        draw();
-        const n = incoming.lists.length;
-        if (kept) alert(`Se importaron ${count(incoming.songs.length)}` + (n ? ` y ${n} ${n === 1 ? 'lista' : 'listas'}.` : '.'));
-      } catch {
-        alert('No se pudo leer ese archivo. Tiene que ser un archivo exportado desde Airrial o desde iReal Pro.');
+      // Se pueden elegir varios archivos a la vez (los de Band-in-a-Box traen un tema cada uno).
+      const incoming = { songs: [], lists: [] }, bad = [], kinds = new Set();
+      for (const file of [...e.target.files].slice(0, 500)) {
+        try {
+          const got = await readFile(file);
+          incoming.songs.push(...got.data.songs);
+          incoming.lists.push(...got.data.lists);
+          kinds.add(got.kind);
+        } catch {
+          bad.push(file.name);
+        }
       }
       e.target.value = '';
+      const kept = incoming.songs.length || incoming.lists.length ? mergeData(incoming) : null;
+      if (kept) kinds.forEach(k => tally('Abrir archivo · ' + k));
+      $('#menu').close();
+      draw();
+      const n = incoming.lists.length;
+      const no = bad.length ? `No se pudo leer ${bad.length === 1 ? 'este archivo' : 'estos archivos'}: ${bad.slice(0, 5).join(', ')}${bad.length > 5 ? '…' : ''}. ` +
+        'Tiene que ser un archivo exportado desde Airrial, de iReal Pro o de Band-in-a-Box.' : '';
+      if (kept) alert(`Se importaron ${count(incoming.songs.length)}` + (n ? ` y ${n} ${n === 1 ? 'lista' : 'listas'}.` : '.') + (no ? '\n\n' + no : ''));
+      else if (no) alert(no);
     };
   }
 

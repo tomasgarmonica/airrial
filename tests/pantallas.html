@@ -182,6 +182,21 @@ const cases = {
     same(a.saved('lists').map(l => [l.name, l.songs.length]), [['Mi lista', 2]], 'la lista');
     check(/Se importaron 2 temas y 1 lista/.test(a.w.said.join(' ')), 'falta el aviso de cuántos entraron');
   },
+  'Abrir varios archivos a la vez: uno de Band-in-a-Box entra y uno roto se avisa': async () => {
+    const a = await start({ songs: [] });
+    // Un tema de Band-in-a-Box mínimo: "Tema", un compás de Cmaj7, ritmo swing, Do, 120.
+    const mgu = new Uint8Array([0x49, 4, 84, 101, 109, 97, 0, 0x20, 1, 1, 120, 1, 0, 255, 6, 0, 255, 0, 255, 0, 255, 0, 254,
+      1, 0, 255, 0, 255, 0, 255, 0, 255, 1, 1, 2]);
+    const dt = new a.w.DataTransfer();
+    dt.items.add(new a.w.File([mgu], 'Tema.MGU'));
+    dt.items.add(new a.w.File(['no soy nada'], 'roto.sgu'));
+    a.$('#file').files = dt.files;
+    a.$('#file').dispatchEvent(new a.w.Event('change', { bubbles: true }));
+    await until(() => a.mine().length === 1, 'que entre el tema');
+    same(a.mine().map(s => [s.title, s.style, s.key, s.tempo, s.ts, s.chart]), [['Tema', 'swing', 'C', 120, '4/4', '| Cmaj7 |']], 'el tema');
+    const said = a.w.said.join(' ');
+    check(/Se importaron 1 tema/.test(said) && /roto\.sgu/.test(said), 'faltan los avisos: ' + said);
+  },
 };
 
 (async () => {
