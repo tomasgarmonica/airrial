@@ -64,7 +64,8 @@ for (const f of fs.existsSync(dir) ? fs.readdirSync(dir).filter(x => /\.html?$/i
     assert.ok(bs.length > 3, f + ': ' + s.title + ' quedó casi vacío');
     assert.equal(M.serialize(bs), s.chart, f + ': ' + s.title);
     assert.ok(bs.every(x => x.items.every(it => ['_', '%', 'N.C.'].includes(it) || M.parseChord(it))), f + ': ' + s.title + ' tiene algo que no es un acorde');
-    assert.ok(M.unfold(bs).length > 3);
+    // (hay temas que en iReal están en blanco, sin ningún acorde: esos no tienen nada que sonar)
+    if (bs.some(x => x.items.some(it => it !== '_'))) assert.ok(M.unfold(bs).length > 3, f + ': ' + s.title + ' no suena');
   }
   console.log('archivo de iReal de control:', f, '·', real.songs.length, 'temas');
 }
