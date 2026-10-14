@@ -124,6 +124,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] iPhone: pasar lo recibido de Safari a la app por el portapapeles (Copiar para la app → Pegar lo copiado)
 - [ ] iPhone: probar con un usuario real el copiar y pegar
 - [x] iPhone: llevar a la app TODO lo que alguien ya guardó en Safari antes de instalarla. En Safari, con canciones propias, aparece un cartel con "Copiar todo"; en la app instalada, "Pegar lo copiado" muestra cuántos temas y listas llegan y los guarda sin pisar ni duplicar
+- [x] iPhone: sin sonido ni en Safari ni en Chrome (lo reportó un amigo del dueño el 14 de octubre de 2026). Desde la 0.1.7 la app pide sonar aunque el teléfono esté en silencio (iOS 17 en adelante) y despierta el audio cortado por una llamada; el mismo día confirmó que se escucha bien. Si aparece un iPhone con iOS anterior al 17 que solo suena con el silencio apagado, falta el truco para esos
 - [ ] iPhone: probar "Copiar todo" con un iPhone real (se probó simulando el iPhone en la PC, con 300 temas; falta ver que Safari deje copiar)
 - [x] Filtrar la biblioteca por género (y buscar por género escribiendo)
 - [x] Borrar varias canciones a la vez desde la biblioteca (modo selección)
