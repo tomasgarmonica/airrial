@@ -1,7 +1,7 @@
 # Comunidad: diseño (borrador)
 
-Borrador del 13 de octubre de 2026, para que el dueño lo lea y decida. Nada de esto está construido.
-Lo que está marcado **A decidir** necesita su respuesta antes de empezar; en cada uno hay una propuesta.
+Borrador del 13 de octubre de 2026. El dueño lo aprobó el 14 de octubre de 2026 con las propuestas de
+**Decidido** (abajo) y se empieza a construir por etapas.
 
 ## Qué es
 
@@ -77,7 +77,11 @@ intenta unificarlas: se ven todas, y las más bajadas quedan arriba.
   las revises; no reemplazan a un abogado.
 - **Borrar la cuenta** borra también todo lo que esa persona subió.
 
-## A decidir
+## Decidido
+
+El 14 de octubre de 2026 el dueño confirmó: **solo cifrados, sin comentarios** (al decir "foro" hablaba de
+esto); el botón **"Comunidad" va en la pantalla principal**; la cuenta se entra con **código por mail**; y para
+el resto (2 a 5) **va lo propuesto**. Abajo, cada punto con lo que se había planteado.
 
 1. **Cómo se entra a la cuenta.**
    - *Código por mail* (propuesta): escribís tu mail, te llega un número de 6 cifras y lo ponés en la app.

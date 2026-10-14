@@ -49,7 +49,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Recibir en el celular con Compartir → Airrial: el dueño lo probó el 13 de octubre de 2026 con la lista de iReal y abrió bien
 - [ ] Probar en celular real el envío de un archivo `.airrial.html` (compartir una canción propia y que otra persona la abra)
 - [ ] Comunidad: secuencias subidas por usuarios. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento. La app no trae canciones propias (decidido el 2026-10-09, por los posibles derechos): el repertorio llega por la comunidad
-- [ ] Comunidad: destacar las canciones más completas o mejor puntuadas (fijadas o con puntaje). A definir
+- [ ] Comunidad: destacar las canciones más completas o mejor puntuadas. Decidido el 14 de octubre de 2026: por cantidad de bajadas y fijadas por el dueño, sin estrellas ni votos. El diseño completo y las etapas están en `COMUNIDAD.md`
 
 ## 4. Audio y pistas
 
