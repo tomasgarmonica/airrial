@@ -253,6 +253,7 @@ create or replace function public.borrar_cuenta() returns void
   set search_path = ''
   as $$ delete from auth.users where id = auth.uid() $$;
 
-revoke all on function public.bajar(text, bigint), public.por_enlace(text), public.puede_subir(), public.borrar_cuenta() from public;
+-- (Supabase les da permiso a anon y authenticated sobre toda función nueva: hay que sacárselo a cada uno)
+revoke all on function public.bajar(text, bigint), public.por_enlace(text), public.puede_subir(), public.borrar_cuenta() from public, anon, authenticated;
 grant execute on function public.bajar(text, bigint), public.por_enlace(text) to anon, authenticated;
 grant execute on function public.puede_subir(), public.borrar_cuenta() to authenticated;

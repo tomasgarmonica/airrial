@@ -19,6 +19,9 @@ await db.exec(`
   create function auth.uid() returns uuid language sql stable as $$ select nullif(current_setting('request.jwt.claim.sub', true), '')::uuid $$;
   grant usage on schema auth, public to anon, authenticated;
   grant execute on function auth.uid() to anon, authenticated;
+  -- como Supabase: toda tabla y función nueva viene con permisos para anon y authenticated
+  alter default privileges in schema public grant all on tables to anon, authenticated;
+  alter default privileges in schema public grant execute on functions to anon, authenticated;
 `);
 await db.exec(sql);
 await db.exec(sql); // se puede correr dos veces
@@ -140,6 +143,7 @@ ok(r.rows.length === 1 && r.rows[0].dueno === U[2], 'biblioteca: dueño por defe
 // borrar la cuenta propia desde la app: sin cuenta no se puede; con cuenta, se va solo esa
 await as('anon');
 await err(`select public.borrar_cuenta()`, /permission/, 'anon borra cuentas');
+await err(`select public.puede_subir()`, /permission/, 'anon pregunta si puede subir');
 await as('authenticated', U[2]);
 await db.exec(`select public.borrar_cuenta()`);
 await db.exec('reset role');
