@@ -430,6 +430,16 @@ const cases = {
     await a.tap('[data-g="del"][data-k="lista"]');
     await until(() => /Todavía no subiste/.test(a.text('#gate') || ''), 'que se borre');
     same(a.saved('lists').map(l => l.name), ['Peña', 'Sin acordes', 'De otro'], 'las listas del teléfono');
+    // borrar la cuenta: la borra en el servidor, sale, y lo del teléfono queda
+    a.fits('mis subidas');
+    // (al terminar, la app vuelve atrás en el historial, y en este marco eso puede salir de la página de prueba:
+    // se miran el almacenamiento y los carteles de antes)
+    const ls = a.w.localStorage, said = a.w.said;
+    await a.tap('[data-g="delacct"]');
+    await until(() => !ls.getItem('airrial.cuenta.v1'), 'que salga de la cuenta');
+    check(asked.includes('POST rest/v1/rpc/borrar_cuenta'), 'no pidió borrar la cuenta');
+    same(JSON.parse(ls.getItem('airrial.songs.v1')).length, 3, 'las canciones del teléfono');
+    check(/no se puede deshacer/.test(said[said.length - 1]), 'no preguntó antes: ' + said[said.length - 1]);
   },
 };
 

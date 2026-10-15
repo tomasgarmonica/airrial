@@ -104,6 +104,16 @@ for (const [i, u] of U.slice(0, 3).entries()) {
 await db.exec(`reset role; update public.perfiles set bloqueado = true where id = '${U[3]}'`);
 await as('authenticated', U[3]);
 await err(`insert into public.canciones (autor, titulo, ritmo, compas, tempo, cifrado) values ('${U[3]}', 'x', 'swing', '4/4', 120, '| C |')`, /policy/, 'bloqueado sube');
+// borrar la cuenta propia desde la app: sin cuenta no se puede; con cuenta, se va solo esa
+await as('anon');
+await err(`select public.borrar_cuenta()`, /permission/, 'anon borra cuentas');
+await as('authenticated', U[2]);
+await db.exec(`select public.borrar_cuenta()`);
+await db.exec('reset role');
+r = await q(`select id from auth.users order by id`);
+ok(r.rows.map(x => x.id).join() === [U[0], U[1], U[3]].join(), 'borrar_cuenta: ' + r.rows.map(x => x.id).join());
+r = await q(`select count(*)::int as n from public.perfiles where id = '${U[2]}'`);
+ok(r.rows[0].n === 0, 'quedó el perfil de la cuenta borrada');
 // borrar la cuenta borra lo que subió
 await db.exec(`reset role; delete from auth.users where id = '${U[0]}'`);
 r = await q(`select count(*)::int as n from public.canciones where autor is not null`);

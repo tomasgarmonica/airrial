@@ -50,7 +50,7 @@ No vendemos ni le pasamos tus datos a nadie más.
 ## Tus derechos
 
 - **Ver y cambiar:** tu nombre para mostrar y lo que subiste se ven y se cambian desde la app.
-- **Borrar:** podés borrar cualquier subida desde "Mis subidas", y borrar tu cuenta desde [Cuenta]. Al borrar
+- **Borrar:** podés borrar cualquier subida desde "Mis subidas", y borrar tu cuenta desde Comunidad → Mis subidas → "Borrar mi cuenta". Al borrar
   la cuenta se borran tu mail, tu nombre y todo lo que subiste. Las copias que otras personas ya bajaron
   quedan en sus teléfonos.
 - **Pedirnos lo que tengamos de vos,** o que lo corrijamos o lo borremos: desde Menú → Contactanos.

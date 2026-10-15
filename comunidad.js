@@ -164,6 +164,8 @@ const Comunidad = (() => {
       keep(null);
       if (t) ask(AUTH + 'logout', { method: 'POST', headers: { Authorization: 'Bearer ' + t } }).catch(() => {});
     },
+    // Borra la cuenta entera (mail, nombre y lo subido) y sale.
+    borrarCuenta: async () => { await mine('rpc/borrar_cuenta', { method: 'POST', body: '{}' }); keep(null); },
     // El nombre para mostrar de esta cuenta ('' si todavía no eligió uno).
     miNombre: async () => {
       const r = list(await mine('perfiles?select=nombre&id=eq.' + me()))[0];

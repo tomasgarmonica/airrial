@@ -1896,12 +1896,21 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         ${rows.length && sets.length ? '<h2 class="sub">Canciones</h2>' : ''}
         ${rows.map(r => `<div class="item mine"><a href="#/c/s/${r.id}"><b>${esc(r.titulo)}${hidden(r)}</b>
           <span>${esc([r.compositor, comStyle(r.ritmo), times(r.bajadas)].filter(Boolean).join(' · '))}</span></a>
-          <button class="tx del" data-g="del" data-v="${r.id}">Borrar</button></div>`).join('')}`;
+          <button class="tx del" data-g="del" data-v="${r.id}">Borrar</button></div>`).join('')}
+        <button class="danger" data-g="delacct">Borrar mi cuenta</button>`;
       box.onclick = async e => {
         const b = e.target.closest('[data-g]');
         if (!b) return;
         try {
           if (b.dataset.g === 'out') { Comunidad.salir(); toast('Saliste de la cuenta.'); up('#/c'); }
+          else if (b.dataset.g === 'delacct') {
+            const what = [[rows.length, 'canción', 'canciones'], [sets.length, 'lista', 'listas']].filter(x => x[0])
+              .map(([n, one, many]) => (n === 1 ? 'una ' + one : n + ' ' + many)).join(' y ');
+            if (!confirm(`¿Borrar tu cuenta? Se borran tu mail, tu nombre${what ? ' y lo que subiste (' + what + ')' : ''}, y no se puede deshacer. Las canciones de tu teléfono no se borran.`)) return;
+            await Comunidad.borrarCuenta();
+            toast('Tu cuenta quedó borrada.');
+            up('#/c');
+          }
           else if (b.dataset.g === 'rename') {
             const to = (prompt('Tu nombre para mostrar (hasta 30 letras):', nombre) || '').trim().replace(/\s+/g, ' ').slice(0, 30);
             if (!to || to === nombre) return;

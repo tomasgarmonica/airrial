@@ -206,6 +206,12 @@ end $$;
 drop trigger if exists al_denunciar on public.denuncias;
 create trigger al_denunciar after insert on public.denuncias for each row execute function public.al_denunciar();
 
-revoke all on function public.bajar(text, bigint), public.por_enlace(text), public.puede_subir() from public;
+-- Borrar la cuenta propia desde la app: se va el mail y, en cascada, el nombre, lo subido y las denuncias hechas.
+create or replace function public.borrar_cuenta() returns void
+  language sql security definer
+  set search_path = ''
+  as $$ delete from auth.users where id = auth.uid() $$;
+
+revoke all on function public.bajar(text, bigint), public.por_enlace(text), public.puede_subir(), public.borrar_cuenta() from public;
 grant execute on function public.bajar(text, bigint), public.por_enlace(text) to anon, authenticated;
-grant execute on function public.puede_subir() to authenticated;
+grant execute on function public.puede_subir(), public.borrar_cuenta() to authenticated;
