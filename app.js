@@ -684,6 +684,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     app.innerHTML = `
       <header class="top"><div class="ttl"><h1>Airrial</h1><p>Mis cifrados · beta ${VERSION}</p></div>
         <button class="tx" data-a="menu">Menú</button></header>
+      <button class="cafe" data-a="cafecito">☕ Apoyá a Airrial con un cafecito</button>
       <div class="seg tabs"><button data-a="tab" data-v="songs">Canciones</button><button data-a="tab" data-v="lists">Listas</button><button data-a="community">Comunidad</button></div>
       <div class="search"><input id="q" type="search" autocomplete="off"></div>
       <div class="filt" id="filt"></div>
@@ -714,7 +715,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     let sel = null, shownIds = [], held = false, hold = null, down = null;
     const draw = () => {
       const f = q.value.trim().toLowerCase(), onLists = libTab === 'lists';
-      $('.tabs').hidden = $('.fab').hidden = !!sel;
+      $('.tabs').hidden = $('.fab').hidden = $('.cafe').hidden = !!sel;
       $('#selbar').hidden = !sel;
       if (sel) {
         $('#selcount').textContent = sel.size + (sel.size === 1 ? ' seleccionada' : ' seleccionadas');
