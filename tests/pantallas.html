@@ -48,7 +48,8 @@ async function start(seed, hash) {
     const realFetch = window.fetch.bind(window);
     window.server = null;
     window.fetch = (u, o) => (String(u).includes('.supabase.co') ? (window.server ? Promise.resolve().then(() => window.server(String(u), o))
-      : Promise.reject(new TypeError('sin conexión'))) : realFetch(u, o));
+      : Promise.reject(new TypeError('sin conexión'))) : realFetch(/^[\\w.-]+\\.md$/.test(String(u)) ? '../' + u : u, o));
+    // (los textos de la app, como REGLAS.md, están una carpeta más arriba que esta página)
     // El menú de compartir del teléfono: lo contesta window.sharing (sin él, el teléfono no sabe compartir archivos).
     window.sharing = null; window.shared = [];
     navigator.canShare = () => !!window.sharing;
@@ -392,6 +393,19 @@ const cases = {
     b.$('input[value="spam"]').checked = true;
     await b.tap('[data-g="send"]');
     await until(() => /Gracias/.test(b.text('#gate') || ''), 'el gracias con la repetida');
+  },
+  'Reglas y privacidad enteras: desde el Menú y desde las reglas al crear la cuenta': async () => {
+    const a = await start({ songs: [] });
+    await a.tap('[data-a="menu"]');
+    await a.tap('[data-a="docs"]');
+    await until(() => a.$('main.doc h2'), 'la privacidad');
+    check(/Si creás una cuenta/.test(a.text('main.doc')) && a.$('main.doc ul li b'), 'el texto de la privacidad: ' + (a.text('main.doc') || '').slice(0, 80));
+    check(!/\*\*|^#/.test(a.text('main.doc')), 'quedaron marcas sin pasar');
+    a.fits('privacidad');
+    await a.tap('[data-a="doc"][data-v="reglas"]');
+    await until(() => /Qué no se puede subir/.test(a.text('main.doc') || ''), 'las reglas');
+    same(a.text('.ttl h1'), 'Reglas de la Comunidad', 'el título');
+    a.fits('reglas');
   },
   'Comunidad: una lista de 1400 temas se sube': async () => {
     const many = Array.from({ length: 1400 }, (_, k) => song('m' + k, 'Standard ' + k, '| Dm7 | G7 | Cmaj7 | % |'));

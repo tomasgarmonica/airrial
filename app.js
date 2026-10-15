@@ -690,6 +690,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <button data-a="tags">Etiquetas: renombrar o borrar</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="contact">Contactanos: propuestas, preguntas o comentarios</button>
+        <button data-a="docs">Privacidad y reglas de la Comunidad</button>
         <button data-a="close">Cerrar</button>
         <p class="hint">Airrial cuenta de forma anónima cuánto se usa (visitas, reproducir, compartir). No guarda quién sos ni qué canciones tenés.</p>
       </div></dialog>
@@ -834,6 +835,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       menu: () => $('#menu').showModal(),
       close: () => $('#menu').close(),
       // Formulario del dueño (Google Forms): se abre aparte, fuera de la app.
+      docs: () => { $('#menu').close(); location.hash = '#/d/privacidad'; },
       contact: () => { tally('Contactanos'); window.open('https://forms.gle/F6rjcZePUW9J3i3K8', '_blank', 'noopener'); },
       theme: () => {
         settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
@@ -1713,7 +1715,48 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     <li>Lo que subís lo escribiste vos o tenés permiso para compartirlo, y cualquiera lo puede ver, bajar, usar y cambiar.</li>
     <li>Tu nombre para mostrar aparece al lado de lo que subís. Lo podés borrar cuando quieras desde "Mis subidas".</li>
     <li>Lo que no cumpla las reglas se puede esconder o borrar, y la cuenta, bloquear.</li>
-    <li>Para tener cuenta hay que tener 13 años o más. Si sos menor de 18, con permiso de tus padres.</li></ul></details>`;
+    <li>Para tener cuenta hay que tener 13 años o más. Si sos menor de 18, con permiso de tus padres.</li></ul>
+    <p><a href="#/d/reglas">Reglas completas</a> · <a href="#/d/privacidad">Privacidad</a></p></details>`;
+
+  // Reglas y privacidad enteras: se leen de REGLAS.md y PRIVACIDAD.md (los mismos del repositorio, así hay un
+  // solo texto) y se pasan a HTML. Alcanza con lo que esos archivos usan: títulos, párrafos, viñetas, negrita y `código`.
+  const DOCS = { reglas: ['REGLAS.md', 'Reglas de la Comunidad'], privacidad: ['PRIVACIDAD.md', 'Privacidad'] };
+  const mdHtml = text => {
+    const inline = s => esc(s).replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/`(.+?)`/g, '<code>$1</code>');
+    const out = [];
+    let para = null, list = null;
+    const flush = () => {
+      if (para) out.push('<p>' + inline(para.join(' ')) + '</p>');
+      if (list) out.push('<ul>' + list.map(li => '<li>' + inline(li) + '</li>').join('') + '</ul>');
+      para = list = null;
+    };
+    for (const line of text.replace(/\r/g, '').split('\n')) {
+      if (!line.trim()) { flush(); continue; }
+      if (line.startsWith('# ')) { flush(); continue; } // el título va arriba, en el encabezado
+      if (line.startsWith('## ')) { flush(); out.push('<h2>' + inline(line.slice(3)) + '</h2>'); continue; }
+      if (line.startsWith('- ')) { if (para) flush(); (list = list || []).push(line.slice(2)); continue; }
+      if (list && /^\s/.test(line)) { list[list.length - 1] += ' ' + line.trim(); continue; }
+      if (list) flush();
+      (para = para || []).push(line.trim());
+    }
+    flush();
+    return out.join('\n');
+  };
+  async function docView(name) {
+    const doc = DOCS[name] || DOCS.reglas;
+    const back = () => { const p = trail[trail.length - 2]; up(p || '#/'); };
+    app.innerHTML = `<header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
+      <div class="ttl"><h1>${esc(doc[1])}</h1></div></header>
+      <div class="seg tabs">${Object.entries(DOCS).map(([k, d]) =>
+        `<button data-a="doc" data-v="${k}"${d === doc ? ' class="on"' : ''}>${k === 'reglas' ? 'Reglas' : 'Privacidad'}</button>`).join('')}</div>
+      <main class="list doc"><p class="empty">Cargando…</p></main>`;
+    bind({ back, doc: el => { if (el.dataset.v !== name) swap('#/d/' + el.dataset.v); } });
+    let text = null;
+    try { const r = await fetch(doc[0]); if (r.ok) text = await r.text(); } catch { /* sin conexión */ }
+    if (here() !== '#/d/' + name) return;
+    $('main', app).innerHTML = text ? mdHtml(text) + '<p class="hint">Consultas: Menú → Contactanos.</p>'
+      : '<p class="empty">No se pudo cargar. Revisá la conexión y probá de nuevo.</p>';
+  }
   // Qué decir cuando algo de la cuenta falla.
   const accountError = e => (!e || !e.status ? 'No se pudo conectar. Revisá la conexión y probá de nuevo.'
     : /tope/.test(e.said || '') ? e.said
@@ -2578,6 +2621,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     else if (kind === 'e') editView(id);
     else if (kind === 'i') importView(id);
     else if (kind === 'r') receiveView();
+    else if (kind === 'd') docView(id);
     else if (kind === 'c') { let v = ''; try { v = decodeURIComponent(extra || ''); } catch { /* dirección rota */ } comunidadView(id, v); }
     else libraryView();
     window.scrollTo(0, 0);

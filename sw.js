@@ -1,8 +1,8 @@
 // Guarda la app en el teléfono para que funcione sin conexión.
-const CACHE = 'airrial-v22';
+const CACHE = 'airrial-v23';
 const INBOX = 'airrial-inbox';
 const FILES = ['./', 'index.html', 'style.css', 'music.js', 'bases.js', 'audio.js', 'export.js', 'comunidad.js', 'app.js',
-  'manifest.webmanifest', 'incluidas.json', 'icon.svg', 'icon-192.png', 'icon-512.png',
+  'manifest.webmanifest', 'incluidas.json', 'REGLAS.md', 'PRIVACIDAD.md', 'icon.svg', 'icon-192.png', 'icon-512.png',
   'sonidos/indice.json', 'sonidos/bateria.mp3', 'sonidos/percusion.mp3', 'sonidos/piano.mp3',
   'sonidos/rhodes.mp3', 'sonidos/cp80.mp3', 'sonidos/bajo.mp3'];
 

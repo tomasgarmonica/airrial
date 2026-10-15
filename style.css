@@ -90,6 +90,12 @@ a.cmore { display: flex; align-items: center; justify-content: center; text-deco
 .acct .chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 .err { color: var(--danger); font-size: .9rem; }
 .report { text-align: center; margin: 28px 0 12px; }
+.doc { line-height: 1.5; }
+.doc h2 { font-size: 1.05rem; margin: 22px 0 6px; }
+.doc p { margin: 8px 0; }
+.doc ul { margin: 6px 0; padding-left: 20px; }
+.doc li { margin-bottom: 6px; }
+.doc code { background: var(--surface); padding: 1px 5px; border-radius: 4px; }
 .report a { color: var(--muted); font-size: .85rem; }
 .acct textarea { width: 100%; background: var(--surface); color: var(--text); border: 1px solid transparent; border-radius: 10px; padding: 10px 12px; font: inherit; }
 h2.sub { margin: 16px 0 0; font-size: .85rem; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
