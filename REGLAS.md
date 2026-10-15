@@ -1,7 +1,6 @@
 # Reglas de la Comunidad de Airrial
 
-Borrador del 13 de octubre de 2026, para revisar. Todavía no está publicado. Lo que está entre corchetes
-depende de decisiones que faltan.
+Última actualización: 15 de octubre de 2026.
 
 La Comunidad es un lugar para intercambiar cifrados: canciones y listas que cada uno escribió en Airrial y
 quiere dejar a mano para los demás. Es gratis y nadie cobra ni paga por lo que se sube.
