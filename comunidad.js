@@ -201,6 +201,28 @@ const Comunidad = (() => {
     },
     actualizarLista: (id, l) => mine('listas?id=eq.' + Math.floor(+id), { method: 'PATCH', body: JSON.stringify({ nombre: String(l.nombre).trim(), canciones: l.canciones }) }),
     borrarLista: id => mine('listas?id=eq.' + Math.floor(+id), { method: 'DELETE' }),
+
+    // --- biblioteca de la cuenta (sincronización, ver sincro.js) ---
+    // Todo lo cambiado desde `desde` (hora del servidor; vacío: todo), de a páginas de 1000.
+    traerBiblioteca: async desde => {
+      const out = [];
+      for (let page = 0; ; page++) {
+        const rows = list(await mine('biblioteca?select=tipo,id,datos,borrado,cambiado,actualizado'
+          + (desde ? '&actualizado=gte.' + encodeURIComponent(desde) : '') + '&order=actualizado,tipo,id&limit=1000&offset=' + page * 1000));
+        out.push(...rows);
+        if (rows.length < 1000) return out;
+      }
+    },
+    // Guarda renglones ({ tipo, id, datos, borrado, cambiado }), de a 300 por pedido. Si un renglón ya estaba,
+    // lo reemplaza (salvo que el guardado sea más nuevo: eso lo decide el servidor).
+    guardarBiblioteca: async filas => {
+      const dueno = me();
+      for (let i = 0; i < filas.length; i += 300) {
+        await mine('biblioteca?on_conflict=dueno,tipo,id', { method: 'POST', headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
+          body: JSON.stringify(filas.slice(i, i + 300).map(f => ({ dueno, tipo: f.tipo, id: f.id, datos: f.borrado ? null : f.datos,
+            borrado: !!f.borrado, cambiado: Math.max(0, Math.floor(+f.cambiado || 0)) }))) });
+      }
+    },
   };
 })();
 

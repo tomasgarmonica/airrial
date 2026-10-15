@@ -158,6 +158,26 @@ const resp = (status, body) => ({ ok: status < 300, status, json: async () => bo
   assert.strictEqual((await C.misListas()).length, 1);
   assert.ok(asked[3].url.includes('autor=eq.' + U));
 
+  // biblioteca: trae de a páginas hasta que una viene incompleta, y guarda de a 300 a nombre de la cuenta
+  asked = [];
+  let pages = 0;
+  reply = () => resp(200, Array.from({ length: pages++ ? 2 : 1000 }, (_, i) => ({ tipo: 'cancion', id: 'x' + i })));
+  assert.strictEqual((await C.traerBiblioteca('2026-10-15T12:00:00.000Z')).length, 1002);
+  assert.strictEqual(asked.length, 2);
+  assert.ok(asked[0].url.includes('biblioteca?') && asked[0].url.includes('actualizado=gte.2026-10-15T12%3A00%3A00.000Z')
+    && asked[1].url.includes('offset=1000') && asked[0].opts.headers.Authorization, asked[0].url);
+  asked = [];
+  reply = () => resp(200, []);
+  await C.traerBiblioteca('');
+  assert.ok(!asked[0].url.includes('actualizado=gte'), 'sin desde trae todo');
+  asked = [];
+  reply = () => resp(201, null);
+  await C.guardarBiblioteca(Array.from({ length: 301 }, (_, i) => ({ tipo: 'cancion', id: 'x' + i, datos: { title: 't' }, borrado: i === 300, cambiado: 5.5, h: 'q' })));
+  assert.strictEqual(asked.length, 2);
+  assert.ok(asked[0].url.includes('on_conflict=dueno,tipo,id') && /merge-duplicates/.test(asked[0].opts.headers.Prefer));
+  assert.deepStrictEqual(asked[0].body[0], { dueno: U, tipo: 'cancion', id: 'x0', datos: { title: 't' }, borrado: false, cambiado: 5 });
+  assert.deepStrictEqual(asked[1].body, [{ dueno: U, tipo: 'cancion', id: 'x300', datos: null, borrado: true, cambiado: 5 }]);
+
   // el permiso se renueva solo cuando está por vencer (una sola vez aunque se pidan dos cosas juntas)
   reply = () => auth(2, 30);
   await C.entrar('yo@mail.com', '111111');
