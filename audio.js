@@ -409,12 +409,19 @@ const Engine = (() => {
         } else m = low((c.root + c.iv[b === 2 ? 1 : 0]) % 12, S.lb);
         bass(tb, m, bd * 0.9, 0.9);
       }
+      // Compás con varios acordes: cada vez un dibujo distinto, para que no quede siempre igual de cargado.
+      // 0: un golpe por acorde, en su tiempo; 1: los que siguen al primero entran una corchea antes;
+      // 2: entran una corchea después; 3: el dibujo completo (en el tiempo y en el "y" del tiempo siguiente).
+      const r = Math.random(), kind = r < 0.4 ? 0 : r < 0.65 ? 1 : r < 0.85 ? 2 : 3;
       for (const s of x.segs) {
         if (!s.chord) continue;
         const v = jazzVoice(s.chord);
         if (s.len >= 4 && x.barNo % 2) {
           chordHit(t + (s.beat + 1) * bd, v, bd * 0.5, 0.8);
           chordHit(t + (s.beat + 2 + 2 / 3) * bd, v, bd * 0.9, 0.9);
+        } else if (s.len < 4 && kind < 3) {
+          const shift = !s.beat ? 0 : kind === 1 ? -1 / 3 : kind === 2 ? 2 / 3 : 0;
+          chordHit(t + (s.beat + shift) * bd, v, bd * 0.9, s.beat ? 0.8 : 0.9);
         } else {
           chordHit(t + s.beat * bd, v, bd * 0.6, 0.9);
           if (s.len >= 2) chordHit(t + (s.beat + 1 + 2 / 3) * bd, v, bd * 0.9, 0.8);
