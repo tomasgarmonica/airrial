@@ -13,7 +13,8 @@ y explicarle los pasos que le toquen de a uno.
 - **Dominio:** registrado en NIC Argentina, DNS en Cloudflare (cuatro registros A a GitHub y un CNAME `www`,
   con el proxy apagado). El archivo `CNAME` del repositorio mantiene el dominio conectado: no borrarlo.
 - **Archivos:** `music.js` (lectura del cifrado, tiempos, saltos, tonalidad), `audio.js` (la banda: sonidos grabados y sintetizados,
-  con Web Audio), `bases.js` (bases de percusión, generado), `export.js` (PDF e imagen), `app.js` (pantallas), `sw.js` (uso sin conexión),
+  con Web Audio), `bases.js` (bases de percusión, generado), `export.js` (PDF e imagen), `comunidad.js` (pedidos al servidor), `sincro.js` (qué mandar y traer al
+  sincronizar aparatos), `servidor/comunidad.sql` (tablas y reglas de Supabase), `app.js` (pantallas), `sw.js` (uso sin conexión),
   `incluidas.json` (canciones de ejemplo), `tests/` (pruebas), `PENDIENTES.md` (lo hecho y lo que falta),
   `GRABACION.md` (instructivo para grabar los sonidos).
 - **Sonidos grabados:** los originales los graba el dueño y están en la carpeta `Audios` del Drive, fuera del

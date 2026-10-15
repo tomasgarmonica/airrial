@@ -3,7 +3,7 @@
 Última actualización: 15 de octubre de 2026.
 
 En pocas palabras: **si no creás una cuenta, Airrial no sabe quién sos.** Tus canciones viven en tu teléfono.
-Solo si subís algo a la Comunidad guardamos tu mail y el nombre que elijas mostrar.
+Solo si creás una cuenta (para subir a la Comunidad o para sincronizar tus aparatos) guardamos tu mail.
 
 ## Si usás la app sin cuenta
 
@@ -22,13 +22,16 @@ Solo si subís algo a la Comunidad guardamos tu mail y el nombre que elijas most
 
 ## Si creás una cuenta
 
-La cuenta solo hace falta para subir a la Comunidad. Guardamos:
+La cuenta hace falta para subir a la Comunidad y para sincronizar tus aparatos. Guardamos:
 
 - **Tu mail**, para que puedas entrar. No se muestra a nadie y no lo usamos para mandarte publicidad: solo
   recibís el código para entrar.
-- **El nombre que elijas mostrar.** Es público: aparece al lado de lo que subís. No hace falta que sea tu
+- **El nombre que elijas mostrar,** si subís a la Comunidad. Es público: aparece al lado de lo que subís. No hace falta que sea tu
   nombre real, y lo podés cambiar.
 - **Lo que subís** (canciones y listas) y cuándo lo subiste. Es público.
+- **Si activás la sincronización, tus canciones y listas** (con sus etiquetas y ajustes), para tenerlas en
+  todos tus aparatos. Son privadas: no se muestran a nadie ni se suben a la Comunidad. De lo que borrás queda
+  solo una marca con su número interno, para que los otros aparatos se enteren.
 - **Las denuncias que hagas:** qué denunciaste y por qué. No se le muestran a quien subió lo denunciado.
 
 No guardamos contraseñas: entrás con un código que te llega por mail.
@@ -39,7 +42,7 @@ Para funcionar, Airrial usa estos servicios, que tratan los datos por cuenta nue
 
 - **GitHub Pages:** aloja la app.
 - **GoatCounter:** el contador anónimo de uso.
-- **Supabase:** guarda las cuentas y lo que se sube a la Comunidad. Los servidores están en San Pablo, Brasil.
+- **Supabase:** guarda las cuentas, lo que se sube a la Comunidad y lo que se sincroniza. Los servidores están en San Pablo, Brasil.
 - **Resend:** manda el mail con el código para entrar.
 - **Google Forms:** recibe lo que escribas en Contactanos, si lo usás.
 
@@ -49,7 +52,7 @@ No vendemos ni le pasamos tus datos a nadie más.
 
 - **Ver y cambiar:** tu nombre para mostrar y lo que subiste se ven y se cambian desde la app.
 - **Borrar:** podés borrar cualquier subida desde "Mis subidas", y borrar tu cuenta desde Comunidad → Mis subidas → "Borrar mi cuenta". Al borrar
-  la cuenta se borran tu mail, tu nombre y todo lo que subiste. Las copias que otras personas ya bajaron
+  la cuenta se borran tu mail, tu nombre, todo lo que subiste y la copia sincronizada de tus canciones. Las copias que otras personas ya bajaron
   quedan en sus teléfonos.
 - **Pedirnos lo que tengamos de vos,** o que lo corrijamos o lo borremos: desde Menú → Contactanos.
 

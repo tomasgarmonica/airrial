@@ -43,7 +43,8 @@ grabaciones (ver `GRABACION.md`).
 - [x] Importar desde Band-in-a-Box (.MGU y .SGU), 0.1.8: Menú → Abrir archivos (se pueden elegir varios a la vez). El formato no es público: se sigue lo descifrado por el módulo Data::BiaB. Trae título ("Título - Autor" se separa), acordes, tempo, tono (si los acordes dicen relativo menor, el menor), 3/4 si el estilo es de vals, y estilo por el nombre del .STY (vals, bossa, tango…; el resto, swing). Los compases antes del coro van como [Intro]; el final (lo que sigue al coro) y la melodía no se toman. Probado con 7 archivos reales del dueño (en `pruebas/`)
 - [ ] Band-in-a-Box: falta que el dueño compare algunos temas con el original (sobre todo "A Ballad for a Jazz Festival", que trae 20 compases de introducción). En iPhone el selector de archivos podría no dejar elegir .MGU (no probado). Compartir un .MGU hacia Airrial desde otra app todavía no se reconoce. Los tipos de acorde que no están en la tabla se toman por familia (mayor, menor, dominante, sus)
 - [ ] iReal: una Coda sin D.S. ni D.C. (en iReal se salta en la última vuelta) acá se toca de corrido en todas las vueltas
-- [ ] Copia de seguridad automática y sincronización entre celular y PC (necesita servidor)
+- [x] Sincronización entre aparatos con la cuenta de la Comunidad (Menú → Sincronizar): automática, privada, gana lo último guardado; la primera vez junta lo repetido (15/10/2026)
+- [ ] Sincronización: probarla con dos aparatos de verdad (PC y celular), con conexión y sin conexión
 - [x] Mecanismo de canciones incluidas (`incluidas.json`): aparecen en Canciones con la marca "incluida", sin pestaña aparte
 - [x] Compartir como archivo (además del enlace); Airrial aparece en el menú Compartir de Android para abrir archivos recibidos
 - [x] Recibir en el celular con Compartir → Airrial: el dueño lo probó el 13 de octubre de 2026 con la lista de iReal y abrió bien
