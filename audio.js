@@ -425,7 +425,8 @@ const Engine = (() => {
           chordHit(t + (s.beat + 1) * bd, v, bd * 0.5, 0.8);
           chordHit(t + (s.beat + 2 + 2 / 3) * bd, v, bd * 0.9, 0.9);
         } else if (s.len < 4 && kind < 3) {
-          const shift = !s.beat ? 0 : kind === 1 ? -1 / 3 : kind === 2 ? 2 / 3 : 0;
+          // (corrido después no puede pasarse del compás: caería en el siguiente, encima de su acorde o de un corte)
+          const shift = !s.beat ? 0 : kind === 1 ? -1 / 3 : kind === 2 && s.beat + 2 / 3 < 4 - 1e-6 ? 2 / 3 : 0;
           chordHit(t + (s.beat + shift) * bd, v, bd * 0.9, s.beat ? 0.8 : 0.9);
         } else {
           chordHit(t + s.beat * bd, v, bd * 0.6, 0.9);
