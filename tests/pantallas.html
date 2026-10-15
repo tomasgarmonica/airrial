@@ -49,6 +49,10 @@ async function start(seed, hash) {
     window.server = null;
     window.fetch = (u, o) => (String(u).includes('.supabase.co') ? (window.server ? Promise.resolve().then(() => window.server(String(u), o))
       : Promise.reject(new TypeError('sin conexión'))) : realFetch(u, o));
+    // El menú de compartir del teléfono: lo contesta window.sharing (sin él, el teléfono no sabe compartir archivos).
+    window.sharing = null; window.shared = [];
+    navigator.canShare = () => !!window.sharing;
+    navigator.share = d => { shared.push(d); return Promise.resolve().then(() => window.sharing(d)); };
     Object.defineProperty(navigator, 'clipboard', { get: () => ({ writeText: () => Promise.reject(new Error('no')), readText: () => Promise.reject(new Error('no')) }) });
   <\/script>`;
   const doc = frame.contentDocument;
@@ -108,6 +112,27 @@ const cases = {
     same(a.mine()[0].transpose, 1, 'la transposición queda guardada');
     check(a.$('#chart .bar.rs') && a.$('#chart .bar.re') && /Fine/.test(a.text('#chart')), 'faltan la repetición o la anotación');
     a.fits('canción');
+  },
+  'Compartir el archivo abre el menú del teléfono, y si el teléfono pide otro toque, lo pide': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '| C | G7 |')] }, '#/s/s1');
+    // a la primera el teléfono no deja (armar el archivo tardó), a la segunda sí
+    let tries = 0;
+    a.w.sharing = () => { if (++tries === 1) throw new a.w.DOMException('tarde', 'NotAllowedError'); };
+    await a.tap('[data-a="share"]');
+    await until(() => a.dialog(), 'el menú Compartir');
+    await a.tap(a.dialog().querySelector('[data-k="file"]'));
+    await until(() => a.dialog() && /está listo/.test(a.dialog().innerText), 'el aviso de archivo listo');
+    await a.tap(a.dialog().querySelector('[data-k="go"]'));
+    await until(() => tries === 2, 'el segundo intento');
+    const f = a.w.shared[1].files[0];
+    same([a.w.shared.length, f.name, f.type, !a.dialog()], [2, 'Uno.airrial.html', 'text/html', true], 'lo compartido');
+    check(/Tocá para abrir en Airrial/.test(await f.text()), 'el archivo no es la página');
+    check(!/descargad/.test(a.text('.toast') || ''), 'dijo que lo descargó');
+    // el PDF va directo al menú
+    await a.tap('[data-a="share"]');
+    await a.tap(a.dialog().querySelector('[data-k="pdf"]'));
+    await until(() => a.w.shared.length === 3, 'compartir el PDF');
+    same(a.w.shared[2].files[0].name, 'Uno.pdf', 'el PDF');
   },
   'Armar una lista y sumarle temas': async () => {
     const a = await start({ songs: [song('s1', 'Uno', '| C |'), song('s2', 'Dos', '| F |')] });

@@ -354,13 +354,21 @@
     });
   }
   const safeName = name => name.replace(/[\\/:*?"<>|]/g, '').trim() || 'airrial';
-  // Comparte archivos ya armados (PDF, imágenes, página); si el teléfono no lo permite, los descarga.
+  // Comparte archivos ya armados (PDF, imágenes, página) con el menú del teléfono (WhatsApp, mail…); si el
+  // teléfono no lo permite, los descarga. El teléfono solo abre ese menú justo después de un toque: si armar el
+  // archivo tardó y ya no lo deja (pasa en iPhone), se pide un toque más en "Compartir".
   async function shareBlobs(items, title) {
     const files = items.map(([blob, name]) => new File([blob], name, { type: blob.type }));
-    try {
-      if (navigator.canShare && navigator.canShare({ files })) { await navigator.share({ files, title }); return false; }
-    } catch (e) {
-      if (e.name === 'AbortError') return false;
+    const share = async () => {
+      try { await navigator.share({ files, title }); return 'ok'; } catch (e) { return e.name === 'AbortError' ? 'ok' : e.name; }
+    };
+    if (navigator.canShare && navigator.canShare({ files })) {
+      let got = await share();
+      if (got === 'NotAllowedError') {
+        if (!await choose('El archivo está listo', [['go', 'Compartir', 'Elegí la app para mandarlo']])) return false;
+        got = await share();
+      }
+      if (got === 'ok') return false;
     }
     for (const [blob, name] of items) {
       const a = document.createElement('a');
