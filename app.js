@@ -101,8 +101,13 @@
   if (!SHEET_SIZES[settings.size]) settings.size = 'normal';
   // Listas de temas: { id, name, songs: [ids en orden] }
   let lists = load(LISTS, []);
-  const saveLists = () => store(LISTS, lists);
-  const saveSongs = () => store(SONGS, songs);
+  // Sincronización con la cuenta de la Comunidad (sincro.js): `sync` es su estado en este aparato, o null si nunca
+  // se activó. Vale mientras se esté dentro de la cuenta con que se activó.
+  const SYNC = 'airrial.sincro.v1';
+  let sync = load(SYNC, null);
+  if (!sync || typeof sync.cuenta !== 'string' || !sync.hechas || !sync.sucias) sync = null;
+  const saveLists = () => { store(LISTS, lists); syncMark(); };
+  const saveSongs = () => { store(SONGS, songs); syncMark(); };
   const saveSettings = () => store(SETTINGS, settings);
   const findSong = id => songs.find(s => s.id === id);
   // El contador evita que dos identificadores pedidos en el mismo instante salgan iguales (al guardar una lista larga).
@@ -697,6 +702,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <button data-a="tags">Etiquetas: renombrar o borrar</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="contact">Contactanos: propuestas, preguntas o comentarios</button>
+        <button data-a="sync">${syncOn() ? 'Sincronización con tu cuenta: activada' : 'Sincronizar con mi cuenta (para usar varios aparatos)'}</button>
         <button data-a="docs">Privacidad y reglas de la Comunidad</button>
         <button data-a="close">Cerrar</button>
         <p class="hint">Airrial cuenta de forma anónima cuánto se usa (visitas, reproducir, compartir). No guarda quién sos ni qué canciones tenés.</p>
@@ -843,6 +849,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       close: () => $('#menu').close(),
       // Formulario del dueño (Google Forms): se abre aparte, fuera de la app.
       docs: () => { $('#menu').close(); location.hash = '#/d/privacidad'; },
+      sync: () => { $('#menu').close(); location.hash = '#/y'; },
       contact: () => { tally('Contactanos'); window.open('https://forms.gle/F6rjcZePUW9J3i3K8', '_blank', 'noopener'); },
       theme: () => {
         settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
@@ -1783,8 +1790,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
 
   // Pide entrar a la cuenta (mail y código) y elegir el nombre para mostrar, lo que falte; después llama a
   // `done(nombre)`. Dibuja adentro de `box`, con sus propios botones (data-g), y no toca el resto de la pantalla.
-  // `why`: para qué hace falta la cuenta ("Para subir canciones").
-  async function accountGate(box, done, why = 'Para subir canciones') {
+  // `why`: para qué hace falta la cuenta ("Para subir canciones"). Sin `needName`, alcanza con entrar.
+  async function accountGate(box, done, why = 'Para subir canciones', needName = true) {
     let mail = '';
     const err = msg => { const p = $('.err', box); if (p) p.textContent = msg; };
     // mientras espera al servidor, los botones quedan apagados
@@ -1832,7 +1839,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
             throw e;
           }
           tally('Comunidad · crear o entrar a la cuenta');
-          await named();
+          if (needName) await named(); else done('');
         });
       } else if (g === 'name') {
         const nombre = $('#nick', box).value.trim().replace(/\s+/g, ' ');
@@ -1842,6 +1849,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       }
     };
     if (!Comunidad.cuenta()) { askMail(); return; }
+    if (!needName) { done(''); return; }
     box.innerHTML = '<p class="empty">Cargando…</p>';
     try { await named(); } catch (e) {
       if (!Comunidad.cuenta()) { askMail(); return; }
@@ -1970,8 +1978,10 @@ ${rows ? `<ol>${rows}</ol>` : ''}
           else if (b.dataset.g === 'delacct') {
             const what = [[rows.length, 'canción', 'canciones'], [sets.length, 'lista', 'listas']].filter(x => x[0])
               .map(([n, one, many]) => (n === 1 ? 'una ' + one : n + ' ' + many)).join(' y ');
-            if (!confirm(`¿Borrar tu cuenta? Se borran tu mail, tu nombre${what ? ' y lo que subiste (' + what + ')' : ''}, y no se puede deshacer. Las canciones de tu teléfono no se borran.`)) return;
+            if (!confirm(`¿Borrar tu cuenta? Se borran tu mail, tu nombre${what ? ' y lo que subiste (' + what + ')' : ''}${sync ? ', y la copia sincronizada de tus canciones' : ''}, y no se puede deshacer. Las canciones de tu teléfono no se borran.`)) return;
             await Comunidad.borrarCuenta();
+            sync = null;
+            saveSync();
             toast('Tu cuenta quedó borrada.');
             up('#/c');
           }
@@ -2626,6 +2636,177 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     guard = mayLeave;
   }
 
+  // --- sincronización ---
+  const syncOn = () => { const c = Comunidad.cuenta(); return !!(sync && sync.on && c && c.id === sync.cuenta); };
+  const syncItems = () => {
+    const m = new Map();
+    for (const s of songs) m.set(Sincro.clave('cancion', s.id), s);
+    for (const l of lists) m.set(Sincro.clave('lista', l.id), l);
+    return m;
+  };
+  const saveSync = () => {
+    try { if (sync) localStorage.setItem(SYNC, JSON.stringify(sync)); else localStorage.removeItem(SYNC); } catch { /* sin lugar */ }
+  };
+  // Lo que llega de la cuenta se revisa como cualquier cosa de afuera.
+  const syncClean = (tipo, d) => (tipo === 'lista'
+    ? { id: d.id, name: short(d.name, 200) || 'Lista', songs: (Array.isArray(d.songs) ? d.songs : []).map(String).filter(id => /^[\w-]{1,40}$/.test(id)) }
+    : cleanSong(d));
+  let syncTimer = 0, syncing = null, syncAgain = false;
+  // Después de guardar algo se anota, y se manda a los pocos segundos (si se guardan varias cosas seguidas, va todo junto).
+  function syncMark() {
+    if (!syncOn()) return;
+    Sincro.anotar(sync, syncItems(), Date.now());
+    saveSync();
+    clearTimeout(syncTimer);
+    if (Object.keys(sync.sucias).length) syncTimer = setTimeout(syncNow, 3000);
+  }
+  // Pone en el aparato lo que llegó, cambiando las canciones y listas que ya estaban sin reemplazarlas (las
+  // pantallas abiertas siguen mostrando la misma). Si no hay lugar para guardarlo, avisa y deja la
+  // sincronización apagada: al volver a activarla se junta de nuevo, sin borrar nada de la cuenta.
+  function syncApply(ops) {
+    for (const op of ops) {
+      const arr = op.tipo === 'lista' ? lists : songs, i = arr.findIndex(x => x.id === op.id);
+      if (!op.datos) { if (i >= 0) arr.splice(i, 1); continue; }
+      if (i < 0) { arr.push(op.datos); continue; }
+      for (const k of Object.keys(arr[i])) delete arr[i][k];
+      Object.assign(arr[i], op.datos);
+    }
+    store(SONGS, songs);
+    store(LISTS, lists);
+    if (unsaved.has(SONGS) || unsaved.has(LISTS)) {
+      Object.assign(sync, Sincro.nuevo(), { on: false, error: 'No hay lugar en el teléfono para traer todo: la sincronización quedó apagada.' });
+      saveSync();
+      throw Object.assign(new Error('sin lugar'), { full: true });
+    }
+  }
+  // La primera vez en un aparato: lo que ya está en la cuenta gana, y una canción o lista de acá igual a una de
+  // la cuenta (mismo título y cifrado, o mismo nombre y temas) queda una sola, la de la cuenta.
+  function syncJoin() {
+    const inAccount = (tipo, id) => Sincro.clave(tipo, id) in sync.hechas;
+    const twins = new Map(), ids = new Map();
+    for (const s of songs) if (inAccount('cancion', s.id)) twins.set(baseName(s.title) + '\n' + s.chart, s.id);
+    for (const s of songs) {
+      const twin = !inAccount('cancion', s.id) && twins.get(baseName(s.title) + '\n' + s.chart);
+      if (twin) ids.set(s.id, twin);
+    }
+    if (ids.size) {
+      songs = songs.filter(s => !ids.has(s.id));
+      for (const l of lists) if (l.songs.some(id => ids.has(id))) l.songs = [...new Set(l.songs.map(id => ids.get(id) || id))];
+    }
+    const sameList = l => lists.some(x => x !== l && inAccount('lista', x.id) && baseName(x.name) === baseName(l.name) && x.songs.join() === l.songs.join());
+    const before = lists.length;
+    lists = lists.filter(l => inAccount('lista', l.id) || !sameList(l));
+    if (!ids.size && lists.length === before) return;
+    store(SONGS, songs);
+    store(LISTS, lists);
+    Sincro.anotar(sync, syncItems(), 0);
+  }
+  // Si se está mirando la biblioteca o una lista, se vuelve a dibujar con lo que llegó.
+  const syncShow = () => {
+    const h = here();
+    if ((h === '#/' || h.startsWith('#/l/')) && !document.querySelector('dialog[open]')) route();
+  };
+  // La pantalla de sincronizar, si está abierta, se pone al día al terminar cada sincronización.
+  let syncRedraw = null;
+  // Trae lo cambiado en otros aparatos y manda lo de acá. Hasta que sale bien la primera vez, junta (ver syncJoin).
+  // Devuelve si salió bien.
+  function syncNow() {
+    if (!syncOn()) return Promise.resolve(false);
+    if (syncing) { syncAgain = true; return syncing; }
+    const st = sync;
+    syncing = (async () => {
+      clearTimeout(syncTimer);
+      Sincro.anotar(st, syncItems(), st.juntar ? 0 : Date.now());
+      let ops = [];
+      try {
+        const rows = await Comunidad.traerBiblioteca(Sincro.pedirDesde(st.desde));
+        if (st !== sync || !syncOn()) return false;
+        ops = Sincro.aplicar(st, rows, syncItems(), syncClean);
+        if (ops.length) syncApply(ops);
+        if (st.juntar) syncJoin();
+        st.desde = Sincro.masNueva(rows, st.desde);
+        saveSync();
+        const out = Sincro.pendientes(st, syncItems());
+        if (out.length) { await Comunidad.guardarBiblioteca(out); Sincro.enviadas(st, out); }
+        Object.assign(st, { juntar: false, cuando: Date.now(), error: '' });
+        return true;
+      } catch (e) {
+        if (!e.full) st.error = accountError(e);
+        return false;
+      } finally {
+        saveSync();
+        if (ops.length) syncShow();
+      }
+    })().finally(() => {
+      syncing = null;
+      if (syncAgain) { syncAgain = false; syncNow(); }
+      if (syncRedraw) syncRedraw();
+    });
+    return syncing;
+  }
+  // Activa la sincronización con la cuenta en la que se entró (la primera vez, juntando lo de acá con lo de la cuenta).
+  function syncStart() {
+    const id = Comunidad.cuenta().id;
+    if (!sync || sync.cuenta !== id) sync = { ...Sincro.nuevo(), cuenta: id, juntar: true };
+    sync.on = true;
+    sync.error = '';
+    saveSync();
+    return syncNow();
+  }
+  // Cuándo fue: "hace un momento", "hace 5 minutos", o el día y la hora.
+  const whenWas = t => {
+    const min = Math.round((Date.now() - t) / 60000);
+    if (min < 1) return 'hace un momento';
+    if (min < 60) return 'hace ' + min + (min === 1 ? ' minuto' : ' minutos');
+    return new Date(t).toLocaleString('es-AR', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' });
+  };
+  function syncView() {
+    app.innerHTML = `<header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
+      <div class="ttl"><h1>Sincronizar</h1></div></header>
+      <main class="list"><div id="gate"></div></main>`;
+    bind({ back: () => up('#/') });
+    const box = $('#gate'), mail = () => esc(Comunidad.cuenta() ? Comunidad.cuenta().email : '');
+    const draw = () => {
+      if (here() !== '#/y') return;
+      if (!syncOn()) {
+        box.innerHTML = `<div class="acct"><p>Con la sincronización tenés las mismas canciones y listas en todos tus aparatos (la compu, el celular, la tablet): lo que guardás, cambiás o borrás en uno aparece en los otros.</p>
+          <p>Se usa tu cuenta de la Comunidad y tus canciones quedan guardadas en ella. Son privadas: no se suben a la Comunidad ni las ve nadie más.</p>
+          ${Comunidad.cuenta() ? `<p class="hint">Entraste como ${mail()}.</p>` : ''}
+          <p class="err">${esc(sync && sync.cuenta === (Comunidad.cuenta() || {}).id ? sync.error || '' : '')}</p>
+          <button class="cmore pri" data-g="on">Activar la sincronización</button>
+          <p class="hint">Los volúmenes y el tema claro u oscuro quedan en cada aparato.</p></div>`;
+        return;
+      }
+      const n = Object.keys(sync.hechas), songsN = n.filter(k => k.startsWith('c:')).length, listsN = n.length - songsN;
+      const state = syncing ? 'Sincronizando… Con muchas canciones puede tardar un poco.'
+        : sync.error ? '' : sync.cuando ? 'Al día. La última vez fue ' + whenWas(sync.cuando) + '.' : '';
+      box.innerHTML = `<div class="acct"><p><b>Activada</b> con ${mail()}.</p>
+        <p>${esc(state)}</p><p class="err">${esc(syncing ? '' : sync.error || '')}</p>
+        ${sync.cuando ? `<p class="hint">En tu cuenta: ${songsN} ${songsN === 1 ? 'canción' : 'canciones'} y ${listsN} ${listsN === 1 ? 'lista' : 'listas'}.</p>` : ''}
+        <button class="cmore" data-g="now"${syncing ? ' disabled' : ''}>Sincronizar ahora</button>
+        <button class="cmore" data-g="off">Dejar de sincronizar</button>
+        <p class="hint">Sin conexión podés seguir usando la app: se pone al día cuando vuelve. Si cambiás la misma canción en dos aparatos antes de que se sincronicen, queda la que guardaste último.</p></div>`;
+    };
+    syncRedraw = draw;
+    const run = job => { job(); draw(); };
+    const handler = e => {
+      const g = (e.target.closest('[data-g]') || {}).dataset;
+      if (!g) return;
+      if (g.g === 'on') {
+        if (Comunidad.cuenta()) { run(syncStart); return; }
+        accountGate(box, () => { box.onclick = handler; run(syncStart); }, 'Para sincronizar', false);
+      } else if (g.g === 'now') run(syncNow);
+      else if (g.g === 'off') {
+        if (!confirm('¿Dejar de sincronizar? Las canciones quedan en este aparato y en tu cuenta, pero lo que cambies acá ya no va a pasar a los otros.')) return;
+        sync.on = false;
+        saveSync();
+        draw();
+      }
+    };
+    box.onclick = handler;
+    draw();
+  }
+
   // --- navegación ---
   function route() {
     guard = null;
@@ -2639,6 +2820,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     else if (kind === 'i') importView(id);
     else if (kind === 'r') receiveView();
     else if (kind === 'd') docView(id);
+    else if (kind === 'y') syncView();
     else if (kind === 'c') { let v = ''; try { v = decodeURIComponent(extra || ''); } catch { /* dirección rota */ } comunidadView(id, v); }
     else libraryView();
     window.scrollTo(0, 0);
@@ -2686,6 +2868,13 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     saveSongs();
     if (here() === '#/') route();
   })();
+
+  // Cuándo se sincroniza: al abrir la app, al volver a ella o salir (para no dejar nada sin mandar), al recuperar
+  // la conexión, y cada minuto mientras se usa.
+  syncNow();
+  document.addEventListener('visibilitychange', () => { if (!document.hidden || (sync && Object.keys(sync.sucias).length)) syncNow(); });
+  window.addEventListener('online', () => syncNow());
+  setInterval(() => { if (!document.hidden) syncNow(); }, 60000);
 
   if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
     // Cuando llega una versión nueva mientras se mira la biblioteca, se recarga sola para mostrarla.

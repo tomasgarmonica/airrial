@@ -399,6 +399,70 @@ const cases = {
     await b.tap('[data-g="send"]');
     await until(() => /Gracias/.test(b.text('#gate') || ''), 'el gracias con la repetida');
   },
+  'Sincronizar: se activa desde el Menú, junta lo repetido, trae lo de otro aparato y manda lo borrado': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '| C |'), song('s2', 'Dos', '| D |')], lists: [{ id: 'L1', name: 'Peña', songs: ['s1', 's2'] }],
+      cuenta: { access: 'a', refresh: 'r', until: Date.now() + 36e5, id: 'u1', email: 'yo@mail.com' } });
+    // la biblioteca de la cuenta, como la tabla del servidor: una versión más vieja no pisa, y cada guardado avanza la hora
+    const lib = new Map();
+    let clock = Date.parse('2026-10-15T12:00:00Z');
+    const put = r => {
+      const k = r.tipo + '/' + r.id, old = lib.get(k);
+      if (old && r.cambiado < old.cambiado) return;
+      lib.set(k, { ...r, datos: r.borrado ? null : r.datos, actualizado: new Date(clock += 1000).toISOString() });
+    };
+    // en la cuenta ya hay una canción igual a "Uno" (subida desde otro aparato) y otra que acá no está
+    put({ tipo: 'cancion', id: 'x9', datos: song('x9', 'Uno', '| C |'), borrado: false, cambiado: 5 });
+    put({ tipo: 'cancion', id: 'r1', datos: song('r1', 'Remota', '| E |'), borrado: false, cambiado: 5 });
+    a.w.server = (url, o) => {
+      const json = (b, status) => new a.w.Response(b == null ? null : JSON.stringify(b), { status: status || 200 });
+      const m = (o && o.method) || 'GET', p = url.replace(/^.*supabase\.co\//, '');
+      if (!p.startsWith('rest/v1/biblioteca')) return json(null, 404);
+      if (m === 'POST') { JSON.parse(o.body).forEach(put); return json(null, 201); }
+      const since = decodeURIComponent((p.match(/actualizado=gte\.([^&]+)/) || [])[1] || '');
+      return json([...lib.values()].filter(r => !since || Date.parse(r.actualizado) >= Date.parse(since)));
+    };
+    const mineTitles = () => a.mine().map(s => s.title).sort();
+    await a.tap('[data-a="menu"]');
+    check(/Sincronizar con mi cuenta/.test(a.text('[data-a="sync"]')), 'el botón del menú');
+    await a.tap('[data-a="sync"]');
+    await until(() => a.$('[data-g="on"]'), 'la pantalla de sincronizar');
+    a.fits('sincronizar');
+    await a.tap('[data-g="on"]');
+    await until(() => /Al día/.test(a.text('#gate') || ''), 'que termine de sincronizar');
+    a.fits('sincronizado');
+    same(mineTitles(), ['Dos', 'Remota', 'Uno'], 'las canciones (sin repetir "Uno")');
+    same(a.saved('lists')[0].songs, ['x9', 's2'], 'la lista apunta a la "Uno" de la cuenta');
+    same([...lib.keys()].sort(), ['cancion/r1', 'cancion/s2', 'cancion/x9', 'lista/L1'], 'lo que quedó en la cuenta');
+    check(/2 canciones|3 canciones/.test(a.text('#gate')), 'cuántas hay en la cuenta: ' + a.text('#gate'));
+    // en otro aparato le cambian el nombre a una: llega al tocar "Sincronizar ahora"
+    put({ tipo: 'cancion', id: 'r1', datos: song('r1', 'Remota cambiada', '| E |'), borrado: false, cambiado: Date.now() + 1000 });
+    await a.tap('[data-g="now"]');
+    await until(() => mineTitles().includes('Remota cambiada'), 'que llegue el cambio');
+    // borrar una acá: se manda sola a los pocos segundos (se borra desde la biblioteca: el editor, al terminar,
+    // vuelve atrás en el historial y en este marco eso puede salir de la página de prueba)
+    const del = async id => {
+      a.w.location.hash = '#/';
+      await until(() => a.$('[data-a="menu"]'), 'la biblioteca');
+      await a.tap('[data-a="menu"]');
+      await a.tap('[data-a="select"]');
+      await a.tap('[data-a="pick"][data-v="' + id + '"]');
+      await a.tap('[data-a="seldel"]');
+    };
+    await del('s2');
+    for (let i = 0; i < 160 && !lib.get('cancion/s2').borrado; i++) await wait(50);
+    check(lib.get('cancion/s2').borrado, 'no se mandó lo borrado');
+    same(lib.get('lista/L1').datos.songs, ['x9'], 'la lista en la cuenta');
+    // dejar de sincronizar: lo que se cambia después ya no viaja
+    a.w.location.hash = '#/y';
+    await until(() => a.$('[data-g="off"]'), 'la pantalla de sincronizar otra vez');
+    await a.tap('[data-g="off"]');
+    await until(() => a.$('[data-g="on"]'), 'que se apague');
+    const before = clock;
+    await del('x9');
+    check(!a.mine().some(s => s.id === 'x9'), 'no se borró');
+    await wait(3500);
+    same(clock, before, 'mandó algo con la sincronización apagada');
+  },
   'Reglas y privacidad enteras: desde el Menú y desde las reglas al crear la cuenta': async () => {
     const a = await start({ songs: [] });
     await a.tap('[data-a="menu"]');
