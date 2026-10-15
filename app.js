@@ -2045,7 +2045,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         group('Parte', PARTS.map(s => btn('sec', s, s, b.section === s)).join('') +
           btn('sec', '?', 'Otra…', !!b.section && !PARTS.includes(b.section))) +
         group('Repetición', btn('rs', '', '|: Inicio', b.repStart) + btn('re', '', ':| Fin', b.repEnd) +
-          (b.repEnd ? [2, 3, 4].map(n => btn('times', n, 'x' + n, (b.times || 2) === n)).join('') : '')) +
+          (b.repEnd ? [2, 3, 4].map(n => btn('times', n, 'x' + n, (b.times || 2) === n)).join('') +
+            btn('times', '?', b.times > 4 ? 'x' + b.times : 'Otra…', b.times > 4) : '')) +
         group('Casilla', [1, 2, 3].map(n => btn('end', n, n + '.', b.ending === n)).join('')) +
         group('En el lugar marcado',
           btn('sym', 'N.C.', 'N.C. Silencio', it === 'N.C.')) +
@@ -2282,7 +2283,16 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       },
       rs: () => { bars[cur.b].repStart = !bars[cur.b].repStart; },
       re: () => { const b = bars[cur.b]; b.repEnd = !b.repEnd; delete b.times; },
-      times: el => { bars[cur.b].times = +el.dataset.v; },
+      // Cualquier cantidad de vueltas, de 2 a 16 (lo que lee el cifrado).
+      times: el => {
+        let n = +el.dataset.v;
+        if (el.dataset.v === '?') {
+          const r = ask('¿Cuántas veces se toca? (de 2 a 16)', bars[cur.b].times || 2, /\D/g);
+          if (!r) return;
+          n = Math.min(16, Math.max(2, +r));
+        }
+        bars[cur.b].times = n;
+      },
       end: el => { const b = bars[cur.b], n = +el.dataset.v; b.ending = b.ending === n ? undefined : n; },
       sym: el => { setItem(item() === el.dataset.v ? '_' : el.dataset.v); cur.fresh = true; },
       ts: el => {
