@@ -178,7 +178,9 @@ catálogo público.
 - [x] Mezcla: silenciar con un toque cada instrumento de la base, por ritmo (0.1.2). Falta que el dueño lo pruebe de oído
 - [x] Mezcla (0.1.4): tocar el nombre del teclado lo silencia, como a los demás; una flecha al lado abre la lista para elegir piano, Rhodes o CP-80. Los silenciados quedan solo tachados, sin el texto "silenciado". Falta que el dueño lo pruebe con el dedo
 - [x] Botón "Contactanos" en el Menú (0.1.3): abre el formulario de Google del dueño ("Contacto Airrial", https://forms.gle/F6rjcZePUW9J3i3K8), para propuestas, preguntas y comentarios. Las respuestas le llegan a él en Google Forms
-- [ ] Donaciones en formato "Invitame una birra", por MercadoPago y/o PayPal (pedido del dueño el 13 de octubre de 2026). Falta: crear los enlaces de cobro en cada servicio (los arma el dueño con sus cuentas), decidir dónde va el botón en la app y si el monto es fijo o libre. Por el orden de prioridades, va después de la Comunidad
+- [x] Donaciones con Cafecito (cafecito.app/airrial, cuenta del dueño): botón en el Menú, desde la 0.1.18 (15/10/2026). Mercado Pago no permite un enlace de donación directo
+- [ ] Donaciones desde afuera (en dólares): Ko-fi con PayPal, si aparecen usuarios de otros países
+- [ ] GoatCounter: su uso gratis es para proyectos no comerciales; con donaciones, revisar si corresponde pasar a un plan pago o hacerles un aporte
 
 ## Problemas conocidos
 - [x] El botón Atrás del teléfono sube un nivel, igual que la flecha de arriba
