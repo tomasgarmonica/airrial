@@ -48,13 +48,16 @@ grabaciones (ver `GRABACION.md`).
 - [x] Compartir como archivo (además del enlace); Airrial aparece en el menú Compartir de Android para abrir archivos recibidos
 - [x] Recibir en el celular con Compartir → Airrial: el dueño lo probó el 13 de octubre de 2026 con la lista de iReal y abrió bien
 - [ ] Probar en celular real el envío de un archivo `.airrial.html` (compartir una canción propia y que otra persona la abra)
-- [ ] Comunidad: secuencias subidas por usuarios. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento. La app no trae canciones propias (decidido el 2026-10-09, por los posibles derechos): el repertorio llega por la comunidad
-- [ ] Comunidad: destacar las canciones más completas o mejor puntuadas. Decidido el 14 de octubre de 2026: por cantidad de bajadas y fijadas por el dueño, sin estrellas ni votos. El diseño completo y las etapas están en `COMUNIDAD.md`
+- [x] Comunidad: secuencias subidas por usuarios. Solo cifrados (sin letra ni melodía), sin foro ni comentarios. Necesita servidor, cuentas, botón de denuncia y reglas contra spam y contenido violento. La app no trae canciones propias (decidido el 2026-10-09, por los posibles derechos): el repertorio llega por la comunidad. Publicada el 15 de octubre de 2026 (0.1.12 a 0.1.15)
+- [x] Comunidad: destacar las canciones más completas o mejor puntuadas. Decidido el 14 de octubre de 2026: por cantidad de bajadas y fijadas por el dueño, sin estrellas ni votos. El diseño completo y las etapas están en `COMUNIDAD.md`. Hecho: orden por bajadas y "destacada" (la columna `fijada`, que el dueño marca en Supabase)
 - [x] Comunidad, etapa 1 (14 de octubre de 2026): el dueño creó el proyecto en Supabase (`https://cbiavmaznmbhgfytkwbl.supabase.co`, región São Paulo, clave publishable `sb_publishable_CgTYhMa7dyD5XcLxNXY_yw_KnXerWnA`, que es pública) y corrió `servidor/comunidad.sql`. Revisado desde afuera: sin cuenta se leen canciones, listas, ritmos y artistas; no se puede subir ni leer denuncias. La contraseña de la base y la clave secreta las guarda el dueño y no van nunca al repositorio
-- [ ] Comunidad, etapas 2, 3 y 5: publicadas en la 0.1.12 (15 de octubre de 2026, pedido del dueño), uniendo la rama `comunidad` a `main`.
-- [ ] Comunidad, etapa 2 (bajar). Hecho: botón Comunidad al lado de Canciones y Listas, recorrer por estilo y por artista, buscar, ver la hoja y "Guardar". Falta: que el dueño vuelva a correr `servidor/comunidad.sql` (se sumó la columna `artista`), cargar las primeras canciones (las escribe el dueño; ya subió dos) y escuchar una canción antes de guardarla (hoy se escucha después de guardar)
-- [ ] Comunidad, etapa 3 (cuentas y subir). Hecho: entrar con un código por mail (sin contraseña), elegir el nombre para mostrar y aceptar las reglas (resumidas en la app), "Subir a la Comunidad" en Compartir de una canción (si ya estaba subida igual no la duplica; si cambió, pregunta si reemplazarla), "Mis subidas" (abrir, borrar, cambiar el nombre, salir), y las anotaciones entre comillas con tope de 30 letras al subir. Los mails con el código salen por Resend desde `no-reply@airrial.ar` (configurado por el dueño el 14 de octubre de 2026). Falta: borrar la cuenta desde la app (lo promete la página de privacidad); revisar y terminar REGLAS.md y PRIVACIDAD.md y mostrarlas enteras
-- [ ] Comunidad, etapa 5 (listas), pedida por el dueño el 14 de octubre de 2026. Hecho: "Subir a la Comunidad" en Compartir de una lista (va con una copia de sus canciones; si alguna tiene una anotación demasiado larga, dice cuál), selector Canciones / Listas en la Comunidad, ver una lista y guardarla entera (las canciones que ya estaban iguales no se repiten), y las listas en Mis subidas. Falta: elegir un estilo para la lista al subirla (estaba como opcional en el diseño)
+- [x] Comunidad, etapas 2, 3, 4 y 5: publicadas entre la 0.1.12 y la 0.1.15 (15 de octubre de 2026, pedido del dueño), uniendo la rama `comunidad` a `main`.
+- [ ] Comunidad, bajar: falta escuchar una canción antes de guardarla (hoy se escucha después de guardar). Lo demás está hecho: recorrer por estilo y por artista, buscar, ver la hoja y "Guardar"
+- [x] Comunidad, cuentas y subir: entrar con un código por mail (sale por Resend desde `no-reply@airrial.ar`), nombre para mostrar, aceptar las reglas, subir canciones y listas sin duplicar, Mis subidas (abrir, borrar, cambiar el nombre, salir, borrar la cuenta). Las anotaciones no tienen tope (lo sacó el dueño el 15 de octubre de 2026). Reglas y privacidad completas en `REGLAS.md` y `PRIVACIDAD.md` (cuenta desde los 13 años, responsable "Airrial"); en la app se muestra solo el resumen de las reglas
+- [ ] Comunidad, listas: hasta 2000 temas (el dueño subió "Jazz 1460"). Falta, opcional: elegir un estilo para la lista al subirla
+- [x] Comunidad, denuncias (etapa 4): enlace "Denunciar" en cada canción y lista, con motivo; con tres de cuentas distintas se esconde sola. El dueño las mira en Supabase → Table Editor → denuncias
+- [ ] Comunidad: mostrar enteras las reglas y la privacidad dentro de la app (hoy están en el repositorio y en la app va el resumen)
+- [ ] Comunidad: probar contra el servidor real borrar una cuenta y denunciar (necesita una cuenta de prueba, no la del dueño)
 
 ## 4. Audio y pistas
 
@@ -155,20 +158,20 @@ catálogo público.
 - [ ] Pruebas de pantallas: sumar reproducción (necesita simular el audio), exportar a PDF e imagen, y el editor de texto
 
 **Seguridad de los usuarios**
-- [ ] Inicio de sesión sin guardar contraseñas propias (con Google o enlace por mail)
-- [ ] Qué datos se guardan de cada persona, y que puedan bajarlos o borrarlos
-- [ ] Política de privacidad y términos de uso
-- [ ] Moderación y denuncias en el catálogo; límites contra spam y abuso
+- [x] Inicio de sesión sin guardar contraseñas propias (con Google o enlace por mail): hecho con un código por mail (15 de octubre de 2026)
+- [x] Qué datos se guardan de cada persona, y que puedan bajarlos o borrarlos: mail, nombre para mostrar, lo subido y las denuncias; se borra todo con "Borrar mi cuenta". Bajarlos: por ahora se piden por Contactanos
+- [x] Política de privacidad y términos de uso: `PRIVACIDAD.md` y `REGLAS.md`, terminados el 15 de octubre de 2026
+- [x] Moderación y denuncias en el catálogo; límites contra spam y abuso: denuncias, escondido automático con tres, topes de 30 canciones y 5 listas por día, cuentas bloqueables
 - [x] Revisar que una canción recibida por enlace o importada no pueda dañar la app de quien la abre (hecho el 13 de octubre de 2026: lo recibido se recorta, un cifrado o enlace armado para trabar la app ya no la cuelga, y nunca pisa lo que había: lo repetido entra como "Tema (2)")
 - [x] Cartel rojo de falta de lugar a tamaño de celular: medido a 390 px en la PC (359 px de ancho, debajo del encabezado, sin tapar sus botones). No se vio en un teléfono real
 
 **Seguridad del proyecto (la tuya)**
 - [ ] Verificación en dos pasos en GitHub y en el mail asociado
 - [ ] Copia del proyecto fuera de GitHub y de Google Drive
-- [ ] Claves y contraseñas del servidor fuera del repositorio (que es público)
-- [ ] Derechos de autor de las canciones que suban los usuarios: qué se permite y cómo se da de baja
+- [x] Claves y contraseñas del servidor fuera del repositorio (que es público): la clave secreta de Supabase, la contraseña de la base y la de Resend las guarda el dueño; en el código solo va la clave pública
+- [x] Derechos de autor de las canciones que suban los usuarios: qué se permite y cómo se da de baja: en `REGLAS.md` (lo que se sube es propio o con permiso; se denuncia con el motivo "derechos de autor")
 - [ ] Licencia del código y de los sonidos grabados; registro del nombre
-- [ ] Estadísticas de uso que respeten la privacidad
+- [x] Estadísticas de uso que respeten la privacidad: GoatCounter, sin cookies
 - [x] Contador de uso anónimo con GoatCounter (panel del dueño: airrial.goatcounter.com), desde la 0.1.1. Cuenta visitas (`/navegador` o `/instalada`) y acciones con nombre fijo: reproducir por ritmo, compartir, recibir, abrir archivo, escribir. Una vez por apertura y solo en airrial.ar; nunca títulos ni acordes (`tally` en `app.js`, prueba en `tests/contador.js`). No se carga el script de GoatCounter: la app manda el aviso sola. Falta que el dueño confirme que ve los números y que active "ignorar mi IP"; revisar la licencia gratuita cuando haya donaciones
 - [x] Mezcla: silenciar con un toque cada instrumento de la base, por ritmo (0.1.2). Falta que el dueño lo pruebe de oído
 - [x] Mezcla (0.1.4): tocar el nombre del teclado lo silencia, como a los demás; una flecha al lado abre la lista para elegir piano, Rhodes o CP-80. Los silenciados quedan solo tachados, sin el texto "silenciado". Falta que el dueño lo pruebe con el dedo
