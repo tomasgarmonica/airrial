@@ -59,9 +59,10 @@ intenta unificarlas: se ven todas, y las más bajadas quedan arriba.
 ## Reglas y cuidado
 
 - **Solo cifrados.** El formato casi no deja lugar para letra, salvo las anotaciones entre comillas
-  ("Fine", "Solo de piano"). Se les pone un tope de largo al subir, para que nadie meta la letra por ahí.
+  ("Fine", "Solo de piano"). Las anotaciones no tienen tope de largo: el 15 de octubre de 2026 el dueño lo sacó,
+  porque una letra no entra en la forma de un cifrado y las anotaciones sirven para otras cosas.
 - **Límites por cuenta:** un tope de subidas por día (propuesta: 30 canciones y 5 listas) y de tamaño
-  (los mismos que ya usa la app al recibir un archivo: 200 letras de título, listas de hasta 300 temas).
+  (los mismos que ya usa la app al recibir un archivo: 200 letras de título, listas de hasta 2000 temas, subido desde 300 el 15 de octubre de 2026).
   Los controla el servidor, no la app, así no se pueden saltear.
 - **Denunciar:** cualquiera con cuenta puede denunciar algo, eligiendo un motivo (spam, contenido ofensivo,
   tiene letra o melodía, derechos de autor, otro). Si tres cuentas distintas denuncian lo mismo, se esconde

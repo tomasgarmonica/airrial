@@ -14,7 +14,7 @@ quiere dejar a mano para los demás. Es gratis y nadie cobra ni paga por lo que 
 
 ## Qué no se puede subir
 
-- **Letras ni melodías.** Tampoco pedazos de letra metidos en las anotaciones.
+- **Letras ni melodías.**
 - **Nada que no sea una canción:** publicidad, enlaces, mensajes, insultos, contenido violento o
   discriminatorio, datos de otras personas.
 - **Lo mismo repetido muchas veces**, o subidas hechas con programas automáticos.

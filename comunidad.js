@@ -13,9 +13,6 @@ const Comunidad = (() => {
   // Lo mismo para las listas: el renglón y, al abrirla, sus canciones.
   const LIST_ROW = 'id,nombre,cantidad,bajadas,fijada,perfiles(nombre)';
   const LIST_FULL = LIST_ROW + ',canciones';
-  // Largo máximo de cada anotación entre comillas al subir: alcanza para "Solo de piano" o "D.S. al Coda", no para
-  // meter la letra (la Comunidad es solo de acordes).
-  const NOTE_MAX = 30;
 
   // Igual que public.plano en el servidor: minúsculas y sin acentos, para buscar.
   const plano = t => String(t == null ? '' : t).toLowerCase().replace(/[áéíóúàèìòùäëïöüâêîôûãõñç]/g, ch =>
@@ -55,9 +52,6 @@ const Comunidad = (() => {
   // Por qué no se puede subir una canción ('' si se puede).
   const check = s => {
     if (!/[A-G]/.test(String(s.chart).replace(/"[^"]*"/g, ''))) return 'La canción no tiene acordes.';
-    if ((String(s.chart).match(/"[^"]*"/g) || []).some(n => n.length - 2 > NOTE_MAX)) {
-      return `Las anotaciones entre comillas pueden tener hasta ${NOTE_MAX} letras: la Comunidad es solo de acordes, sin letra. Acortalas en Editar y probá de nuevo.`;
-    }
     return '';
   };
   // Quién la subió y cuántas veces se bajó, para mostrar.
@@ -136,7 +130,7 @@ const Comunidad = (() => {
   }
 
   return {
-    plano, words, songsQuery, listsQuery, toSong, fromSong, check, byWhom, PAGE, NOTE_MAX,
+    plano, words, songsQuery, listsQuery, toSong, fromSong, check, byWhom, PAGE,
     // { filas, mas }: una página de canciones y si hay más.
     buscar: async o => {
       const rows = list(await ask(songsQuery(o))).filter(r => r && Number.isFinite(r.id));

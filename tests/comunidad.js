@@ -41,7 +41,7 @@ assert.strictEqual(C.check(mySong), '');
 assert.strictEqual(C.check({ chart: '| _ | _ |' }), 'La canción no tiene acordes.');
 assert.strictEqual(C.check({ chart: '| "Fine" |' }), 'La canción no tiene acordes.', 'una anotación no es un acorde');
 assert.strictEqual(C.check({ chart: '| "D.S. al Coda" C | "Solo de piano sobre la A" G |' }), '');
-assert.ok(/hasta 30 letras/.test(C.check({ chart: '| "Yo te quiero tanto mi amor, no me dejes" C |' })), 'letra metida en una anotación');
+assert.strictEqual(C.check({ chart: '| "Entra la banda completa después del solo de piano" C |' }), '', 'una anotación larga');
 
 const resp = (status, body) => ({ ok: status < 300, status, json: async () => body, text: async () => (body == null ? '' : JSON.stringify(body)) });
 

@@ -1705,7 +1705,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
   // Reglas de la Comunidad, en corto (el borrador entero está en REGLAS.md).
   const RULES = `<details class="help"><summary>Reglas de la Comunidad</summary><ul>
     <li>Se suben cifrados: los acordes de una canción con su título, autor, estilo, compás, tono y tempo.</li>
-    <li>Nada de letras ni melodías, tampoco metidas en las anotaciones.</li>
+    <li>Nada de letras ni melodías.</li>
     <li>Nada que no sea una canción: publicidad, enlaces, mensajes, insultos ni datos de otras personas.</li>
     <li>Lo que subís lo escribiste vos o tenés permiso para compartirlo, y cualquiera lo puede ver, bajar, usar y cambiar.</li>
     <li>Tu nombre para mostrar aparece al lado de lo que subís. Lo podés borrar cuando quieras desde "Mis subidas".</li>
