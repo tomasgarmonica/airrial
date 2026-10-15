@@ -44,7 +44,8 @@ grabaciones (ver `GRABACION.md`).
 - [ ] Band-in-a-Box: falta que el dueño compare algunos temas con el original (sobre todo "A Ballad for a Jazz Festival", que trae 20 compases de introducción). En iPhone el selector de archivos podría no dejar elegir .MGU (no probado). Compartir un .MGU hacia Airrial desde otra app todavía no se reconoce. Los tipos de acorde que no están en la tabla se toman por familia (mayor, menor, dominante, sus)
 - [ ] iReal: una Coda sin D.S. ni D.C. (en iReal se salta en la última vuelta) acá se toca de corrido en todas las vueltas
 - [x] Sincronización entre aparatos con la cuenta de la Comunidad (Menú → Sincronizar): automática, privada, gana lo último guardado; la primera vez junta lo repetido (15/10/2026)
-- [ ] Sincronización: probarla con dos aparatos de verdad (PC y celular), con conexión y sin conexión
+- [x] Sincronización: probada por el dueño entre su celular y la PC (15/10/2026)
+- [ ] Sincronización: probar sin conexión (cambiar algo sin internet y ver que se ponga al día al volver)
 - [x] Mecanismo de canciones incluidas (`incluidas.json`): aparecen en Canciones con la marca "incluida", sin pestaña aparte
 - [x] Compartir como archivo (además del enlace); Airrial aparece en el menú Compartir de Android para abrir archivos recibidos
 - [x] Recibir en el celular con Compartir → Airrial: el dueño lo probó el 13 de octubre de 2026 con la lista de iReal y abrió bien
