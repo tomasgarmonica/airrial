@@ -164,6 +164,9 @@ const Comunidad = (() => {
       keep(null);
       if (t) ask(AUTH + 'logout', { method: 'POST', headers: { Authorization: 'Bearer ' + t } }).catch(() => {});
     },
+    // Denuncia una canción o una lista. Si ya la había denunciado esta cuenta, falla con status 409.
+    denunciar: (que, cual, motivo, detalle) => mine('denuncias', { method: 'POST',
+      body: JSON.stringify({ que: que === 'lista' ? 'lista' : 'cancion', cual: Math.floor(+cual), motivo, detalle: String(detalle || '').trim().slice(0, 500) }) }),
     // Borra la cuenta entera (mail, nombre y lo subido) y sale.
     borrarCuenta: async () => { await mine('rpc/borrar_cuenta', { method: 'POST', body: '{}' }); keep(null); },
     // El nombre para mostrar de esta cuenta ('' si todavía no eligió uno).

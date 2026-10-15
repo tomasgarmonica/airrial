@@ -1557,6 +1557,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     if (what === 'm') { mineView(); return; }
     if (what === 'l') { comListView(val); return; }
     if (what === 'ul') { upListView(val); return; }
+    if (what === 'dc' || what === 'dl') { reportView(what === 'dl' ? 'lista' : 'cancion', val); return; }
     tally('Comunidad · abrir');
     const sub = (what === 'r' || what === 'a') && val ? what : '';
     app.innerHTML = `
@@ -1650,7 +1651,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <div class="shared"><b>${esc(song.title)}</b>
         <span>${esc([songMeta(song), song.tempo + ' bpm'].join(' · '))}</span>
         <span>${esc(byLine(r))}</span>${have ? '<span>Ya la tenés en tus canciones.</span>' : ''}</div>
-        ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song))}</main>`;
+        ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song))}
+        <p class="report"><a href="#/c/dc/${r.id}">Denunciar esta canción</a></p></main>`;
       fitChords(app);
       bind({
         back,
@@ -1684,7 +1686,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       const name = short(r.nombre, 200) || 'Lista';
       app.innerHTML = head('<button class="tx pri" data-a="save">Guardar</button>') + `<main class="list">
         <div class="shared"><b>${esc(name)}</b><span>Lista · ${count(got.length)}</span><span>${esc(byLine(r))}</span></div>
-        ${got.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}</main>`;
+        ${got.map((s, i) => `<div class="item"><b>${i + 1}. ${esc(s.title)}</b><span>${esc(songMeta(s))}</span></div>`).join('')}
+        <p class="report"><a href="#/c/dl/${r.id}">Denunciar esta lista</a></p></main>`;
       bind({
         back,
         // Las canciones que ya tenías iguales no se repiten; la lista las nombra igual.
@@ -1720,7 +1723,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
 
   // Pide entrar a la cuenta (mail y código) y elegir el nombre para mostrar, lo que falte; después llama a
   // `done(nombre)`. Dibuja adentro de `box`, con sus propios botones (data-g), y no toca el resto de la pantalla.
-  async function accountGate(box, done) {
+  // `why`: para qué hace falta la cuenta ("Para subir canciones").
+  async function accountGate(box, done, why = 'Para subir canciones') {
     let mail = '';
     const err = msg => { const p = $('.err', box); if (p) p.textContent = msg; };
     // mientras espera al servidor, los botones quedan apagados
@@ -1729,7 +1733,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       try { await fn(); } catch (e) { err(accountError(e)); } finally { box.querySelectorAll('button').forEach(b => { b.disabled = false; }); }
     };
     const askMail = () => {
-      box.innerHTML = `<div class="acct"><p>Para subir canciones hace falta una cuenta. Escribí tu mail y te mandamos un código para entrar: no hay contraseña.</p>
+      box.innerHTML = `<div class="acct"><p>${esc(why)} hace falta una cuenta. Escribí tu mail y te mandamos un código para entrar: no hay contraseña.</p>
         <input id="mail" type="email" autocomplete="email" inputmode="email" placeholder="tu@mail.com" value="${esc(mail)}" aria-label="Tu mail">
         <p class="err"></p><button class="cmore pri" data-g="send">Mandar el código</button>
         <p class="hint">Tu mail no se muestra a nadie. Solo lo usamos para mandarte el código.</p></div>`;
@@ -1782,7 +1786,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     try { await named(); } catch (e) {
       if (!Comunidad.cuenta()) { askMail(); return; }
       box.innerHTML = `<div class="acct"><p class="err">${esc(accountError(e))}</p><button class="cmore" data-g="retry">Probar de nuevo</button></div>`;
-      box.onclick = e2 => { if (e2.target.closest('[data-g="retry"]')) accountGate(box, done); };
+      box.onclick = e2 => { if (e2.target.closest('[data-g="retry"]')) accountGate(box, done, why); };
     }
   }
 
@@ -1929,6 +1933,42 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       };
     };
     accountGate(box, show);
+  }
+
+  // Denunciar una canción o una lista: con cuenta, eligiendo el motivo. Con tres denuncias de cuentas distintas
+  // se esconde sola hasta que el dueño la revise (en la página de Supabase).
+  const REASONS = [['spam', 'Publicidad o spam'], ['ofensivo', 'Ofensivo, violento o con datos de otras personas'],
+    ['letra o melodia', 'Tiene letra o melodía'], ['derechos de autor', 'Derechos de autor'], ['otro', 'Otro motivo']];
+  function reportView(que, id) {
+    const fem = que === 'lista', back = () => up('#/c/' + (fem ? 'l/' : 's/') + id);
+    app.innerHTML = `<header class="top"><button class="ic" data-a="back" aria-label="Volver">‹</button>
+      <div class="ttl"><h1>Denunciar ${fem ? 'una lista' : 'una canción'}</h1></div></header>
+      <main class="list"><div id="gate"></div></main>`;
+    bind({ back });
+    if (!/^\d{1,15}$/.test(id)) { back(); return; }
+    const box = $('#gate');
+    const ready = () => {
+      box.innerHTML = `<div class="acct"><p>¿Por qué no debería estar en la Comunidad?</p>
+        ${REASONS.map(([v, t]) => `<label class="chk"><input type="radio" name="why" value="${esc(v)}"> ${esc(t)}</label>`).join('')}
+        <p><textarea id="more" rows="3" maxlength="500" placeholder="Contanos más (opcional)" aria-label="Detalle"></textarea></p>
+        <p class="err"></p><button class="cmore pri" data-g="send">Enviar la denuncia</button>
+        <p class="hint">Quien la subió no ve quién la denunció.</p></div>`;
+      box.onclick = async e => {
+        if (!e.target.closest('[data-g="send"]')) return;
+        const pick = $('input[name="why"]:checked', box), err = $('.err', box), b = $('[data-g="send"]', box);
+        if (!pick) { err.textContent = 'Elegí un motivo.'; return; }
+        b.disabled = true;
+        try {
+          await Comunidad.denunciar(que, id, pick.value, $('#more', box).value);
+        } catch (e2) {
+          b.disabled = false;
+          if (e2.status !== 409) { err.textContent = accountError(e2); return; }
+        }
+        box.innerHTML = `<div class="acct"><p><b>Gracias, la vamos a revisar.</b></p>
+          <p>Si varias personas la denuncian, se esconde sola hasta que la revisemos.</p></div>`;
+      };
+    };
+    accountGate(box, ready, 'Para denunciar');
   }
 
   // --- editor ---

@@ -355,6 +355,44 @@ const cases = {
     await a.tap('[data-g="out"]');
     check(!a.w.localStorage.getItem('airrial.cuenta.v1'), 'no salió de la cuenta');
   },
+  'Comunidad: denunciar una canción pide cuenta y motivo, y una segunda vez no molesta': async () => {
+    const a = await start({ songs: [] });
+    // (el servidor de mentira arma las respuestas con las piezas del marco donde corre)
+    const sent = [], serve = w => (url, o) => {
+      const json = (b, status) => new w.Response(b == null ? null : JSON.stringify(b), { status: status || 200 });
+      const m = (o && o.method) || 'GET', p = url.replace(/^.*supabase\.co\//, '');
+      if (p.startsWith('rest/v1/canciones')) return json([{ id: 5, titulo: 'Ajena', compositor: 'X', ritmo: 'swing', compas: '4/4', tonalidad: 'C', tempo: 120, cifrado: '| C | G7 |', cols: 4, bajadas: 0, perfiles: { nombre: 'Ana' } }]);
+      if (p.startsWith('rest/v1/perfiles')) return json([{ nombre: 'Tomás' }]);
+      if (p.startsWith('rest/v1/denuncias') && m === 'POST') { sent.push(JSON.parse(o.body)); return sent.length > 1 ? json({ message: 'duplicate key' }, 409) : json(null, 201); }
+      return json(null, 204);
+    };
+    a.w.server = serve(a.w);
+    a.w.location.hash = '#/c/s/5';
+    await until(() => a.$('.report a'), 'el enlace Denunciar');
+    await a.tap('.report a');
+    // sin cuenta, primero pide entrar
+    await until(() => /Para denunciar hace falta una cuenta/.test(a.text('#gate') || ''), 'que pida la cuenta');
+    a.fits('denunciar sin cuenta');
+    // ya con cuenta
+    const b = await start({ songs: [], cuenta: { access: 'a', refresh: 'r', until: Date.now() + 36e5, id: 'u1', email: 'yo@mail.com' } });
+    b.w.server = serve(b.w);
+    b.w.location.hash = '#/c/dc/5';
+    await until(() => b.$('[data-g="send"]'), 'el formulario');
+    await b.tap('[data-g="send"]');
+    check(/Elegí un motivo/.test(b.text('#gate .err')), 'mandó sin motivo');
+    b.$('input[value="letra o melodia"]').checked = true;
+    b.$('#more').value = '  Tiene la letra entera  ';
+    b.fits('denunciar');
+    await b.tap('[data-g="send"]');
+    await until(() => /Gracias/.test(b.text('#gate') || ''), 'el gracias');
+    same(sent[0], { que: 'cancion', cual: 5, motivo: 'letra o melodia', detalle: 'Tiene la letra entera' }, 'la denuncia');
+    // otra vez la misma: el servidor dice que ya estaba, y se agradece igual
+    b.w.location.hash = '#/c/dc/4';
+    await until(() => b.$('[data-g="send"]'), 'el formulario otra vez');
+    b.$('input[value="spam"]').checked = true;
+    await b.tap('[data-g="send"]');
+    await until(() => /Gracias/.test(b.text('#gate') || ''), 'el gracias con la repetida');
+  },
   'Comunidad: una lista de 1400 temas se sube': async () => {
     const many = Array.from({ length: 1400 }, (_, k) => song('m' + k, 'Standard ' + k, '| Dm7 | G7 | Cmaj7 | % |'));
     const a = await start({ songs: many, lists: [{ id: 'big', name: 'Jazz', songs: many.map(s => s.id) }],
