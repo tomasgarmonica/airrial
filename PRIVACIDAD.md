@@ -1,7 +1,6 @@
 # Privacidad en Airrial
 
-Borrador del 13 de octubre de 2026, para revisar. Todavía no está publicado. Lo que está entre corchetes
-depende de decisiones que faltan.
+Última actualización: 15 de octubre de 2026.
 
 En pocas palabras: **si no creás una cuenta, Airrial no sabe quién sos.** Tus canciones viven en tu teléfono.
 Solo si subís algo a la Comunidad guardamos tu mail y el nombre que elijas mostrar.
@@ -29,8 +28,7 @@ La cuenta solo hace falta para subir a la Comunidad. Guardamos:
   recibís el código para entrar.
 - **El nombre que elijas mostrar.** Es público: aparece al lado de lo que subís. No hace falta que sea tu
   nombre real, y lo podés cambiar.
-- **Lo que subís** (canciones y listas) y cuándo lo subiste. Es público, salvo lo que subas [con enlace], que
-  solo ve quien tenga el enlace.
+- **Lo que subís** (canciones y listas) y cuándo lo subiste. Es público.
 - **Las denuncias que hagas:** qué denunciaste y por qué. No se le muestran a quien subió lo denunciado.
 
 No guardamos contraseñas: entrás con un código que te llega por mail.
