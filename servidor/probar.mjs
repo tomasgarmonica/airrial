@@ -22,6 +22,9 @@ await db.exec(`
 `);
 await db.exec(sql);
 await db.exec(sql); // se puede correr dos veces
+// y sobre una base armada antes de que existiera la columna `artista` (como la del proyecto real)
+await db.exec(`drop view public.artistas; alter table public.canciones drop column artista`);
+await db.exec(sql);
 const U = ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', '44444444-4444-4444-4444-444444444444'];
 for (const u of U) await q('insert into auth.users values ($1, $2)', [u, u.slice(0, 1) + '@x.com']);
 // el dueño carga canciones desde la página de Supabase (sin reglas)
@@ -41,6 +44,8 @@ r = await q(`select ritmo, cantidad from public.ritmos`);
 ok(JSON.stringify(r.rows) === '[{"ritmo":"bossa","cantidad":2}]', 'ritmos ' + JSON.stringify(r.rows));
 r = await q(`select compositor, cantidad from public.artistas order by clave`);
 ok(r.rows.length === 2, 'artistas ' + JSON.stringify(r.rows));
+r = await q(`select titulo from public.canciones where artista = 'tom jobim'`);
+ok(r.rows.length === 1, 'filtrar por artista');
 await q(`select public.bajar('cancion', 1)`);
 await err(`insert into public.canciones (titulo, ritmo, compas, tempo, cifrado) values ('a', 'swing', '4/4', 120, '| C |')`, /permission|policy/, 'anon no sube');
 await err(`update public.canciones set bajadas = 99`, /permission/, 'anon no toca bajadas');

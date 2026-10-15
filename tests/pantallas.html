@@ -13,7 +13,10 @@ y entrar a <code>localhost:8000/tests/pantallas.html</code>).</p>
 // Cada caso arranca la app de cero dentro de un marco, con lo que se le quiera dejar guardado de antes.
 const out = document.getElementById('out'), lines = [];
 let fails = 0, frame = null;
-const wait = ms => new Promise(done => setTimeout(done, ms));
+// Con la pestaña en segundo plano el navegador demora las esperas hasta un minuto cada una; los mensajes entre
+// partes de la página no, así que se espera mirando el reloj entre mensaje y mensaje.
+const tick = () => new Promise(done => { const c = new MessageChannel(); c.port1.onmessage = () => done(); c.port2.postMessage(0); });
+const wait = async ms => { const end = performance.now() + ms; while (performance.now() < end) await tick(); };
 const until = async (test, what) => { for (let i = 0; i < 60; i++) { if (test()) return; await wait(50); } throw new Error('no pasó: ' + what); };
 const check = (cond, what) => { if (!cond) throw new Error(what); };
 const same = (a, b, what) => check(JSON.stringify(a) === JSON.stringify(b), what + ': esperaba ' + JSON.stringify(b) + ' y hay ' + JSON.stringify(a));
@@ -41,6 +44,15 @@ async function start(seed, hash) {
     window.confirm = m => { said.push(m); return true; };
     window.prompt = (m, v) => { said.push(m); return answers.length ? answers.shift() : null; };
     Object.defineProperty(navigator, 'serviceWorker', { get: () => ({ controller: null, addEventListener() {}, register: () => Promise.resolve() }) });
+    // La Comunidad habla con un servidor de mentira (window.server); sin él, es como estar sin conexión.
+    const realFetch = window.fetch.bind(window);
+    window.server = null;
+    window.fetch = (u, o) => (String(u).includes('.supabase.co') ? (window.server ? Promise.resolve().then(() => window.server(String(u), o))
+      : Promise.reject(new TypeError('sin conexión'))) : realFetch(u, o));
+    // El menú de compartir del teléfono: lo contesta window.sharing (sin él, el teléfono no sabe compartir archivos).
+    window.sharing = null; window.shared = [];
+    navigator.canShare = () => !!window.sharing;
+    navigator.share = d => { shared.push(d); return Promise.resolve().then(() => window.sharing(d)); };
     Object.defineProperty(navigator, 'clipboard', { get: () => ({ writeText: () => Promise.reject(new Error('no')), readText: () => Promise.reject(new Error('no')) }) });
   <\/script>`;
   const doc = frame.contentDocument;
@@ -100,6 +112,27 @@ const cases = {
     same(a.mine()[0].transpose, 1, 'la transposición queda guardada');
     check(a.$('#chart .bar.rs') && a.$('#chart .bar.re') && /Fine/.test(a.text('#chart')), 'faltan la repetición o la anotación');
     a.fits('canción');
+  },
+  'Compartir el archivo abre el menú del teléfono, y si el teléfono pide otro toque, lo pide': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '| C | G7 |')] }, '#/s/s1');
+    // a la primera el teléfono no deja (armar el archivo tardó), a la segunda sí
+    let tries = 0;
+    a.w.sharing = () => { if (++tries === 1) throw new a.w.DOMException('tarde', 'NotAllowedError'); };
+    await a.tap('[data-a="share"]');
+    await until(() => a.dialog(), 'el menú Compartir');
+    await a.tap(a.dialog().querySelector('[data-k="file"]'));
+    await until(() => a.dialog() && /está listo/.test(a.dialog().innerText), 'el aviso de archivo listo');
+    await a.tap(a.dialog().querySelector('[data-k="go"]'));
+    await until(() => tries === 2, 'el segundo intento');
+    const f = a.w.shared[1].files[0];
+    same([a.w.shared.length, f.name, f.type, !a.dialog()], [2, 'Uno.airrial.html', 'text/html', true], 'lo compartido');
+    check(/Tocá para abrir en Airrial/.test(await f.text()), 'el archivo no es la página');
+    check(!/descargad/.test(a.text('.toast') || ''), 'dijo que lo descargó');
+    // el PDF va directo al menú
+    await a.tap('[data-a="share"]');
+    await a.tap(a.dialog().querySelector('[data-k="pdf"]'));
+    await until(() => a.w.shared.length === 3, 'compartir el PDF');
+    same(a.w.shared[2].files[0].name, 'Uno.pdf', 'el PDF');
   },
   'Armar una lista y sumarle temas': async () => {
     const a = await start({ songs: [song('s1', 'Uno', '| C |'), song('s2', 'Dos', '| F |')] });
@@ -196,6 +229,175 @@ const cases = {
     same(a.mine().map(s => [s.title, s.style, s.key, s.tempo, s.ts, s.chart]), [['Tema', 'swing', 'C', 120, '4/4', '| Cmaj7 |']], 'el tema');
     const said = a.w.said.join(' ');
     check(/Se importaron 1 tema/.test(said) && /roto\.sgu/.test(said), 'faltan los avisos: ' + said);
+  },
+  'Comunidad: recorrer por estilo, ver una canción, guardarla, buscar y quedarse sin conexión': async () => {
+    const a = await start({ songs: [] });
+    const asked = [];
+    const rows = [{ id: 7, titulo: 'Águas de Março', compositor: 'Tom Jobim', ritmo: 'bossa', compas: '4/4', tonalidad: 'C', bajadas: 12, fijada: true,
+      perfiles: null, tempo: 138, cifrado: '| C | C7 |\n| F | Fm |', cols: 4 }];
+    // servidor de mentira: contesta los estilos, las canciones y la bajada
+    a.w.server = url => {
+      asked.push(url.replace(/^.*\/rest\/v1\//, ''));
+      const body = url.includes('/ritmos?') ? [{ ritmo: 'bossa', cantidad: 1 }] : url.includes('/rpc/bajar') ? null : rows;
+      return new a.w.Response(body ? JSON.stringify(body) : null, { status: body ? 200 : 204 });
+    };
+    await a.tap('[data-a="community"]');
+    await until(() => /Bossa/.test(a.text('#clist') || ''), 'que aparezcan los estilos');
+    a.fits('comunidad');
+    await a.tap('#clist a.item');
+    await until(() => /Águas de Março/.test(a.text('#clist') || ''), 'las canciones del estilo');
+    check(asked.some(u => u.includes('ritmo=eq.bossa')), 'no pidió las de bossa: ' + asked.join(' '));
+    check(/destacada/.test(a.text('#clist')) && /Subida por Airrial · 12 bajadas/.test(a.text('#clist')), 'el renglón: ' + a.text('#clist'));
+    await a.tap('#clist a.item');
+    await until(() => a.$('[data-a="save"]'), 'la hoja con Guardar');
+    check(a.$('main.chart') && /138 bpm/.test(a.text('.shared')), 'la hoja: ' + a.text('main'));
+    a.fits('canción de la comunidad');
+    await a.tap('[data-a="save"]');
+    await until(() => a.mine().length === 1, 'que se guarde');
+    same(a.mine().map(s => [s.title, s.composer, s.style, s.tempo, s.chart]), [['Águas de Março', 'Tom Jobim', 'bossa', 138, '| C | C7 |\n| F | Fm |']], 'la guardada');
+    check(asked.some(u => u.startsWith('rpc/bajar')), 'no sumó la bajada');
+    await until(() => a.w.location.hash.startsWith('#/s/'), 'que abra la canción guardada');
+    // si ya la tiene, no la ofrece de nuevo
+    a.w.location.hash = '#/c/s/7';
+    await until(() => /Ya la tenés/.test(a.text('main') || ''), 'que avise que ya la tiene');
+    check(!a.$('[data-a="save"]') && a.$('[data-a="open"]'), 'ofrece guardarla de nuevo');
+    // buscar escribiendo
+    a.w.location.hash = '#/c';
+    await until(() => a.$('#cq'), 'el buscador');
+    await a.type('#cq', 'Aguas');
+    await until(() => asked.some(u => u.includes('busqueda=like.*aguas*')), 'que busque');
+    await until(() => /Águas/.test(a.text('#clist') || '') && a.$('[data-a="ctab"][data-v="nuevas"]'), 'el resultado');
+    // sin conexión avisa, y al volver la conexión se puede reintentar
+    a.w.server = null;
+    await a.tap('[data-a="ctab"][data-v="nuevas"]');
+    await until(() => a.$('[data-a="retry"]'), 'el aviso sin conexión');
+    a.fits('comunidad sin conexión');
+    check(a.mine().length === 1, 'se perdió lo guardado');
+  },
+  'Comunidad: entrar con el código, elegir el nombre, subir una canción, no duplicarla y borrarla': async () => {
+    const a = await start({ songs: [song('s1', 'Mía', '| C | G7 |', { composer: 'Yo', tags: ['privada'] })] });
+    const asked = [], up = [];
+    let nick = '';
+    const json = (b, status) => new a.w.Response(b == null ? null : JSON.stringify(b), { status: status || 200 });
+    // servidor de mentira con cuentas: el código bueno es 123456
+    a.w.server = (url, o) => {
+      const m = (o && o.method) || 'GET', body = o && o.body ? JSON.parse(o.body) : null, p = url.replace(/^.*supabase\.co\//, '');
+      asked.push(m + ' ' + p);
+      if (p.startsWith('auth/v1/otp')) return json({});
+      if (p.startsWith('auth/v1/verify')) return body.token === '123456'
+        ? json({ access_token: 'a', refresh_token: 'r', expires_in: 3600, user: { id: 'u1', email: body.email } })
+        : json({ msg: 'Token has expired or is invalid' }, 403);
+      if (p.startsWith('rest/v1/perfiles')) { if (m === 'POST') { nick = body.nombre; return json(null, 201); } return json(nick ? [{ nombre: nick }] : []); }
+      if (p.startsWith('rest/v1/canciones') && m === 'POST') { up.push({ id: 99, ...body, bajadas: 0, oculta: false }); return json([up[0]], 201); }
+      if (p.startsWith('rest/v1/canciones') && m === 'DELETE') { up.length = 0; return json(null, 204); }
+      if (p.startsWith('rest/v1/canciones')) return json(up);
+      return json(null, 204);
+    };
+    a.w.location.hash = '#/s/s1';
+    await until(() => a.$('[data-a="share"]'), 'la canción');
+    await a.tap('[data-a="share"]');
+    await until(() => a.dialog(), 'el menú Compartir');
+    await a.tap(a.dialog().querySelector('[data-k="up"]'));
+    await until(() => a.$('#mail'), 'que pida el mail');
+    a.fits('subir: el mail');
+    a.$('#mail').value = 'yo@mail.com';
+    await a.tap('[data-g="send"]');
+    await until(() => a.$('#code'), 'que pida el código');
+    check(asked.includes('POST auth/v1/otp'), 'no pidió el código');
+    a.$('#code').value = '111111';
+    await a.tap('[data-g="enter"]');
+    await until(() => /no es correcto/.test(a.text('#gate .err') || ''), 'el aviso de código equivocado');
+    a.$('#code').value = '123 456';
+    await a.tap('[data-g="enter"]');
+    await until(() => a.$('#nick'), 'que pida el nombre');
+    a.fits('subir: el nombre');
+    a.$('#nick').value = '  Tomás  ';
+    await a.tap('[data-g="name"]');
+    check(/aceptar las reglas/.test(a.text('#gate .err')), 'dejó seguir sin aceptar las reglas');
+    a.$('#okrules').checked = true;
+    await a.tap('[data-g="name"]');
+    await until(() => a.$('[data-g="up"]'), 'el botón Subir');
+    same(nick, 'Tomás', 'el nombre guardado');
+    check(/Tomás/.test(a.text('#gate')) && /yo@mail\.com/.test(a.text('#gate')), 'no dice con qué nombre y mail se sube');
+    a.fits('subir');
+    await a.tap('[data-g="up"]');
+    await until(() => /ya está en la Comunidad/.test(a.text('#gate') || ''), 'que se suba');
+    same([up[0].titulo, up[0].compositor, up[0].cifrado, up[0].autor, 'tags' in up[0], 'keys' in up[0]], ['Mía', 'Yo', '| C | G7 |', 'u1', false, false], 'lo subido');
+    // la misma otra vez: no se duplica (y ya no pide entrar)
+    a.w.location.hash = '#/s/s1';
+    await until(() => a.$('[data-a="share"]'), 'la canción de nuevo');
+    a.w.location.hash = '#/c/u/s1';
+    await until(() => a.$('[data-g="up"]'), 'el botón Subir, ya con cuenta');
+    await a.tap('[data-g="up"]');
+    await until(() => /Listo/.test(a.text('#gate') || ''), 'el aviso');
+    same(asked.filter(x => x.startsWith('POST rest/v1/canciones')).length, 1, 'veces que se subió');
+    // mis subidas: aparece, se borra, y la copia del teléfono queda
+    a.w.location.hash = '#/c/m';
+    await until(() => /Mía/.test(a.text('#gate') || ''), 'mis subidas');
+    a.fits('mis subidas');
+    await a.tap('[data-g="del"]');
+    await until(() => /Todavía no subiste/.test(a.text('#gate') || ''), 'que se borre');
+    same(a.mine().map(s => s.title), ['Mía'], 'lo del teléfono');
+    await a.tap('[data-g="out"]');
+    check(!a.w.localStorage.getItem('airrial.cuenta.v1'), 'no salió de la cuenta');
+  },
+  'Comunidad: subir una lista, guardar una lista de otro y borrar la propia': async () => {
+    const a = await start({
+      songs: [song('s1', 'Uno', '| C |'), song('s2', 'Dos', '| "Yo te quiero tanto mi amor, no me dejes" G |')],
+      lists: [{ id: 'l1', name: 'Peña', songs: ['s1'] }, { id: 'l2', name: 'Con letra', songs: ['s1', 's2'] }],
+      // ya entró a la cuenta antes
+      cuenta: { access: 'a', refresh: 'r', until: Date.now() + 36e5, id: 'u1', email: 'yo@mail.com' },
+    });
+    const asked = [], mine = [];
+    const other = { id: 3, nombre: 'De otro', cantidad: 2, bajadas: 2, fijada: false, perfiles: { nombre: 'Ana' },
+      canciones: [['Uno', '', 'swing', 'C', 120, '4/4', '| C |', 4], ['Tres', 'Otra', 'bossa', 'F', 130, '4/4', '| F | C7 |', 4]] };
+    const json = (b, status) => new a.w.Response(b == null ? null : JSON.stringify(b), { status: status || 200 });
+    a.w.server = (url, o) => {
+      const m = (o && o.method) || 'GET', body = o && o.body ? JSON.parse(o.body) : null, p = url.replace(/^.*supabase\.co\//, '');
+      asked.push(m + ' ' + p);
+      if (p.startsWith('rest/v1/perfiles')) return json([{ nombre: 'Tomás' }]);
+      if (p.startsWith('rest/v1/listas') && m === 'POST') { mine.push({ id: 7, ...body, cantidad: body.canciones.length, bajadas: 0, oculta: false }); return json([mine[0]], 201); }
+      if (p.startsWith('rest/v1/listas') && m === 'DELETE') { mine.length = 0; return json(null, 204); }
+      if (p.startsWith('rest/v1/listas') && p.includes('autor=eq.')) return json(mine);
+      if (p.startsWith('rest/v1/listas') && p.includes('id=eq.3')) return json([other]);
+      if (p.startsWith('rest/v1/listas')) return json([other]);
+      if (p.startsWith('rest/v1/canciones')) return json([]);
+      return json(null, 204);
+    };
+    // una lista con letra metida en una anotación no se sube, y dice cuál canción es
+    a.w.location.hash = '#/c/ul/l2';
+    await until(() => /hasta 30 letras/.test(a.text('main') || ''), 'el aviso de la canción que no se puede subir');
+    check(/Dos/.test(a.text('#gate')) && !a.$('[data-g="up"]'), 'el aviso: ' + a.text('#gate'));
+    // la otra sí (ya con cuenta y nombre, va directo)
+    a.w.location.hash = '#/c/ul/l1';
+    await until(() => a.$('[data-g="up"]'), 'el botón Subir');
+    check(/copia de sus 1 tema/.test(a.text('#gate')), 'no avisa que va una copia: ' + a.text('#gate'));
+    a.fits('subir una lista');
+    await a.tap('[data-g="up"]');
+    await until(() => /ya está en la Comunidad/.test(a.text('#gate') || ''), 'que se suba');
+    same([mine[0].nombre, mine[0].canciones, mine[0].autor], ['Peña', [['Uno', '', 'swing', 'C', 120, '4/4', '| C |', 4]], 'u1'], 'lo subido');
+    // buscar listas y guardar una de otro: la canción que ya estaba no se repite
+    a.w.location.hash = '#/c';
+    await until(() => a.$('[data-a="ckind"][data-v="listas"]'), 'el selector Canciones / Listas');
+    await a.tap('[data-a="ckind"][data-v="listas"]');
+    await until(() => /De otro/.test(a.text('#clist') || ''), 'las listas');
+    check(/Lista · 2 temas/.test(a.text('#clist')) && /Subida por Ana · 2 bajadas/.test(a.text('#clist')), 'el renglón: ' + a.text('#clist'));
+    a.fits('listas de la comunidad');
+    await a.tap('#clist a.item');
+    await until(() => a.$('[data-a="save"]'), 'la lista con Guardar');
+    check(/1\. Uno/.test(a.text('main')) && /2\. Tres/.test(a.text('main')), 'los temas: ' + a.text('main'));
+    await a.tap('[data-a="save"]');
+    await until(() => a.saved('lists').length === 3, 'que se guarde la lista');
+    same(a.mine().map(s => s.title), ['Uno', 'Dos', 'Tres'], 'las canciones');
+    const got = a.saved('lists')[2];
+    same([got.name, got.songs.length, got.songs[0]], ['De otro', 2, 's1'], 'la lista guardada');
+    check(asked.includes('POST rest/v1/rpc/bajar'), 'no sumó la bajada');
+    // mis subidas: aparece la lista y se borra
+    a.w.location.hash = '#/c/m';
+    await until(() => /Peña/.test(a.text('#gate') || ''), 'la lista en mis subidas');
+    await a.tap('[data-g="del"][data-k="lista"]');
+    await until(() => /Todavía no subiste/.test(a.text('#gate') || ''), 'que se borre');
+    same(a.saved('lists').map(l => l.name), ['Peña', 'Con letra', 'De otro'], 'las listas del teléfono');
   },
 };
 
