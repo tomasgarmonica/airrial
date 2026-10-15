@@ -284,7 +284,7 @@ const Engine = (() => {
   }
   // Nota de teclado grabada: la más cercana de las que hay, corrida de altura lo que haga falta.
   // Suena mientras dura la nota y se apaga rápido al soltarla, como al levantar el dedo de la tecla.
-  function pianoNote(t, m, dur, v) {
+  function pianoNote(t, m, dur, v, dest) {
     const b = S.bank;
     let root = b.notes[0];
     for (const n of b.notes) if (Math.abs(n - m) < Math.abs(root - m)) root = n;
@@ -294,21 +294,32 @@ const Engine = (() => {
     src.playbackRate.value = Math.pow(2, (m - root) / 12);
     g.gain.setValueAtTime(v * 0.6, t);
     g.gain.setTargetAtTime(0, t + dur, 0.05);
-    src.connect(g); g.connect(bus.keys);
+    src.connect(g); g.connect(dest);
     src.start(t, s.at, s.len);
     src.stop(t + dur + 0.4);
   }
+  // Cada golpe de teclado corta al anterior, como al levantar las manos para tocar el acorde siguiente.
+  // Los golpes no siempre se programan en orden, así que se mira para los dos lados: el nuevo apaga al que
+  // seguía sonando y, si ya hay uno programado más adelante, el nuevo dura hasta ahí.
   function chordHit(t, notes, dur, v) {
     if (silent(t) || tied(t)) return;
     dur = until(t, dur);
+    S.hits = S.hits.filter(h => h.end > t - 4);
+    for (const h of S.hits) {
+      if (h.t > t + 1e-4) dur = Math.min(dur, h.t - t);
+      else if (h.t < t - 1e-4 && h.end > t) { h.cut.gain.setTargetAtTime(0, t, 0.02); h.end = t; }
+    }
+    const cut = ctx.createGain();
+    cut.connect(bus.keys);
+    S.hits.push({ t, end: t + dur, cut });
     if (S.bank && S.bank.notes.length) {
-      for (const m of notes) pianoNote(t, m, dur, v);
+      for (const m of notes) pianoNote(t, m, dur, v, cut);
       return;
     }
     const f = ctx.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = 2400;
-    f.connect(bus.keys);
+    f.connect(cut);
     for (const m of notes) {
       const g = env(f, t, v * 0.2, dur, 0.08);
       osc('triangle', mtof(m), t, t + dur + 0.15, g);
@@ -885,7 +896,7 @@ const Engine = (() => {
     if (!o.seq.length) return false;
     ensure();
     makeBuses();
-    S = { o, pos: o.startPos || 0, chorus: 0, t: 0, barNo: 0, last: null, lb: 38, q: [], bars: barsOf(o, 0) };
+    S = { o, pos: o.startPos || 0, chorus: 0, t: 0, barNo: 0, last: null, lb: 38, q: [], hits: [], bars: barsOf(o, 0) };
     const mine = S, keys = o.keys || 'piano';
     const begin = () => {
       if (S !== mine) return;
