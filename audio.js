@@ -340,16 +340,20 @@ const Engine = (() => {
       return m;
     });
   }
-  function near(pc, ref) {
+  function near(pc, ref, lo = 30, hi = 55) {
     let best = null;
-    for (let m = pc + 24; m <= 55; m += 12) {
-      if (m < 30) continue;
+    for (let m = pc + 24; m <= hi; m += 12) {
+      if (m < lo) continue;
       if (best == null || Math.abs(m - ref) < Math.abs(best - ref)) best = m;
     }
     return best;
   }
   const rootOf = c => near(c.bass, (S.lb + 38) / 2);
   const fifthOf = c => near((c.root + c.iv[1]) % 12, S.lb);
+  // Registro del contrabajo en swing y blues: la fundamental siempre en la octava más grave (de Mi1 a Mib2)
+  // y el resto camina desde ahí sin pasar del Do3, para que no se vaya subiendo compás a compás.
+  const lowRoot = c => near(c.bass, 33.5, 28, 48);
+  const low = (pc, ref) => near(pc, ref, 28, 48);
   function bass(t, m, dur, v) {
     S.lb = m;
     bassNote(t, m, dur, v);
@@ -367,9 +371,12 @@ const Engine = (() => {
         const prev = b ? x.at(b - 1) : null;
         const up = b < 3 ? x.at(b + 1) : x.next;
         let m;
-        if (b === 0 || c !== prev) m = rootOf(c);
-        else if (up && up !== c) m = near(up.bass, S.lb) + (Math.random() < 0.5 ? 1 : -1);
-        else m = near((c.root + c.iv[b === 2 ? 1 : 0]) % 12, S.lb);
+        if (b === 0 || c !== prev) m = lowRoot(c);
+        else if (up && up !== c) {
+          // Nota de paso: medio tono arriba o abajo de donde va a caer la fundamental siguiente.
+          const r = lowRoot(up);
+          m = r === 28 || Math.random() < 0.5 ? r + 1 : r - 1;
+        } else m = low((c.root + c.iv[b === 2 ? 1 : 0]) % 12, S.lb);
         bass(tb, m, bd * 0.9, 0.9);
       }
       for (const s of x.segs) {
@@ -548,9 +555,9 @@ const Engine = (() => {
         hat(tb, 0.2); hat(tb + late, 0.12);
         if (b % 2) snare(tb, 0.55); else kick(tb, b ? 0.7 : 0.9);
         if (!c) { step = 0; continue; }
-        if (b === 0 || c !== x.at(b - 1)) { step = 0; root = rootOf(c); }
+        if (b === 0 || c !== x.at(b - 1)) { step = 0; root = lowRoot(c); }
         const iv = [0, c.iv[1], 9, c.iv[1]][step++ % 4];
-        const m = iv ? near((c.root + iv) % 12, root + iv) : root;
+        const m = iv ? low((c.root + iv) % 12, root + iv) : root;
         bass(tb, m, late * 0.9, 0.95);
         bass(tb + late, m, (bd - late) * 0.9, 0.7);
       }
