@@ -26,14 +26,14 @@ Solo si subís algo a la Comunidad guardamos tu mail y el nombre que elijas most
 La cuenta solo hace falta para subir a la Comunidad. Guardamos:
 
 - **Tu mail**, para que puedas entrar. No se muestra a nadie y no lo usamos para mandarte publicidad: solo
-  recibís [el código para entrar].
+  recibís el código para entrar.
 - **El nombre que elijas mostrar.** Es público: aparece al lado de lo que subís. No hace falta que sea tu
   nombre real, y lo podés cambiar.
 - **Lo que subís** (canciones y listas) y cuándo lo subiste. Es público, salvo lo que subas [con enlace], que
   solo ve quien tenga el enlace.
 - **Las denuncias que hagas:** qué denunciaste y por qué. No se le muestran a quien subió lo denunciado.
 
-No guardamos contraseñas: [entrás con un código que te llega por mail].
+No guardamos contraseñas: entrás con un código que te llega por mail.
 
 ## Quién más interviene
 
@@ -41,8 +41,8 @@ Para funcionar, Airrial usa estos servicios, que tratan los datos por cuenta nue
 
 - **GitHub Pages:** aloja la app.
 - **GoatCounter:** el contador anónimo de uso.
-- **Supabase:** guarda las cuentas y lo que se sube a la Comunidad. [Los servidores están en …]
-- **[Resend]:** manda el mail con el código para entrar.
+- **Supabase:** guarda las cuentas y lo que se sube a la Comunidad. Los servidores están en San Pablo, Brasil.
+- **Resend:** manda el mail con el código para entrar.
 - **Google Forms:** recibe lo que escribas en Contactanos, si lo usás.
 
 No vendemos ni le pasamos tus datos a nadie más.
@@ -61,11 +61,11 @@ denuncias y reclamos de quienes consideren que no se respetaron.
 
 ## Edad
 
-Para tener cuenta hay que tener [13] años o más.
+Para tener cuenta hay que tener 13 años o más. Si sos menor de 18, con permiso de tus padres.
 
 ## Cambios y contacto
 
 Si esto cambia, lo avisamos en la app; la fecha de arriba dice cuándo fue la última vez. Para cualquier
 consulta: Menú → Contactanos.
 
-Responsable: [nombre del responsable], Argentina.
+Responsable: Airrial, Argentina.

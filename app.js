@@ -1709,7 +1709,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     <li>Nada que no sea una canción: publicidad, enlaces, mensajes, insultos ni datos de otras personas.</li>
     <li>Lo que subís lo escribiste vos o tenés permiso para compartirlo, y cualquiera lo puede ver, bajar, usar y cambiar.</li>
     <li>Tu nombre para mostrar aparece al lado de lo que subís. Lo podés borrar cuando quieras desde "Mis subidas".</li>
-    <li>Lo que no cumpla las reglas se puede esconder o borrar, y la cuenta, bloquear.</li></ul></details>`;
+    <li>Lo que no cumpla las reglas se puede esconder o borrar, y la cuenta, bloquear.</li>
+    <li>Para tener cuenta hay que tener 13 años o más. Si sos menor de 18, con permiso de tus padres.</li></ul></details>`;
   // Qué decir cuando algo de la cuenta falla.
   const accountError = e => (!e || !e.status ? 'No se pudo conectar. Revisá la conexión y probá de nuevo.'
     : /tope/.test(e.said || '') ? e.said

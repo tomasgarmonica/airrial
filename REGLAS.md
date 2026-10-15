@@ -50,11 +50,11 @@ que tenés guardadas en tu teléfono no dependen de ella.
 
 ## Edad
 
-Para tener cuenta hay que tener [13] años o más.
+Para tener cuenta hay que tener 13 años o más. Si sos menor de 18, con permiso de tus padres.
 
 ## Cambios y contacto
 
 Estas reglas pueden cambiar; la fecha de arriba dice cuándo fue la última vez. Para cualquier consulta:
 Menú → Contactanos.
 
-Responsable: [nombre del responsable], Argentina.
+Responsable: Airrial, Argentina.
