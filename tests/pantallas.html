@@ -97,6 +97,8 @@ const cases = {
     check(/x6/.test(a.text('#pad [data-a=times][data-v="?"]')), 'el botón no dice x6');
     a.w.answers.push('Entra la banda completa después del solo de piano');
     await a.tap('#pad [data-a=txt][data-v="?"]');
+    check(/✎ Entra la banda completa…/.test(a.text('#pad [data-a=txt][data-v="?"]')), 'el botón de texto libre: ' + a.text('#pad [data-a=txt][data-v="?"]'));
+    a.fits('editor con una anotación larga');
     await a.tap('[data-a=save]');
     same(a.mine()[0].chart, '|: C | "Entra la banda completa después del solo de piano" G7 :| x6', 'lo guardado');
   },

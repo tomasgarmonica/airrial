@@ -2051,8 +2051,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         group('En el lugar marcado',
           btn('sym', 'N.C.', 'N.C. Silencio', it === 'N.C.')) +
         group('Dividir el compás', btn('divide', '', 'Dividir') + btn('divide', 3, 'Dividir en 3 (tresillo)') + btn('merge', '', 'Unir')) +
-        group('Saltos y anotaciones', NOTES.map(s => btn('txt', s, s, b.text === s)).join('') +
-          btn('txt', '?', 'Otra…', !!b.text && !NOTES.includes(b.text))) +
+        group('Anotaciones y saltos', btn('txt', '?', b.text && !NOTES.includes(b.text) ? '✎ ' + (b.text.length > 24 ? b.text.slice(0, 23) + '…' : b.text) : '✎ Texto libre…', !!b.text && !NOTES.includes(b.text)) +
+          NOTES.map(s => btn('txt', s, s, b.text === s)).join('')) +
         group('Cambio de compás', METERS.map(m => btn('ts', m, m, meter === m)).join('')) +
         group('Compases', btn('insb', '', '+ Antes') + btn('insa', '', '+ Después') + btn('brk', '', 'Pasar a renglón nuevo') +
           btn('join', '', 'Subir al renglón anterior') + btn('delbar', '', 'Borrar compás') +
