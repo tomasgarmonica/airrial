@@ -343,10 +343,15 @@ const Engine = (() => {
   // Voicing de jazz para swing y blues: cuatro notas sin la fundamental (la pone el bajo). Los dominantes
   // llevan 3, 13, 7 y 9, o la quinta en lugar de la 13 si hay una tensión alterada; los demás, 3, 5, 7 y 9.
   // De las posiciones posibles se elige la que menos se mueve desde el acorde anterior.
-  function jazzVoice(c) {
+  // Con plain (blues tradicional) va el acorde tal cual está escrito, con la fundamental y sin agregados:
+  // F7 es Fa La Do Mib; si trae novena escrita, se saca la quinta para no pasar de cuatro notas.
+  function jazzVoice(c, plain) {
     const [third, fifth, sev, nin] = c.iv;
     let iv;
-    if (third === fifth) iv = [0, 7];
+    if (plain) {
+      iv = [...new Set([0, ...c.iv])];
+      if (iv.length > 4) iv.splice(2, 1);
+    } else if (third === fifth) iv = [0, 7];
     else if (fifth === 6 && (sev === 9 || sev == null)) iv = [0, 3, 6, 9];
     else if (fifth === 6 && third === 3) iv = [0, 3, 6, 10];
     else if (sev === 10 && third !== 3) {
@@ -598,10 +603,10 @@ const Engine = (() => {
         bass(tb, m, late * 0.9, 0.95);
         bass(tb + late, m, (bd - late) * 0.9, 0.7);
       }
-      for (const s of x.segs) if (s.chord) chordHit(t + s.beat * bd, jazzVoice(s.chord), bd * 0.5, 0.8);
+      for (const s of x.segs) if (s.chord) chordHit(t + s.beat * bd, jazzVoice(s.chord, true), bd * 0.5, 0.8);
       for (const b of [1, 3]) {
         const c = x.at(b + 2 / 3);
-        if (c) chordHit(t + b * bd + late, jazzVoice(c), bd * 0.25, 0.7);
+        if (c) chordHit(t + b * bd + late, jazzVoice(c, true), bd * 0.25, 0.7);
       }
     },
     // Semicorcheas: bombo sincopado, redoblante en 2 y 4 con notas fantasma, bajo entrecortado con la octava
