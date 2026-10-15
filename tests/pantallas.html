@@ -267,6 +267,11 @@ const cases = {
     await until(() => a.$('[data-a="save"]'), 'la hoja con Guardar');
     check(a.$('main.chart') && /138 bpm/.test(a.text('.shared')), 'la hoja: ' + a.text('main'));
     a.fits('canción de la comunidad');
+    // se puede escuchar antes de guardarla
+    await a.tap('[data-a="listen"]');
+    check(/Parar/.test(a.text('[data-a="listen"]')) && a.w.eval('Engine.isPlaying()'), 'no empezó a sonar');
+    await a.tap('[data-a="listen"]');
+    check(/Escuchar/.test(a.text('[data-a="listen"]')) && !a.w.eval('Engine.isPlaying()'), 'no paró');
     await a.tap('[data-a="save"]');
     await until(() => a.mine().length === 1, 'que se guarde');
     same(a.mine().map(s => [s.title, s.composer, s.style, s.tempo, s.chart]), [['Águas de Março', 'Tom Jobim', 'bossa', 138, '| C | C7 |\n| F | Fm |']], 'la guardada');

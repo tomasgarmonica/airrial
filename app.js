@@ -34,6 +34,13 @@
   const STYLE_METER = { chacarera: '6/8', zamba: '6/8', vals: '3/4' };
   // Estilos que usan la base escrita para otro (el son 3-2 es la base del 2-3, empezada por la mitad).
   const BASE_FOR = { son32: 'son' };
+  // Volumen de cada instrumento de la base de un ritmo, como lo dejó la persona (o callado).
+  const trimsFor = style => {
+    const k = BASE_FOR[style] || style, mine = settings.trims[k] || {}, off = settings.subMute[k] || {}, gains = {};
+    for (const i in mine) gains[i] = 4 * mine[i] * mine[i];
+    for (const i in off) gains[i] = 0;
+    return gains;
+  };
   const METERS = ['4/4', '3/4', '2/4', '6/8', '5/4', '7/8', '12/8'];
   const styleName = id => (STYLES.find(s => s[0] === id) || STYLES[0])[1];
 
@@ -1104,12 +1111,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     // Instrumentos de la base de este ritmo (si la tiene), para darle volumen a cada uno. Se guarda por ritmo.
     const baseKey = () => BASE_FOR[song.style] || song.style;
     const baseOf = () => (typeof BASES !== 'undefined' && BASES[baseKey()]) || null;
-    const applyTrims = () => {
-      const mine = settings.trims[baseKey()] || {}, off = settings.subMute[baseKey()] || {}, gains = {};
-      for (const i in mine) gains[i] = 4 * mine[i] * mine[i];
-      for (const i in off) gains[i] = 0;
-      Engine.setTrims(gains);
-    };
+    const applyTrims = () => Engine.setTrims(trimsFor(song.style));
     // Silencia o devuelve un instrumento de la base de este ritmo (el deslizador conserva su volumen).
     const setSubMute = (i, on) => {
       const off = settings.subMute[baseKey()] || (settings.subMute[baseKey()] = {});
@@ -1649,15 +1651,30 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       if (!r) { app.innerHTML = head() + `<main class="list">${failed ? offline : '<p class="empty">Esta canción ya no está en la Comunidad.</p>'}</main>`; return; }
       const song = cleanSong({ ...Comunidad.toSong(r), id: newId() });
       const have = songs.find(x => x.chart === song.chart && baseName(x.title) === baseName(song.title));
+      const bars = Music.parseChart(song.chart, tsOf(song));
       app.innerHTML = head(have ? '<button class="tx" data-a="open">Abrir</button>' : '<button class="tx pri" data-a="save">Guardar</button>') + `<main class="chart">
         <div class="shared"><b>${esc(song.title)}</b>
         <span>${esc([songMeta(song), song.tempo + ' bpm'].join(' · '))}</span>
         <span>${esc(byLine(r))}</span>${have ? '<span>Ya la tenés en tus canciones.</span>' : ''}</div>
-        ${chartHtml(Music.parseChart(song.chart, tsOf(song)), 0, true, colsOf(song))}
+        <button class="cmore pri" data-a="listen">▶ Escuchar</button>
+        ${chartHtml(bars, 0, true, colsOf(song))}
         <p class="report"><a href="#/c/dc/${r.id}">Denunciar esta canción</a></p></main>`;
       fitChords(app);
+      Engine.preload(keysOf(song));
+      // Escucharla antes de guardarla: con el tempo y el estilo con los que se subió, y los volúmenes de quien la escucha.
+      const lit = i => app.querySelectorAll('.bar').forEach(el => el.classList.toggle('on', el.dataset.i === String(i)));
+      const shown = on => { $('[data-a="listen"]').textContent = on ? '■ Parar' : '▶ Escuchar'; if (!on) lit(-1); };
       bind({
         back,
+        listen: () => {
+          if (Engine.isPlaying()) { Engine.stop(); shown(false); return; }
+          Engine.setTrims(trimsFor(song.style));
+          const ok = Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => song.tempo, style: song.style,
+            keys: keysOf(song), choruses: settings.choruses, countIn: settings.countIn,
+            onBar: i => { lit(i); const el = app.querySelector(`.bar[data-i="${i}"]`); if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); },
+            onEnd: () => shown(false) });
+          shown(ok);
+        },
         open: () => { location.hash = '#/s/' + have.id; },
         save: () => {
           const kept = mergeData({ songs: [song], lists: [] });
