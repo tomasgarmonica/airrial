@@ -340,6 +340,36 @@ const Engine = (() => {
       return m;
     });
   }
+  // Voicing de jazz para swing y blues: cuatro notas sin la fundamental (la pone el bajo). Los dominantes
+  // llevan 3, 13, 7 y 9, o la quinta en lugar de la 13 si hay una tensión alterada; los demás, 3, 5, 7 y 9.
+  // De las posiciones posibles se elige la que menos se mueve desde el acorde anterior.
+  function jazzVoice(c) {
+    const [third, fifth, sev, nin] = c.iv;
+    let iv;
+    if (third === fifth) iv = [0, 7];
+    else if (fifth === 6 && (sev === 9 || sev == null)) iv = [0, 3, 6, 9];
+    else if (fifth === 6 && third === 3) iv = [0, 3, 6, 10];
+    else if (sev === 10 && third !== 3) {
+      const alt = fifth !== 7 || nin === 13 || nin === 15;
+      iv = [third, alt ? fifth : 9, 10, nin || 14];
+    } else iv = [third, fifth, sev != null ? sev : fifth === 7 ? 9 : 0, third === 2 ? 0 : nin || 14];
+    const pcs = [...new Set(iv.map(x => (c.root + x) % 12))].sort((a, b) => a - b);
+    let best = null, score = Infinity;
+    for (let r = 0; r < pcs.length; r++) {
+      let m = 50 + ((pcs[r] - 50) % 12 + 12) % 12;
+      const v = [];
+      for (let k = 0; k < pcs.length; k++) {
+        const pc = pcs[(r + k) % pcs.length];
+        while (m % 12 !== pc) m++;
+        v.push(m);
+      }
+      const mid = v.reduce((a, b) => a + b) / v.length;
+      const s = (S.kv ? v.reduce((a, x, i) => a + Math.abs(x - (S.kv[i] ?? S.kv.at(-1))), 0) : 0) + 2 * Math.abs(mid - 59);
+      if (s < score) { score = s; best = v; }
+    }
+    S.kv = best;
+    return best;
+  }
   function near(pc, ref, lo = 30, hi = 55) {
     let best = null;
     for (let m = pc + 24; m <= hi; m += 12) {
@@ -381,7 +411,7 @@ const Engine = (() => {
       }
       for (const s of x.segs) {
         if (!s.chord) continue;
-        const v = voice(s.chord);
+        const v = jazzVoice(s.chord);
         if (s.len >= 4 && x.barNo % 2) {
           chordHit(t + (s.beat + 1) * bd, v, bd * 0.5, 0.8);
           chordHit(t + (s.beat + 2 + 2 / 3) * bd, v, bd * 0.9, 0.9);
@@ -561,10 +591,10 @@ const Engine = (() => {
         bass(tb, m, late * 0.9, 0.95);
         bass(tb + late, m, (bd - late) * 0.9, 0.7);
       }
-      for (const s of x.segs) if (s.chord) chordHit(t + s.beat * bd, voice(s.chord), bd * 0.5, 0.8);
+      for (const s of x.segs) if (s.chord) chordHit(t + s.beat * bd, jazzVoice(s.chord), bd * 0.5, 0.8);
       for (const b of [1, 3]) {
         const c = x.at(b + 2 / 3);
-        if (c) chordHit(t + b * bd + late, voice(c), bd * 0.25, 0.7);
+        if (c) chordHit(t + b * bd + late, jazzVoice(c), bd * 0.25, 0.7);
       }
     },
     // Semicorcheas: bombo sincopado, redoblante en 2 y 4 con notas fantasma, bajo entrecortado con la octava
