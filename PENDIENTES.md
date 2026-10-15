@@ -52,11 +52,11 @@ grabaciones (ver `GRABACION.md`).
 - [x] Comunidad: destacar las canciones más completas o mejor puntuadas. Decidido el 14 de octubre de 2026: por cantidad de bajadas y fijadas por el dueño, sin estrellas ni votos. El diseño completo y las etapas están en `COMUNIDAD.md`. Hecho: orden por bajadas y "destacada" (la columna `fijada`, que el dueño marca en Supabase)
 - [x] Comunidad, etapa 1 (14 de octubre de 2026): el dueño creó el proyecto en Supabase (`https://cbiavmaznmbhgfytkwbl.supabase.co`, región São Paulo, clave publishable `sb_publishable_CgTYhMa7dyD5XcLxNXY_yw_KnXerWnA`, que es pública) y corrió `servidor/comunidad.sql`. Revisado desde afuera: sin cuenta se leen canciones, listas, ritmos y artistas; no se puede subir ni leer denuncias. La contraseña de la base y la clave secreta las guarda el dueño y no van nunca al repositorio
 - [x] Comunidad, etapas 2, 3, 4 y 5: publicadas entre la 0.1.12 y la 0.1.15 (15 de octubre de 2026, pedido del dueño), uniendo la rama `comunidad` a `main`.
-- [ ] Comunidad, bajar: falta escuchar una canción antes de guardarla (hoy se escucha después de guardar). Lo demás está hecho: recorrer por estilo y por artista, buscar, ver la hoja y "Guardar"
+- [x] Comunidad, bajar: "▶ Escuchar" antes de guardar (15 de octubre de 2026), recorrer por estilo y por artista, buscar, ver la hoja y "Guardar"
 - [x] Comunidad, cuentas y subir: entrar con un código por mail (sale por Resend desde `no-reply@airrial.ar`), nombre para mostrar, aceptar las reglas, subir canciones y listas sin duplicar, Mis subidas (abrir, borrar, cambiar el nombre, salir, borrar la cuenta). Las anotaciones no tienen tope (lo sacó el dueño el 15 de octubre de 2026). Reglas y privacidad completas en `REGLAS.md` y `PRIVACIDAD.md` (cuenta desde los 13 años, responsable "Airrial"); en la app se muestra solo el resumen de las reglas
 - [ ] Comunidad, listas: hasta 2000 temas (el dueño subió "Jazz 1460"). Falta, opcional: elegir un estilo para la lista al subirla
 - [x] Comunidad, denuncias (etapa 4): enlace "Denunciar" en cada canción y lista, con motivo; con tres de cuentas distintas se esconde sola. El dueño las mira en Supabase → Table Editor → denuncias
-- [ ] Comunidad: mostrar enteras las reglas y la privacidad dentro de la app (hoy están en el repositorio y en la app va el resumen)
+- [x] Comunidad: reglas y privacidad enteras en la app (Menú → Privacidad y reglas, y desde el resumen de las reglas), leídas de REGLAS.md y PRIVACIDAD.md
 - [ ] Comunidad: probar contra el servidor real borrar una cuenta y denunciar (necesita una cuenta de prueba, no la del dueño)
 
 ## 4. Audio y pistas
