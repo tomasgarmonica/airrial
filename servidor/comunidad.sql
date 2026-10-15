@@ -83,6 +83,22 @@ create table if not exists public.denuncias (
   unique (que, cual, quien)
 );
 
+-- Biblioteca de cada cuenta, para tener las mismas canciones y listas en varios aparatos. Es privada: cada
+-- cuenta ve y cambia solo lo suyo. Un renglón por canción o lista, con el mismo id que tiene en el aparato; lo
+-- borrado queda como marca (`borrado`, sin datos) para que los otros aparatos se enteren. `cambiado` es cuándo se
+-- guardó en el aparato (milisegundos): si llega una versión más vieja que la que hay, no la pisa.
+create table if not exists public.biblioteca (
+  dueno uuid not null default auth.uid() references auth.users (id) on delete cascade,
+  tipo text not null check (tipo in ('cancion', 'lista')),
+  id text not null check (id ~ '^[A-Za-z0-9_-]{1,40}$'),
+  datos jsonb check (datos is null or jsonb_typeof(datos) = 'object' and octet_length(datos::text) <= 200000),
+  borrado boolean not null default false,
+  cambiado bigint not null check (cambiado >= 0),
+  actualizado timestamptz not null default now(),
+  primary key (dueno, tipo, id)
+);
+create index if not exists biblioteca_al_dia on public.biblioteca (dueno, actualizado);
+
 -- Cuántas canciones hay de cada ritmo y de cada artista (para recorrer la Comunidad). Respetan las reglas de
 -- abajo: solo cuentan lo público y no oculto.
 create or replace view public.ritmos with (security_invoker = true) as
@@ -96,6 +112,7 @@ alter table public.perfiles enable row level security;
 alter table public.canciones enable row level security;
 alter table public.listas enable row level security;
 alter table public.denuncias enable row level security;
+alter table public.biblioteca enable row level security;
 
 -- Una cuenta puede subir si tiene perfil y no está bloqueada.
 create or replace function public.puede_subir() returns boolean
@@ -128,6 +145,9 @@ end $$;
 drop policy if exists "denunciar" on public.denuncias;
 create policy "denunciar" on public.denuncias for insert to authenticated with check (quien = auth.uid() and public.puede_subir());
 
+drop policy if exists "solo lo mio" on public.biblioteca;
+create policy "solo lo mio" on public.biblioteca for all to authenticated using (dueno = auth.uid()) with check (dueno = auth.uid());
+
 -- Qué columnas puede tocar cada uno: nadie cambia desde la app si algo está oculto o fijado, ni sus bajadas.
 revoke all on public.perfiles, public.canciones, public.listas, public.denuncias from anon, authenticated;
 grant select (id, nombre) on public.perfiles to anon, authenticated;
@@ -140,6 +160,9 @@ grant insert (autor, nombre, ritmo, canciones, visibilidad, codigo),
   update (nombre, ritmo, canciones, visibilidad, codigo),
   delete on public.listas to authenticated;
 grant insert (que, cual, quien, motivo, detalle) on public.denuncias to authenticated;
+revoke all on public.biblioteca from anon, authenticated;
+grant select, delete, insert (dueno, tipo, id, datos, borrado, cambiado), update (dueno, tipo, id, datos, borrado, cambiado)
+  on public.biblioteca to authenticated;
 grant select on public.ritmos, public.artistas to anon, authenticated;
 
 -- --- Funciones ---
@@ -189,6 +212,24 @@ drop trigger if exists al_subir on public.canciones;
 create trigger al_subir before insert or update on public.canciones for each row execute function public.al_subir();
 drop trigger if exists al_subir on public.listas;
 create trigger al_subir before insert or update on public.listas for each row execute function public.al_subir();
+
+-- Al guardar en la biblioteca: la hora del servidor (los aparatos traen lo cambiado desde la última vez que
+-- miraron), un tope de renglones por cuenta, y una versión más vieja que la guardada no la pisa.
+create or replace function public.al_guardar() returns trigger
+  language plpgsql security definer
+  set search_path = ''
+  as $$
+begin
+  if tg_op = 'INSERT' and (select count(*) from public.biblioteca where dueno = new.dueno) >= 20000 then
+    raise exception 'Llegaste al tope de 20000 canciones y listas guardadas en tu cuenta.';
+  end if;
+  if tg_op = 'UPDATE' and new.cambiado < old.cambiado then return null; end if;
+  if new.borrado then new.datos := null; end if;
+  new.actualizado := clock_timestamp();
+  return new;
+end $$;
+drop trigger if exists al_guardar on public.biblioteca;
+create trigger al_guardar before insert or update on public.biblioteca for each row execute function public.al_guardar();
 
 -- Con tres denuncias de cuentas distintas, se esconde hasta que el dueño la revise.
 create or replace function public.al_denunciar() returns trigger

@@ -104,6 +104,39 @@ for (const [i, u] of U.slice(0, 3).entries()) {
 await db.exec(`reset role; update public.perfiles set bloqueado = true where id = '${U[3]}'`);
 await as('authenticated', U[3]);
 await err(`insert into public.canciones (autor, titulo, ritmo, compas, tempo, cifrado) values ('${U[3]}', 'x', 'swing', '4/4', 120, '| C |')`, /policy/, 'bloqueado sube');
+// biblioteca privada: sin perfil hace falta solo la cuenta; cada uno ve y cambia lo suyo
+await as('anon');
+await err(`select * from public.biblioteca`, /permission/, 'anon lee bibliotecas');
+await as('authenticated', U[1]);
+const put = (id, datos, cambiado, borrado = false) => `insert into public.biblioteca (dueno, tipo, id, datos, borrado, cambiado)
+  values ('${U[1]}', 'cancion', '${id}', ${datos ? `'${JSON.stringify(datos)}'` : 'null'}, ${borrado}, ${cambiado})
+  on conflict (dueno, tipo, id) do update set dueno = excluded.dueno, tipo = excluded.tipo, id = excluded.id,
+  datos = excluded.datos, borrado = excluded.borrado, cambiado = excluded.cambiado`;
+await db.exec(put('a1', { title: 'Uno' }, 100));
+r = await q(`select actualizado from public.biblioteca where id = 'a1'`);
+const t0 = r.rows[0].actualizado;
+await db.exec(put('a1', { title: 'Uno bis' }, 200));
+await db.exec(put('a1', { title: 'Vieja' }, 150)); // llega tarde una versión más vieja: no pisa
+r = await q(`select datos->>'title' as t, actualizado from public.biblioteca where id = 'a1'`);
+ok(r.rows[0].t === 'Uno bis', 'biblioteca: la vieja pisó a la nueva: ' + r.rows[0].t);
+ok(r.rows[0].actualizado > t0, 'biblioteca: no avanzó la hora');
+await db.exec(put('a1', { title: 'x' }, 300, true));
+r = await q(`select datos, borrado from public.biblioteca where id = 'a1'`);
+ok(r.rows[0].borrado && r.rows[0].datos === null, 'biblioteca: borrado con datos');
+await err(put('mal id!', { title: 'x' }, 1), /check/, 'biblioteca: id raro');
+await err(put('a2', [1, 2], 1), /check/, 'biblioteca: datos que no son objeto');
+await as('authenticated', U[2]);
+r = await q(`select * from public.biblioteca`);
+ok(r.rows.length === 0, 'biblioteca: se ve la de otro');
+await err(put('a3', { title: 'x' }, 1), /policy/, 'biblioteca: guardar en la de otro');
+r = await q(`update public.biblioteca set cambiado = 999 returning id`);
+ok(r.rows.length === 0, 'biblioteca: cambió la de otro');
+r = await q(`delete from public.biblioteca returning id`);
+ok(r.rows.length === 0, 'biblioteca: borró la de otro');
+await db.exec(`insert into public.biblioteca (tipo, id, datos, cambiado) values ('lista', 'l1', '{"name":"Mía"}', 1)`);
+r = await q(`select dueno from public.biblioteca`);
+ok(r.rows.length === 1 && r.rows[0].dueno === U[2], 'biblioteca: dueño por defecto');
+
 // borrar la cuenta propia desde la app: sin cuenta no se puede; con cuenta, se va solo esa
 await as('anon');
 await err(`select public.borrar_cuenta()`, /permission/, 'anon borra cuentas');
@@ -114,6 +147,8 @@ r = await q(`select id from auth.users order by id`);
 ok(r.rows.map(x => x.id).join() === [U[0], U[1], U[3]].join(), 'borrar_cuenta: ' + r.rows.map(x => x.id).join());
 r = await q(`select count(*)::int as n from public.perfiles where id = '${U[2]}'`);
 ok(r.rows[0].n === 0, 'quedó el perfil de la cuenta borrada');
+r = await q(`select count(*)::int as n from public.biblioteca where dueno = '${U[2]}'`);
+ok(r.rows[0].n === 0, 'quedó la biblioteca de la cuenta borrada');
 // borrar la cuenta borra lo que subió
 await db.exec(`reset role; delete from auth.users where id = '${U[0]}'`);
 r = await q(`select count(*)::int as n from public.canciones where autor is not null`);
