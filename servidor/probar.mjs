@@ -24,6 +24,8 @@ await db.exec(sql);
 await db.exec(sql); // se puede correr dos veces
 // y sobre una base armada antes de que existiera la columna `artista` (como la del proyecto real)
 await db.exec(`drop view public.artistas; alter table public.canciones drop column artista`);
+// y con el tope viejo de 300 temas por lista
+await db.exec(`alter table public.listas drop constraint listas_canciones_check; alter table public.listas add constraint listas_canciones_check check (jsonb_array_length(canciones) between 1 and 300)`);
 await db.exec(sql);
 const U = ['11111111-1111-1111-1111-111111111111', '22222222-2222-2222-2222-222222222222', '33333333-3333-3333-3333-333333333333', '44444444-4444-4444-4444-444444444444'];
 for (const u of U) await q('insert into auth.users values ($1, $2)', [u, u.slice(0, 1) + '@x.com']);
@@ -71,6 +73,12 @@ ok(r.rows.length === 0, 'borró una ajena');
 // tope por día
 for (let k = 0; k < 29; k++) await db.exec(`insert into public.canciones (autor, titulo, ritmo, compas, tempo, cifrado) values ('${U[0]}', 't${k}', 'swing', '4/4', 120, '| C |')`);
 await err(`insert into public.canciones (autor, titulo, ritmo, compas, tempo, cifrado) values ('${U[0]}', 'la 31', 'swing', '4/4', 120, '| C |')`, /tope de 30/, 'tope de 30 por día');
+// listas largas: 2000 temas entran, 2001 no
+const big = n => JSON.stringify(Array.from({ length: n }, (_, k) => ['Tema ' + k, 'Autor', 'swing', 'C', 120, '4/4', '| Cmaj7 | Dm7 G7 | Em7 A7 | Dm7 G7 |', 4]));
+await db.exec(`insert into public.listas (autor, nombre, canciones) values ('${U[0]}', 'Grande', '${big(2000)}')`);
+await err(`insert into public.listas (autor, nombre, canciones) values ('${U[0]}', 'Enorme', '${big(2001)}')`, /check/, 'lista de 2001');
+await db.exec(`reset role; delete from public.listas`);
+await as('authenticated', U[0]);
 // con enlace: no aparece en el buscador, se abre con el código
 await db.exec(`insert into public.listas (autor, nombre, canciones, visibilidad, codigo) values ('${U[0]}', 'Secreta', '[["T","A","swing","C",120,"4/4","| C |",4]]', 'enlace', 'abc123XY')`);
 await as('anon');

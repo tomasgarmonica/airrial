@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.1.0 → 0.1.1): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. Desde la 0.1.0 la app se comparte con gente que la prueba.
-  const VERSION = '0.1.12';
+  const VERSION = '0.1.13';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -1679,7 +1679,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       let r = null, failed = false;
       try { r = await Comunidad.lista(id); } catch { failed = true; }
       if (here() !== '#/c/l/' + id) return;
-      const got = r && Array.isArray(r.canciones) ? r.canciones.filter(Array.isArray).slice(0, 300).map(rowSong) : [];
+      const got = r && Array.isArray(r.canciones) ? r.canciones.filter(Array.isArray).slice(0, 2000).map(rowSong) : [];
       if (!got.length) { app.innerHTML = head() + `<main class="list">${failed ? offline : '<p class="empty">Esta lista ya no está en la Comunidad.</p>'}</main>`; return; }
       const name = short(r.nombre, 200) || 'Lista';
       app.innerHTML = head('<button class="tx pri" data-a="save">Guardar</button>') + `<main class="list">
@@ -1856,7 +1856,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       back: () => up('#/l/' + id), what: 'lista',
       head: `<div class="shared"><b>${esc(set.name)}</b><span>Lista · ${count(mine.length)}</span></div>`,
       problem: !mine.length ? '<p class="err">La lista está vacía: agregale temas antes de subirla.</p>'
-        : mine.length > 300 ? '<p class="err">Una lista puede tener hasta 300 temas. Armá listas más cortas.</p>'
+        : mine.length > 2000 ? '<p class="err">Una lista puede tener hasta 2000 temas. Armá listas más cortas.</p>'
+        : JSON.stringify(rows).length > 2900000 ? '<p class="err">La lista es demasiado pesada para subirla entera. Partila en dos.</p>'
         : bad.length ? `<p class="err">No se puede subir: ${bad.length === 1 ? 'una canción tiene' : 'algunas canciones tienen'} que cambiar antes.</p>
           ${bad.slice(0, 10).map(([s, why]) => `<div class="item"><b>${esc(s.title)}</b><span>${esc(why)}</span></div>`).join('')}` : '',
       note: `Va con una copia de sus ${count(mine.length)}: si después cambiás alguna canción, la lista subida no cambia sola (la volvés a subir).

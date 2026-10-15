@@ -52,8 +52,8 @@ create table if not exists public.listas (
   autor uuid references public.perfiles (id) on delete cascade,
   nombre text not null check (char_length(nombre) between 1 and 200),
   ritmo text check (ritmo ~ '^[a-z0-9]{1,20}$'),
-  canciones jsonb not null check (jsonb_typeof(canciones) = 'array' and jsonb_array_length(canciones) between 1 and 300
-    and octet_length(canciones::text) <= 2000000),
+  canciones jsonb not null check (jsonb_typeof(canciones) = 'array' and jsonb_array_length(canciones) between 1 and 2000
+    and octet_length(canciones::text) <= 3000000),
   cantidad int generated always as (jsonb_array_length(canciones)) stored,
   visibilidad text not null default 'publica' check (visibilidad in ('publica', 'enlace')),
   codigo text unique check (codigo ~ '^[A-Za-z0-9]{6,16}$'),
@@ -65,6 +65,10 @@ create table if not exists public.listas (
   busqueda text generated always as (public.plano(nombre)) stored
 );
 create index if not exists listas_autor on public.listas (autor);
+-- Listas de hasta 2000 temas (al principio eran 300): se cambia el tope en una base ya armada.
+alter table public.listas drop constraint if exists listas_canciones_check;
+alter table public.listas add constraint listas_canciones_check check (jsonb_typeof(canciones) = 'array' and jsonb_array_length(canciones) between 1 and 2000
+    and octet_length(canciones::text) <= 3000000);
 
 -- Denuncias: una por cuenta y por cosa. Nadie las puede leer desde la app (se miran en la página de Supabase).
 create table if not exists public.denuncias (
