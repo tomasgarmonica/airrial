@@ -45,6 +45,8 @@ Para funcionar, Airrial usa estos servicios, que tratan los datos por cuenta nue
 - **Supabase:** guarda las cuentas, lo que se sube a la Comunidad y lo que se sincroniza. Los servidores están en San Pablo, Brasil.
 - **Resend:** manda el mail con el código para entrar.
 - **Google Forms:** recibe lo que escribas en Contactanos, si lo usás.
+- **Cafecito:** si nos invitás un cafecito, el pago se hace en su página; Airrial no ve los datos de tu tarjeta
+  ni de tu cuenta.
 
 No vendemos ni le pasamos tus datos a nadie más.
 

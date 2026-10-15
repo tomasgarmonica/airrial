@@ -702,6 +702,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <button data-a="tags">Etiquetas: renombrar o borrar</button>
         <button data-a="theme">Cambiar a tema claro / oscuro</button>
         <button data-a="contact">Contactanos: propuestas, preguntas o comentarios</button>
+        <button data-a="cafecito">☕ Apoyá a Airrial con un cafecito</button>
         <button data-a="sync">${syncOn() ? 'Sincronización con tu cuenta: activada' : 'Sincronizar con mi cuenta (para usar varios aparatos)'}</button>
         <button data-a="docs">Privacidad y reglas de la Comunidad</button>
         <button data-a="close">Cerrar</button>
@@ -851,6 +852,8 @@ ${rows ? `<ol>${rows}</ol>` : ''}
       docs: () => { $('#menu').close(); location.hash = '#/d/privacidad'; },
       sync: () => { $('#menu').close(); location.hash = '#/y'; },
       contact: () => { tally('Contactanos'); window.open('https://forms.gle/F6rjcZePUW9J3i3K8', '_blank', 'noopener'); },
+      // Donaciones: la página de Airrial en Cafecito (se paga allá, en pesos; la app no ve nada del pago).
+      cafecito: () => { tally('Cafecito'); window.open('https://cafecito.app/airrial', '_blank', 'noopener'); },
       theme: () => {
         settings.theme = settings.theme === 'dark' ? 'light' : 'dark';
         document.documentElement.dataset.theme = settings.theme;

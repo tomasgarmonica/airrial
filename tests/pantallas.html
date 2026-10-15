@@ -463,6 +463,14 @@ const cases = {
     await wait(3500);
     same(clock, before, 'mandó algo con la sincronización apagada');
   },
+  'Cafecito: el botón del Menú abre la página de Airrial en Cafecito': async () => {
+    const a = await start({ songs: [] }), opened = [];
+    a.w.open = (...args) => { opened.push(args); };
+    await a.tap('[data-a="menu"]');
+    a.fits('menú');
+    await a.tap('[data-a="cafecito"]');
+    same(opened, [['https://cafecito.app/airrial', '_blank', 'noopener']], 'lo que abrió');
+  },
   'Reglas y privacidad enteras: desde el Menú y desde las reglas al crear la cuenta': async () => {
     const a = await start({ songs: [] });
     await a.tap('[data-a="menu"]');
