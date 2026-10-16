@@ -568,7 +568,8 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
         d.close();
         done();
         const bad = got.problems.slice(0, 8).map(p => `• ${p.song ? p.song + ', c' : 'C'}ompás ${p.bar}: ${p.item}`);
-        alert(`Se importaron ${count(incoming.songs.length)}, con la etiqueta "${AI_TAG}" para que las encuentres. Revisalas: la inteligencia artificial a veces se equivoca.`
+        const one = incoming.songs.length === 1;
+        alert(`${one ? 'Se importó' : 'Se importaron'} ${count(incoming.songs.length)}, con la etiqueta "${AI_TAG}" para que ${one ? 'lo encuentres. Revisalo' : 'los encuentres. Revisalos'}: la inteligencia artificial a veces se equivoca.`
           + (bad.length ? `\n\nEstos acordes no se entendieron:\n${bad.join('\n')}${got.problems.length > 8 ? '\n…' : ''}` : ''));
         if (kept.songs.length === 1) location.hash = '#/s/' + kept.songs[0];
       }
