@@ -112,7 +112,7 @@ y explicarle los pasos que le toquen de a uno.
 
 Texto: compases separados por `|`, un renglón de texto por renglón de la hoja.
 
-- Partes `[A]`, repetición `|:` … `:|` (`x3`), casillas `1.` `2.`, cambio de compás `3/4`, anotación `"Fine"`.
+- Partes `[A]`, repetición `|:` … `:|` (`x3`), casillas `1.` `2.` (una casilla para varias vueltas: `1.2.`), cambio de compás `3/4`, anotación `"Fine"`.
 - `%` repite el compás anterior, `N.C.` es silencio de armonía, `_` es un lugar vacío. Un compás que solo
   tiene `_` está en blanco y la reproducción lo saltea (salvo después de un corte, donde es silencio).
 - Compás dividido: entre llaves sobre una grilla pareja, donde `.` alarga el acorde anterior:

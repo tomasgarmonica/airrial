@@ -182,7 +182,7 @@ const Music = (() => {
       };
       const word = tk => {
         const e = /^(\d)\.(.*)$/.exec(tk);
-        if (e) { pend.ending = +e[1]; if (e[2]) word(e[2]); return; }
+        if (e) { pend.ending = endings((pend.ending || []).concat(+e[1])); if (e[2]) word(e[2]); return; }
         if (/^\d+\/\d+$/.test(tk)) {
           const [a, b] = tk.split('/').map(Number);
           if (a > 0 && a <= 16 && [2, 4, 8, 16].includes(b)) { ts = [a, b]; pend.showTs = pend.tsSet = true; return; }
@@ -294,6 +294,13 @@ const Music = (() => {
     });
   }
 
+  // Las vueltas en que se toca una casilla ("1.2." vale para la primera y la segunda), ordenadas y sin repetir;
+  // undefined si no queda ninguna.
+  function endings(list) {
+    const ns = [...new Set((list || []).filter(n => n >= 1 && n <= 9))].sort((a, b) => a - b);
+    return ns.length ? ns : undefined;
+  }
+
   // Orden real de ejecución, con repeticiones, casillas y saltos (D.C., D.S., Fine, Coda).
   // Después de un D.C. o D.S. no se hacen las repeticiones: se toma la última casilla, se termina en "Fine"
   // y en "Al Coda" se salta al compás marcado "Coda". Los compases en blanco no se tocan (ver audible), pero
@@ -302,8 +309,14 @@ const Music = (() => {
     const seq = [];
     let i = 0, start = 0, pass = 1, checked = -1, jumped = false;
     const later = (from, n) => {
-      for (let j = from + 1; j < bars.length && !bars[j].repStart; j++) if (bars[j].ending === n) return j;
+      for (let j = from + 1; j < bars.length && !bars[j].repStart; j++) if (has(bars[j], n)) return j;
       return -1;
+    };
+    const has = (b, n) => !!b.ending && b.ending.includes(n);
+    // La casilla en la que se está: la última marcada desde el comienzo de la repetición hasta acá.
+    const inside = to => {
+      for (let j = to; j >= start; j--) if (bars[j].ending) return bars[j];
+      return null;
     };
     const segno = bars.findIndex(b => markOf(b) === 'segno'), coda = bars.findIndex(b => markOf(b) === 'coda');
     while (i < bars.length && seq.length < 4000) {
@@ -311,13 +324,13 @@ const Music = (() => {
       if (b.repStart && start !== i) { start = i; pass = 1; }
       if (b.ending && jumped) {
         let last = i;
-        for (let n = b.ending + 1, j; (j = later(last, n)) >= 0; n++) last = j;
+        for (let n = Math.max(...b.ending) + 1, j; (j = later(last, n)) >= 0; n++) last = j;
         if (last !== i) { i = last; continue; }
       } else if (b.ending && checked !== i) {
-        if (b.ending !== pass) {
+        if (!has(b, pass)) {
           const j = later(i, pass);
           if (j >= 0) { i = j; continue; }
-        } else if (pass > 1 && later(i, pass + 1) < 0) { start = i; pass = 1; checked = i; }
+        } else if (pass > 1 && !has(b, pass + 1) && later(i, pass + 1) < 0) { start = i; pass = 1; checked = i; }
       }
       seq.push(i);
       const mark = markOf(b);
@@ -326,7 +339,8 @@ const Music = (() => {
         if (mark === 'alcoda' && coda >= 0) { i = coda; continue; }
       } else {
         if (b.repEnd) {
-          const total = Math.max(b.times || 2, later(i, pass + 1) >= 0 ? pass + 1 : 0);
+          const box = inside(i), more = (box && has(box, pass + 1)) || later(i, pass + 1) >= 0;
+          const total = Math.max(b.times || 2, more ? pass + 1 : 0);
           if (pass < total) { pass++; i = start; continue; }
           pass = 1; start = i + 1;
         }
@@ -366,7 +380,7 @@ const Music = (() => {
       if (b.section) parts.push("[" + b.section + "]");
       if (b.text) parts.push("\"" + b.text + "\"");
       if (b.tsSet) parts.push(b.ts[0] + "/" + b.ts[1]);
-      if (b.ending) parts.push(b.ending + ".");
+      if (b.ending) parts.push(b.ending.map(n => n + ".").join(""));
       if (b.items.length < 2) parts.push(b.items[0] || "_");
       else {
         // Compás dividido: se escribe sobre su grilla pareja, entre llaves, con "." donde un acorde sigue sonando.
@@ -509,7 +523,7 @@ const Music = (() => {
       else if ((m = /^T(\d)(\d)/.exec(rest))) {
         const now = m[0] === 'T12' ? [12, 8] : [+m[1], +m[2]];
         if (now[0] > 0 && [2, 4, 8].includes(now[1]) && now.join() !== ts.join()) { ts = now; pend.tsSet = true; pend.ts = now; }
-      } else if ((m = /^N(\d)/.exec(rest))) { if (+m[1]) pend.ending = +m[1]; }
+      } else if ((m = /^N(\d)/.exec(rest))) { if (+m[1]) pend.ending = [+m[1]]; }
       else if ((m = IREAL_CHORD.exec(rest))) cells.push(irealChord(m[0]));
       else if (ch === '[' || ch === ']' || ch === '{' || ch === '}' || ch === '|' || ch === 'Z') {
         flush();
@@ -685,7 +699,7 @@ const Music = (() => {
     }
   }
 
-  return { fromBiab, fromIreal, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
+  return { fromBiab, fromIreal, endings, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;

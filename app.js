@@ -591,7 +591,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     const long = items.some(it => it.length > 5) ? 1 : 0;
     const size = ['n1', 'n2', 'n3'][Math.min(2, (frac >= 1 ? 0 : frac >= 0.5 ? 1 : 2) + long)];
     const lab = (b.section ? `<span class="sec">${esc(b.section)}</span>` : '') +
-      (b.ending ? `<span class="end">${b.ending}.</span>` : '') +
+      (b.ending ? `<span class="end">${b.ending.join('.')}.</span>` : '') +
       markHtml(b);
     const cols = `grid-template-columns:repeat(${g.n},minmax(0,1fr))`;
     return `<div class="bar${b.repStart ? ' rs' : ''}${b.repEnd ? ' re' : ''}" data-i="${i}">` +
@@ -2177,7 +2177,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         group('Repetición', btn('rs', '', '|: Inicio', b.repStart) + btn('re', '', ':| Fin', b.repEnd) +
           (b.repEnd ? [2, 3, 4].map(n => btn('times', n, 'x' + n, (b.times || 2) === n)).join('') +
             btn('times', '?', b.times > 4 ? 'x' + b.times : 'Otra…', b.times > 4) : '')) +
-        group('Casilla', [1, 2, 3].map(n => btn('end', n, n + '.', b.ending === n)).join('')) +
+        group('Casilla', [1, 2, 3, 4].map(n => btn('end', n, n + '.', !!b.ending && b.ending.includes(n))).join('')) +
         group('En el lugar marcado',
           btn('sym', 'N.C.', 'N.C. Silencio', it === 'N.C.')) +
         group('Dividir el compás', btn('divide', '', 'Dividir') + btn('divide', 3, 'Dividir en 3 (tresillo)') + btn('merge', '', 'Unir')) +
@@ -2423,7 +2423,11 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         }
         bars[cur.b].times = n;
       },
-      end: el => { const b = bars[cur.b], n = +el.dataset.v; b.ending = b.ending === n ? undefined : n; },
+      // Se pueden marcar varias: "1.2." se toca en la primera y en la segunda vuelta.
+      end: el => {
+        const b = bars[cur.b], n = +el.dataset.v, now = b.ending || [];
+        b.ending = Music.endings(now.includes(n) ? now.filter(x => x !== n) : now.concat(n));
+      },
       sym: el => { setItem(item() === el.dataset.v ? '_' : el.dataset.v); cur.fresh = true; },
       ts: el => {
         const b = bars[cur.b], v = el.dataset.v;

@@ -103,6 +103,23 @@ const cases = {
     await a.tap('[data-a=save]');
     same(a.mine()[0].chart, '|: C | "Entra la banda completa después del solo de piano" G7 :| x6', 'lo guardado');
   },
+  'Una casilla para varias vueltas: se marcan 1 y 2 en el mismo compás': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '|: C | G7 :| F |')] }, '#/e/s1');
+    await a.tap('#grid .bar[data-i="1"] .ch');
+    await a.tap('#pad [data-a=tab][data-v=other]');
+    await a.tap('#pad [data-a=end][data-v="2"]');
+    await a.tap('#pad [data-a=end][data-v="1"]');
+    check(a.$('#pad [data-a=end][data-v="1"]').classList.contains('on') && a.$('#pad [data-a=end][data-v="2"]').classList.contains('on'), 'no quedan marcadas las dos');
+    same(a.text('#grid .bar[data-i="1"] .end'), '1.2.', 'la casilla en la hoja');
+    await a.tap('#grid .bar[data-i="2"] .ch');
+    await a.tap('#pad [data-a=tab][data-v=other]');
+    await a.tap('#pad [data-a=end][data-v="3"]');
+    a.fits('editor con casilla 1.2.');
+    await a.tap('[data-a=save]');
+    same(a.mine()[0].chart, '|: C | 1.2. G7 :| | 3. F |', 'lo guardado');
+    await until(() => a.$('#chart .bar'), 'que abra la canción');
+    same(a.text('#chart .bar[data-i="1"] .end'), '1.2.', 'la casilla al ver la canción');
+  },
   'Escribir una canción con los botones, guardarla y verla': async () => {
     const a = await start({ songs: [] }, '#/e/new');
     await a.type('#f-title', 'Mi tema');

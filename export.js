@@ -99,8 +99,9 @@ const Exporter = (() => {
       g.fillRect(lx, y + 6, 2, LAB_H - 6);
       g.fillRect(lx, y + 6, x + w - 8 - lx, 2);
       g.font = `bold 22px ${FONT}`;
-      g.fillText(b.ending + '.', lx + 8, y + 31);
-      lx += 44;
+      const label = b.ending.join('.') + '.';
+      g.fillText(label, lx + 8, y + 31);
+      lx += Math.max(44, g.measureText(label).width + 20);
     }
     if (b.text) {
       const mark = Music.markOf(b);

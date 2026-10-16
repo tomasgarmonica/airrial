@@ -3,6 +3,17 @@ const seq = t => M.unfold(M.parseChart(t, [4, 4])).join(' ');
 // lo de antes sigue igual
 assert.equal(seq('|: C | D | 1. E :| 2. F | G |'), '0 1 2 0 1 3 4');
 assert.equal(seq('| C | G :| x3\n| F |'), '0 1 0 1 0 1 2');
+// una casilla para varias vueltas: "1.2." se toca en la primera y la segunda, "3." en la tercera
+assert.equal(seq('|: A | 1.2. B :| 3. C | D |'), '0 1 0 1 0 2 3');
+assert.equal(seq('|: A | 1. B :| 2.3. C :| 4. D |'), '0 1 0 2 0 2 0 3');
+assert.equal(seq('|: A | 1.2. B | B2 :| 3. C |'), '0 1 2 0 1 2 0 3');
+assert.equal(seq('|: A | 1. 2. B :| x3\n| 3. C |'), '0 1 0 1 0 2');
+// se escribe igual que se lee, ordenada y sin repetir
+assert.equal(M.serialize(M.parseChart('| 2.1.1. B |', [4, 4])), '| 1.2. B |');
+assert.deepEqual(M.parseChart('| 1. B |', [4, 4])[0].ending, [1]);
+assert.equal(M.endings([]), undefined);
+// después de un D.C. se toma la última casilla
+assert.equal(seq('|: A | 1.2. B :| 3. C | "D.C. al Fine" D |'), '0 1 0 1 0 2 3 0 2 3');
 // D.C. al Fine
 assert.equal(seq('| A | "Fine" B | C | "D.C. al Fine" D |'), '0 1 2 3 0 1');
 // D.C. sin Fine: vuelve y toca hasta el final, una sola vez
