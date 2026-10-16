@@ -268,6 +268,28 @@ const cases = {
     same(a.saved('lists').map(l => [l.name, l.songs.length]), [['Mi lista', 2]], 'la lista');
     check(/Se importaron 2 temas y 1 lista/.test(a.w.said.join(' ')), 'falta el aviso de cuántos entraron');
   },
+  'Importar desde una foto: el pedido se muestra para copiar y la respuesta pegada trae los temas': async () => {
+    const a = await start({ songs: [] });
+    await a.tap('[data-a=menu]');
+    await a.tap('[data-a=aiimport]');
+    const box = a.dialog();
+    check(box && box.querySelector('#aitext'), 'no se abrió el cuadro para importar');
+    // este teléfono de mentira no deja copiar solo: el pedido queda a la vista para copiarlo a mano
+    await a.tap(box.querySelector('[data-k=copy]'));
+    check(!box.querySelector('#aiprompt').hidden && /Título:/.test(box.querySelector('#aiprompt').value), 'no se ve el pedido');
+    a.fits('importar desde una foto');
+    // pegar algo que no es un cifrado se avisa y no importa nada
+    box.querySelector('#aitext').value = 'No pude leer la imagen.';
+    await a.tap(box.querySelector('[data-k=go]'));
+    check(/No encontré ningún cifrado/.test(a.w.said.join(' ')) && a.dialog() === box, 'falta el aviso de que no había nada');
+    box.querySelector('#aitext').value = 'Listo:\n```\nTítulo: Zamba de prueba\nRitmo: Zamba\nTonalidad: La menor\nCompás: 6/8\nTempo: 60\n\n| Lam | Mi7 |\n---\nTítulo: Otra\n| C | Qx7 |\n```';
+    await a.tap(box.querySelector('[data-k=go]'));
+    await until(() => a.mine().length === 2, 'que entren los temas');
+    same(a.mine().map(s => [s.title, s.style, s.key, s.ts, s.tempo, s.chart, s.tags]),
+      [['Zamba de prueba', 'zamba', 'Am', '6/8', 60, '| Am | E7 |', ['Importada']], ['Otra', 'swing', '', '4/4', 120, '| C | Qx7 |', ['Importada']]], 'los temas');
+    check(!a.dialog(), 'el cuadro quedó abierto');
+    check(/Se importaron 2 temas/.test(a.w.said.join(' ')) && /Otra, compás 2: Qx7/.test(a.w.said.join(' ')), 'falta el aviso de lo importado y del acorde raro');
+  },
   'Abrir varios archivos a la vez: uno de Band-in-a-Box entra y uno roto se avisa': async () => {
     const a = await start({ songs: [] });
     // Un tema de Band-in-a-Box mínimo: "Tema", un compás de Cmaj7, ritmo swing, Do, 120.

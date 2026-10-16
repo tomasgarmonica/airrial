@@ -495,6 +495,87 @@ ${rows ? `<ol>${rows}</ol>` : ''}
     else if (text) toast('Eso no es una canción ni una lista de Airrial.');
   }
   let pasted = null;
+  // --- importar desde una foto o un PDF ---
+  // La app no lee imágenes: le da a la persona un pedido para pasarle a la inteligencia artificial que use (ChatGPT,
+  // Claude, Gemini…) junto con la foto o el PDF, y después lee la respuesta pegada (Music.fromText).
+  const aiPrompt = () => `Necesito pasar a texto las canciones de la foto o el archivo que te adjunto, para importarlas en la app Airrial. Copiá solo la armonía (los acordes y la forma), sin la melodía ni la letra.
+
+Respondé todo dentro de un único bloque de código, con este formato para cada canción:
+
+Título: nombre de la canción
+Autor: si figura
+Ritmo: uno de estos: ${STYLES.filter(s => s[0] !== 'click').map(s => s[1]).join(', ')}
+Tonalidad: por ejemplo C, Bb, F#m
+Compás: por ejemplo 4/4, 3/4, 6/8
+Tempo: en pulsos por minuto (en 6/8, 9/8 y 12/8 cuenta la negra con puntillo); si no figura, uno razonable para el ritmo
+(una línea en blanco y después el cifrado)
+
+Reglas del cifrado:
+- Cada compás va entre barras: | C | Am | Dm7 G7 | C |
+- Un renglón de texto por cada renglón de la hoja original.
+- Acordes con letras (C D E F G A B), aunque la hoja use Do, Re, Mi. Menor con m (Am7), mayor séptima con maj7 (Cmaj7), semidisminuido m7b5, disminuido dim7, bajo con barra (C/E).
+- Dos acordes en un compás se reparten en partes iguales: | Dm7 G7 |. Si no es parejo, usá llaves con una grilla pareja donde el punto alarga el acorde anterior: | { C . . G } | (en 4/4, C dura tres tiempos y G uno).
+- Partes: [A], [B], [Intro]… al principio de su renglón.
+- Repetición: |: al empezar y :| al terminar; si se toca más de dos veces, x3 (o la cantidad) después de :|
+- Casillas: 1. y 2. delante del primer acorde de cada una: | 1. C | G7 :| 2. C |
+- % repite el compás anterior. N.C. es silencio de la banda.
+- Cambio de compás: delante del acorde, | 3/4 C |
+- Indicaciones entre comillas delante del acorde: "Segno", "Coda", "Al Coda", "Fine", "D.C. al Fine", "D.S. al Coda".
+- Un corte (la banda da un golpe y calla) es un ! pegado al acorde: | G7! |
+- Si hay varias canciones, separalas con una línea con ---
+
+Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera del bloque.`;
+  // Las canciones importadas así llevan esta etiqueta, para encontrarlas y revisarlas.
+  const AI_TAG = 'Importada';
+  function aiImport(done) {
+    const d = document.createElement('dialog');
+    d.innerHTML = `<div class="sheet">
+      <p class="hint">Con ChatGPT, Claude, Gemini u otra inteligencia artificial que lea imágenes:</p>
+      <ol class="steps"><li>Copiá el pedido.</li><li>Abrí la inteligencia artificial, pegá el pedido y adjuntá la foto o el PDF.</li>
+        <li>Copiá su respuesta, volvé acá, pegala abajo y tocá Importar.</li></ol>
+      <button class="pri" data-k="copy">Copiar el pedido</button>
+      <textarea id="aiprompt" readonly hidden></textarea>
+      <textarea id="aitext" placeholder="Pegá acá la respuesta"></textarea>
+      <button class="pri" data-k="go">Importar</button>
+      <button data-k="close">Cancelar</button></div>`;
+    document.body.appendChild(d);
+    const ask = $('#aiprompt', d), box = $('#aitext', d);
+    // Si el teléfono no deja copiar solo, se muestra el pedido marcado para copiarlo a mano.
+    const showPrompt = () => {
+      ask.value = aiPrompt();
+      ask.hidden = false;
+      ask.focus();
+      ask.select();
+      toast('Mantené apretado el pedido y elegí Copiar.');
+    };
+    d.onclick = async e => {
+      const b = e.target.closest('button');
+      if (!b) return;
+      if (b.dataset.k === 'close') d.close();
+      else if (b.dataset.k === 'copy') {
+        try { await navigator.clipboard.writeText(aiPrompt()); toast('Pedido copiado. Pegalo en la inteligencia artificial junto con la foto o el PDF.'); }
+        catch { showPrompt(); }
+      } else if (b.dataset.k === 'go') {
+        const got = Music.fromText(box.value);
+        if (!got) {
+          alert('No encontré ningún cifrado en lo pegado. Fijate de copiar la respuesta entera, o el recuadro con las canciones.');
+          return;
+        }
+        const incoming = readData({ songs: got.songs.map(s => ({ ...s, id: newId(), tags: [AI_TAG] })) });
+        const kept = mergeData(incoming);
+        if (!kept) return;
+        tally('Importar desde foto');
+        d.close();
+        done();
+        const bad = got.problems.slice(0, 8).map(p => `• ${p.song ? p.song + ', c' : 'C'}ompás ${p.bar}: ${p.item}`);
+        alert(`Se importaron ${count(incoming.songs.length)}, con la etiqueta "${AI_TAG}" para que las encuentres. Revisalas: la inteligencia artificial a veces se equivoca.`
+          + (bad.length ? `\n\nEstos acordes no se entendieron:\n${bad.join('\n')}${got.problems.length > 8 ? '\n…' : ''}` : ''));
+        if (kept.songs.length === 1) location.hash = '#/s/' + kept.songs[0];
+      }
+    };
+    d.onclose = () => d.remove();
+    d.showModal();
+  }
   // En iPhone, usando la app desde Safari y con canciones propias guardadas: cómo llevarlas a la app instalada
   // (lo guardado en Safari no pasa solo). El código con todo se prepara antes, porque el iPhone solo deja copiar
   // en el mismo momento del toque.
@@ -705,6 +786,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         <button data-a="export">Exportar todo (copia de seguridad)</button>
         <p class="hint" id="age">${backupAge()}</p>
         <button data-a="import">Abrir archivos (de Airrial, iReal Pro o Band-in-a-Box)</button>
+        <button data-a="aiimport">Importar desde una foto o un PDF (con ChatGPT, Claude u otra)</button>
         <button data-a="paste">Pegar una canción o lista copiada</button>
         <button data-a="select">Seleccionar canciones para borrar</button>
         <button data-a="tags">Etiquetas: renombrar o borrar</button>
@@ -874,6 +956,7 @@ ${rows ? `<ol>${rows}</ol>` : ''}
         $('#age').textContent = backupAge();
       },
       import: () => $('#file').click(),
+      aiimport: () => { $('#menu').close(); aiImport(draw); },
     });
     app.oninput = e => { if (e.target === q) draw(); };
     app.onchange = async e => {
