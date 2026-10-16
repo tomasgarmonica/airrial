@@ -581,6 +581,65 @@ const Music = (() => {
     return songs.length ? { name, songs } : null;
   }
 
+  // --- importar lo que escribió una inteligencia artificial ---
+  // La persona le pasa una foto o un PDF a ChatGPT, Claude u otra junto con el pedido que da la app, y pega la
+  // respuesta: cada canción empieza con "Título:", sigue con sus datos ("Autor:", "Ritmo:", "Tonalidad:",
+  // "Compás:", "Tempo:") y después el cifrado en el formato de Airrial. Lo demás (saludos, explicaciones, las
+  // marcas del recuadro) se ignora.
+  const TEXT_FIELD = /^(t[ií]tulo|autor|ritmo|estilo|tonalidad|tono|comp[aá]s|tempo)\s*:\s*(.*)$/i;
+  const LATIN_ROOT = { Do: 'C', Re: 'D', Mi: 'E', Fa: 'F', Sol: 'G', La: 'A', Si: 'B' };
+  // Acorde con nombres latinos ("Lam7", "Sib", "Fa#m/Do#") → letras. Va antes de leerlo: "Do7" o "Fa" también
+  // parecen acordes con letras (D y F), pero escritos así nunca lo son.
+  const fromLatin = tk => tk.replace(/(^<{0,2}|\/)(Do|Re|Mi|Fa|Sol|La|Si)/g, (m, a, n) => a + LATIN_ROOT[n]);
+  // "NC" o "N.C" son N.C.; el resto, con los nombres latinos pasados a letras.
+  const textItem = it => (/^n\.?c\.?$/i.test(it) ? 'N.C.' : fromLatin(it));
+  // Ritmo de Airrial más cercano al nombre escrito; '' si no se reconoce.
+  function textStyle(name) {
+    const s = String(name || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+    for (const [re, id] of [[/chacarera/, 'chacarera'], [/zamba/, 'zamba'], [/festejo/, 'festejo'], [/candombe/, 'candombe'],
+      [/metronomo|click/, 'click'], [/balada/, 'balada'], [/pop|rock/, 'pop'], [/swing|jazz/, 'swing']]) {
+      if (re.test(s)) return id;
+    }
+    const id = s ? irealStyle(s) : 'swing';
+    return id === 'swing' && !/swing/.test(s) ? '' : id;
+  }
+  // Texto pegado → { songs: [{ title, composer, style, key, tempo, ts, chart }], problems: [{ song, bar, item }] },
+  // o null si no trae ningún cifrado. `problems` son los acordes que no se entendieron (compás contado desde 1).
+  function fromText(text) {
+    const found = [];
+    let cur = null;
+    for (const raw of String(text || '').split(/\r?\n/)) {
+      const line = raw.replace(/\*\*/g, '').trim(), f = TEXT_FIELD.exec(line);
+      if (f) {
+        const k = f[1].toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+        if (k === 'titulo' || !cur) found.push(cur = { lines: [] });
+        cur[{ titulo: 'title', autor: 'composer', ritmo: 'style', estilo: 'style', tonalidad: 'key', tono: 'key', compas: 'ts', tempo: 'tempo' }[k]] = f[2].trim();
+      } else if (line.includes('|') || /^\[[^\]]*\]$/.test(line)) {
+        if (!cur) found.push(cur = { lines: [] });
+        cur.lines.push(line);
+      }
+    }
+    const songs = [], problems = [];
+    for (const s of found) {
+      const tsText = /(\d+)\s*\/\s*(\d+)/.exec(s.ts || '') || /(?:^|\s)(\d+)\/(\d+)(?=\s|$)/.exec(s.lines.join(' '));
+      const tsn = tsText ? [+tsText[1], +tsText[2]] : [4, 4];
+      const ts = ['4/4', '3/4', '2/4', '6/8', '5/4', '7/8', '12/8'].includes(tsn.join('/')) ? tsn : [4, 4];
+      const bars = parseChart(s.lines.join('\n'), ts);
+      if (!bars.some(b => b.items.some(it => it !== '_'))) continue;
+      const title = (s.title || '').replace(/^["'«]+|["'»]+$/g, '').trim();
+      bars.forEach((b, i) => {
+        b.items = b.items.map(textItem);
+        for (const it of b.items) if (!['_', '%', 'N.C.'].includes(it) && !parseChord(it)) problems.push({ song: title, bar: i + 1, item: it });
+      });
+      const key = fromLatin((s.key || '').replace(/\s*(mayor|major)$/i, '').replace(/\s*(menor|minor)$/i, 'm').replace(/\s+/g, ''));
+      songs.push({
+        title, composer: s.composer || '', style: textStyle(s.style), key: parseChord(key) ? key : guessKey(bars),
+        tempo: Math.round(parseFloat(s.tempo)) || 0, ts: ts.join('/'), chart: serialize(bars),
+      });
+    }
+    return songs.length ? { songs, problems } : null;
+  }
+
   // --- importar desde Band-in-a-Box ---
   // Sus archivos (.MGU, .SGU) son binarios y el formato no es público: esto sigue lo que se descifró de afuera
   // (el módulo Data::BiaB, de Johan Vromans). Trae título, ritmo, tono, tempo, el nombre del estilo, los acordes
@@ -699,7 +758,7 @@ const Music = (() => {
     }
   }
 
-  return { fromBiab, fromIreal, endings, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
+  return { fromBiab, fromIreal, fromText, endings, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;
