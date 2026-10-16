@@ -368,19 +368,24 @@
   const safeName = name => name.replace(/[\\/:*?"<>|]/g, '').trim() || 'airrial';
   // Comparte archivos ya armados (PDF, imágenes, página) con el menú del teléfono (WhatsApp, mail…); si el
   // teléfono no lo permite, los descarga. El teléfono solo abre ese menú justo después de un toque: si armar el
-  // archivo tardó y ya no lo deja (pasa en iPhone), se pide un toque más en "Compartir".
-  async function shareBlobs(items, title) {
+  // archivo tardó (una lista larga) o el teléfono no lo deja por otra razón, se pide un toque más en "Compartir".
+  // `since`: cuándo se tocó (si pasó más de un segundo, se pide el toque de una).
+  // Si al final se descarga porque el teléfono no dejó compartir, `shareWhy` dice qué contestó.
+  let shareWhy = '';
+  async function shareBlobs(items, title, since) {
     const files = items.map(([blob, name]) => new File([blob], name, { type: blob.type }));
     const share = async () => {
-      try { await navigator.share({ files, title }); return 'ok'; } catch (e) { return e.name === 'AbortError' ? 'ok' : e.name; }
+      try { await navigator.share({ files, title }); return 'ok'; } catch (e) { return e.name === 'AbortError' ? 'ok' : e.name || 'error'; }
     };
+    shareWhy = '';
     if (navigator.canShare && navigator.canShare({ files })) {
-      let got = await share();
-      if (got === 'NotAllowedError') {
+      let got = since && performance.now() - since > 1000 ? 'tarde' : await share();
+      if (got !== 'ok') {
         if (!await choose('El archivo está listo', [['go', 'Compartir', 'Elegí la app para mandarlo']])) return false;
         got = await share();
       }
       if (got === 'ok') return false;
+      shareWhy = got;
     }
     for (const [blob, name] of items) {
       const a = document.createElement('a');
@@ -409,6 +414,7 @@
   // Archivo para compartir: una página con el título como enlace. El enlace lleva todo el contenido,
   // así que al tocarlo la app lo importa; la página también guarda los datos para Menú → Abrir un archivo.
   async function shareFile(name, data, pack) {
+    const since = performance.now();
     const page = await busy('Preparando el archivo…', async () => {
     const url = location.origin + location.pathname + '#/i/' + await pack();
     const isList = data.lists && data.lists.length;
@@ -431,8 +437,9 @@ ${rows ? `<ol>${rows}</ol>` : ''}
 <script type="application/json" id="airrial-data">${JSON.stringify(data).replace(/</g, '\\u003c')}</script>
 </body></html>`;
     });
-    if (await shareBlobs([[new Blob([page], { type: 'text/html' }), safeName(name) + '.airrial.html']], name)) {
-      toast('Archivo descargado. Mandalo como adjunto: quien lo reciba lo abre y toca el título.');
+    if (await shareBlobs([[new Blob([page], { type: 'text/html' }), safeName(name) + '.airrial.html']], name, since)) {
+      toast('Archivo descargado. Mandalo como adjunto: quien lo reciba lo abre y toca el título.'
+        + (shareWhy ? ` (El teléfono no dejó abrir el menú de compartir: ${shareWhy}.)` : ''));
     }
   }
 

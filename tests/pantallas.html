@@ -149,6 +149,29 @@ const cases = {
     await until(() => a.w.shared.length === 3, 'compartir el PDF');
     same(a.w.shared[2].files[0].name, 'Uno.pdf', 'el PDF');
   },
+  'Compartir una lista como archivo abre el menú del teléfono (aunque a la primera no deje, por la razón que sea)': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '| C |'), song('s2', 'Dos', '| F |')], lists: [{ id: 'L1', name: 'Peña', songs: ['s1', 's2'] }] }, '#/l/L1');
+    let tries = 0;
+    a.w.sharing = () => { if (++tries === 1) throw new a.w.DOMException('raro', 'InvalidStateError'); };
+    await until(() => a.$('[data-a="share"]'), 'la lista');
+    await a.tap('[data-a="share"]');
+    await until(() => a.dialog(), 'el menú Compartir');
+    await a.tap(a.dialog().querySelector('[data-k="file"]'));
+    await until(() => a.dialog() && /está listo/.test(a.dialog().innerText), 'el aviso de archivo listo');
+    await a.tap(a.dialog().querySelector('[data-k="go"]'));
+    await until(() => tries === 2, 'el segundo intento');
+    const f = a.w.shared[1].files[0];
+    same([f.name, f.type], ['Peña.airrial.html', 'text/html'], 'lo compartido');
+    check(/Uno/.test(await f.text()) && /Dos/.test(await f.text()), 'el archivo no trae los temas');
+    check(!/descargad/.test(a.text('.toast') || ''), 'dijo que lo descargó');
+    // si el teléfono tampoco deja la segunda vez, se descarga y se dice por qué
+    a.w.sharing = () => { throw new a.w.DOMException('no', 'DataError'); };
+    await a.tap('[data-a="share"]');
+    await a.tap(a.dialog().querySelector('[data-k="file"]'));
+    await until(() => a.dialog() && /está listo/.test(a.dialog().innerText), 'el aviso otra vez');
+    await a.tap(a.dialog().querySelector('[data-k="go"]'));
+    await until(() => /descargado.*DataError/.test(a.text('.toast') || ''), 'el aviso de descarga con la razón');
+  },
   'Armar una lista y sumarle temas': async () => {
     const a = await start({ songs: [song('s1', 'Uno', '| C |'), song('s2', 'Dos', '| F |')] });
     await a.tap('[data-a=tab][data-v=lists]');
