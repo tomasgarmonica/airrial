@@ -562,9 +562,13 @@ const Engine = (() => {
     },
     // Güiro en "chiqui-chiqui", bombo en 1 y 3 y acordes a contratiempo. En 4/4 o en 2/4: en 2/4 cada compás
     // toca una mitad, alternando (la segunda mitad lleva un golpe más de conga).
+    // La percusión sale de la base escrita, de dos tiempos: en 4/4 suena dos veces por compás (en un compás impar
+    // el último tiempo queda sin base). Sin ella, la de acá.
     cumbia(t, bd, x, B) {
       const e = bd / 2, s = bd / 4, second = B === 2 && x.place % 2 === 1;
-      for (let b = 0; b < B; b++) {
+      let written = true;
+      for (let h = 0; h + 2 <= B; h += 2) written = base('cumbia', t + h * bd, bd, 2) && written;
+      if (!written) for (let b = 0; b < B; b++) {
         const tb = t + b * bd;
         shaker(tb, 0.3, 0.09, 'guiro_arrastre'); shaker(tb + 2 * s, 0.18, 0.04, 'guiro_abajo'); shaker(tb + 3 * s, 0.18, 0.04, 'guiro_arriba');
         wood(tb, 0.15, 'campana_lomo');
@@ -579,10 +583,12 @@ const Engine = (() => {
         bass(t + (h + 1) * bd, c1 === c ? up(c1.iv[0]) : r, e * 0.9, 0.85);
         bass(t + (h + 1.5) * bd, up(c1.iv[1]), e * 0.9, 0.9);
       }
-      kick(t, second ? 0.7 : 0.8);
-      tom(t + 1.5 * bd, 200, 0.35, 0.12, 'conga_tono');
-      if (second) tom(t + 1.75 * bd, 240, 0.3, 0.1, 'conga_tono');
-      if (B === 4) { kick(t + 2 * bd, 0.7); tom(t + 3.5 * bd, 200, 0.35, 0.12, 'conga_tono'); tom(t + 3.75 * bd, 240, 0.3, 0.1, 'conga_tono'); }
+      if (!written) {
+        kick(t, second ? 0.7 : 0.8);
+        tom(t + 1.5 * bd, 200, 0.35, 0.12, 'conga_tono');
+        if (second) tom(t + 1.75 * bd, 240, 0.3, 0.1, 'conga_tono');
+        if (B === 4) { kick(t + 2 * bd, 0.7); tom(t + 3.5 * bd, 200, 0.35, 0.12, 'conga_tono'); tom(t + 3.75 * bd, 240, 0.3, 0.1, 'conga_tono'); }
+      }
       for (let i = 1; i < B * 2; i += 2) {
         const c = x.at(i / 2);
         if (c) chordHit(t + i * e, voice(c), e * 0.6, 0.85);
