@@ -75,7 +75,8 @@ grabaciones (ver `GRABACION.md`).
 
 **Bases de percusión escritas en MIDI por el dueño**
 - [x] Candombe (tambores y batería), chacarera y zamba (bombo legüero; la zamba alterna cuatro variantes), samba (surdo, pandeiro, tamborim), son en clave 2-3 y 3-2 (con versión de abajo y de arriba, que se elige por parte tocando el nombre de la parte) y festejo
-- [ ] Faltan las bases de: swing, shuffle, bossa, pop, balada, funk, reggae, bolero, tango, milonga, cumbia y vals. Siguen con el patrón escrito sin escuchar
+- [x] Cumbia, 0.1.24: base en 2/4 (güiro, conga, campana, bongó, jam block, cáscara y bombo), que en 4/4 suena dos veces por compás. Se sumaron dos sonidos: güiro metal seco abajo y jam block. Falta ajustar los niveles de oído
+- [ ] Faltan las bases de: swing, shuffle, bossa, pop, balada, funk, reggae, bolero, tango, milonga y vals. Siguen con el patrón escrito sin escuchar
 - [ ] Los niveles de cada base se definen de oído a medida que se arma cada estilo: el dueño los prueba con "Volumen de cada instrumento" y pasa los valores, que se anotan en `AJUSTE` de `herramientas/bases.js`
 - [ ] Variaciones: golpes de apoyo que suenen solo algunas veces (pista aparte en el MIDI) y frases de repique o remates que entren cada tantos compases. Conversado y aprobado, sin empezar. El mecanismo de alternar variantes ya existe (zamba)
 - [ ] Candombe: los dos redoblantes suaves de la batería son apoyos; hoy suenan siempre
