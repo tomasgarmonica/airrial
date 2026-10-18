@@ -39,6 +39,7 @@ const OTRO_NOMBRE = {
   'bombo aro': 'leguero_aro', 'bombo parche suave': 'leguero_suave', 'bombo parche medio': 'leguero_medio',
   'bombo parche fuerte': 'leguero_fuerte', 'bongo grave abierto': 'bongo_grave', 'tumbadora tono': 'tumba_tono',
   'guiro metal abajo': 'guiro_abajo', 'guiro metal arriba': 'guiro_arriba', 'guiro metal arrastre': 'guiro_arrastre',
+  'guiro metal seco abajo': 'guiro_seco_abajo', jamblockr: 'jamblock',
   redoblante: 'redo', 'redoblante agudo': 'redo_agudo',
   // el surdo se regrabó con un solo golpe de mano ("Surdo dedos"), que reemplaza a los dos de antes
   'surdo palma': 'surdo_dedos', 'surdo pta dedo': 'surdo_dedos',

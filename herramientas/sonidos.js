@@ -50,6 +50,8 @@ const PERCUSION = {
   cajon_grave_normal: 'Percu/cajón grave normal.wav', cajon_grave_acentuado: 'Percu/cajón grave acentuado.wav',
   cajon_agudo_normal: 'Percu/cajón agudo normal.wav', cajon_agudo_acentuado: 'Percu/cajón agudo acentuado.wav',
   guiro_arrastre: 'Percu/Guiro Metal arrastre.wav', guiro_abajo: 'Percu/Guiro Metal abajo.wav', guiro_arriba: 'Percu/Guiro Metal arriba.wav',
+  // percusión de la cumbia
+  guiro_seco_abajo: 'Percu/Guiro Metal seco abajo.wav', jamblock: 'Percu/JamblockR.wav',
 };
 // Teclados: las notas que alcanzan los acordes de hoy (cada una cubre también el semitono de arriba y el de
 // abajo), en dos intensidades: "s" la más suave y "m" la más fuerte. Del piano se grabó suave y normal; del
