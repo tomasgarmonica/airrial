@@ -349,8 +349,6 @@ const Music = (() => {
               root,
               bass: c.bassNum == null ? root : (c.bassNum + semis + 120) % 12,
               iv: intervals(c.qual),
-              // todas sus notas, con las tensiones: para elegir la posición de piano escrita (shapeFor)
-              tones: tones(c.qual),
             },
           });
         });

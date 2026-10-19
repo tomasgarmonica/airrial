@@ -375,24 +375,6 @@ const Engine = (() => {
     S.kv = best;
     return best;
   }
-  // Posiciones de piano escritas en MIDI (posiciones.js), para Swing, Bossa y Balada: la que corresponde al acorde,
-  // pasada a su tonalidad, en la octava que mejor entra en la zona grabada del piano (Fa3 a Sol4, cada nota cubre
-  // también el semitono de al lado) y que menos se aleja del acorde anterior. Un acorde sin posición escrita
-  // (aumentado, 7#5, sus2…) va con la de jazz de siempre.
-  function shapeVoice(c) {
-    const sh = typeof POSICIONES !== 'undefined' && typeof Music !== 'undefined' && c.tones && Music.shapeFor(c.tones, POSICIONES);
-    if (!sh) return jazzVoice(c);
-    const mean = v => v.reduce((a, b) => a + b) / v.length, prev = S.kv ? mean(S.kv) : 60;
-    let best = null, score = Infinity;
-    for (let o = -24; o <= 24; o += 12) {
-      const v = sh.notes.map(n => n + c.root + o);
-      const out = v.reduce((a, n) => a + Math.max(0, 53 - n, n - 67), 0);
-      const s = 3 * out + Math.abs(mean(v) - prev) + Math.abs(mean(v) - 60) / 2;
-      if (s < score) { score = s; best = v; }
-    }
-    S.kv = best;
-    return best;
-  }
   function near(pc, ref, lo = 30, hi = 55) {
     let best = null;
     for (let m = pc + 24; m <= hi; m += 12) {
@@ -438,7 +420,7 @@ const Engine = (() => {
       const r = Math.random(), kind = r < 0.4 ? 0 : r < 0.65 ? 1 : r < 0.85 ? 2 : 3;
       for (const s of x.segs) {
         if (!s.chord) continue;
-        const v = shapeVoice(s.chord);
+        const v = jazzVoice(s.chord);
         if (s.len >= 4 && x.barNo % 2) {
           chordHit(t + (s.beat + 1) * bd, v, bd * 0.5, 0.8);
           chordHit(t + (s.beat + 2 + 2 / 3) * bd, v, bd * 0.9, 0.9);
@@ -460,7 +442,7 @@ const Engine = (() => {
       for (const i of hits) {
         rim(t + i * e, 0.35);
         const c = x.at(i / 2);
-        if (c) chordHit(t + i * e, shapeVoice(c), e * 1.6, 0.85);
+        if (c) chordHit(t + i * e, voice(c), e * 1.6, 0.85);
       }
       const c0 = x.at(0), c2 = x.at(2);
       if (c0) bass(t, rootOf(c0), bd * 1.5, 0.9);
@@ -490,8 +472,8 @@ const Engine = (() => {
       if (c2) bass(t + 2 * bd, rootOf(c2), bd * 1.8, 0.8);
       for (const s of x.segs) {
         if (!s.chord) continue;
-        chordHit(t + s.beat * bd, shapeVoice(s.chord), s.len * bd * 0.95, 0.9);
-        if (s.len >= 4) chordHit(t + (s.beat + 2) * bd, shapeVoice(s.chord), bd * 1.8, 0.5);
+        chordHit(t + s.beat * bd, voice(s.chord), s.len * bd * 0.95, 0.9);
+        if (s.len >= 4) chordHit(t + (s.beat + 2) * bd, voice(s.chord), bd * 1.8, 0.5);
       }
     },
     // Samba, en 4/4 o en 2/4. Todo está escrito sobre las 16 semicorcheas del 4/4; en 2/4 cada compás toca una
