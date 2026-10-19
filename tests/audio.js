@@ -5,7 +5,7 @@ const dir = process.argv[2];
 const Music = require(path.join(dir, 'music.js'));
 
 let now = 0, events = [];
-const param = () => ({ value: 0, setValueAtTime() {}, linearRampToValueAtTime() {}, exponentialRampToValueAtTime(v) { if (!(v > 0)) throw new Error('rampa a ' + v); }, setTargetAtTime() {} });
+const param = () => ({ value: 0, setValueAtTime(v) { this.value = v; }, linearRampToValueAtTime() {}, exponentialRampToValueAtTime(v) { if (!(v > 0)) throw new Error('rampa a ' + v); }, setTargetAtTime() {} });
 const node = kind => ({ kind, gain: param(), frequency: param(), Q: param(), playbackRate: param(), connect() {}, disconnect() {},
   start(t, at, len) {
     if (!(t >= 0)) throw new Error('start ' + t);
@@ -15,7 +15,7 @@ const node = kind => ({ kind, gain: param(), frequency: param(), Q: param(), pla
       if (this.buffer.grabado === index.piano.archivo) piano++;
       if (this.buffer.grabado === lastKeys) inKeys++;
     }
-    events.push([kind, t, this.buffer && this.buffer.grabado ? this.buffer.grabado + '@' + at.toFixed(4) : '']);
+    events.push([kind, t, this.buffer && this.buffer.grabado ? this.buffer.grabado + '@' + at.toFixed(4) : '', this.type, this.frequency.value]);
   }, stop() {} });
 // Sonidos grabados de mentira: el índice es el verdadero, y el audio solo trae la marca del principio.
 const RATE = 8000, index = JSON.parse(fs.readFileSync(path.join(dir, 'sonidos', 'indice.json'), 'utf8'));
@@ -48,9 +48,10 @@ class Ctx {
 }
 let tickFn = null;
 const sandbox = { window: { AudioContext: Ctx }, document: { hidden: false }, setInterval: f => { tickFn = f; return 1; }, clearInterval() { tickFn = null; },
-  requestAnimationFrame: () => 1, cancelAnimationFrame() {}, setTimeout() {}, Math, console };
+  requestAnimationFrame: () => 1, cancelAnimationFrame() {}, setTimeout() {}, Math, console, Music };
 vm.createContext(sandbox);
-vm.runInContext(fs.readFileSync(path.join(dir, 'bases.js'), 'utf8') + fs.readFileSync(path.join(dir, 'audio.js'), 'utf8') + '\nthis.Engine = Engine; this.BASES = BASES;', sandbox);
+vm.runInContext(['bases.js', 'posiciones.js', 'audio.js'].map(f => fs.readFileSync(path.join(dir, f), 'utf8')).join('\n') +
+  '\nthis.Engine = Engine; this.BASES = BASES; this.POSICIONES = POSICIONES;', sandbox);
 // cada golpe de las bases tiene que ser un sonido que exista y caer dentro de la base
 for (const [style, b] of Object.entries(sandbox.BASES)) for (const [at, name] of b.golpes) {
   if (!Object.values(index).some(g => g.sonidos[name])) throw new Error(`La base de ${style} usa "${name}", que no está en sonidos/`);
@@ -70,6 +71,19 @@ const styles = ['swing', 'shuffle', 'bossa', 'samba', 'pop', 'balada', 'funk', '
 const pause = () => new Promise(done => setImmediate(done));
 let fail = 0;
 (async () => {
+// Swing, Bossa y Balada tocan con las posiciones escritas (posiciones.js): un C en bossa es Mi Sol La Re (C6/9,
+// sin la fundamental), y no el Do Mi Sol de los otros ritmos. (Sintetizado: el teclado es la onda triangular.)
+{
+  const bars = Music.parseChart('| C | C |', [4, 4]);
+  events = []; now = 0;
+  Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 120, style: 'bossa', choruses: 1, countIn: false,
+    finalChord: null, onBar() {}, onEnd() {} });
+  for (let k = 0; k < 20 && !tickFn; k++) await pause();
+  for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
+  const pcs = [...new Set(events.filter(e => e[3] === 'triangle').map(e => Math.round(69 + 12 * Math.log2(e[4] / 440)) % 12))].sort((a, b) => a - b);
+  if (pcs.join() !== '2,4,7,9') { fail++; console.log('FALLA: la bossa no toca con las posiciones escritas', pcs.join()); }
+  else console.log('bossa con posiciones escritas: un C suena con las notas', pcs.join());
+}
 for (const sounds of [false, true]) {
 if (sounds) { sandbox.fetch = fakeFetch; console.log('\ncon sonidos grabados'); }
 for (const style of styles) for (const ts of Object.keys(charts)) {
