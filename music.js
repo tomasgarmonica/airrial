@@ -239,6 +239,92 @@ const Music = (() => {
     return iv;
   }
 
+  // Notas de un acorde como clases de altura desde la fundamental (0 a 11), con las tensiones escritas: "7(b9)" es
+  // [0, 1, 4, 7, 10]. Una 13 o una 11 sin alterar traen también la 9, como se toca en jazz; el 11 de un dominante
+  // va sin tercera (C11 es un C9sus4); "alt" es b9, #9 y b13.
+  function tones(q) {
+    const s = (q || '').replace(/♭/g, 'b').replace(/♯/g, '#').replace(/[()\s,]/g, '');
+    const out = new Set([0]);
+    if (s === '5' || /no3/.test(s)) { out.add(7); if (/7/.test(s)) out.add(10); return [...out].sort((a, b) => a - b); }
+    const core = s.replace(/add\d+|6\/9|69/g, m => (/6/.test(m) ? '6' : ''));
+    const plain = core.replace(/[b#]\d+|alt/g, '');
+    const minor = /^(m(?!aj)|min|-)/.test(core), dim = /dim|°|^o/.test(core), half = /ø|^h/.test(core);
+    const dom = !minor && !dim && !half && /7|9|11|13/.test(plain) && !/maj|Maj|M|△|Δ|\^/.test(core);
+    let third = minor || dim || half ? 3 : 4, fifth = 7, sev = null;
+    if (/sus2/.test(core)) third = 2; else if (/sus/.test(core) || (dom && /11/.test(plain) && !/13/.test(plain))) third = 5;
+    if (/7|9|11|13/.test(plain)) sev = /maj|Maj|M|△|Δ|\^/.test(core) ? 11 : 10;
+    else if (/△|Δ|\^/.test(core)) sev = 11;
+    else if (/6/.test(core)) sev = 9;
+    if (dim) { fifth = 6; if (/7/.test(core)) sev = 9; }
+    if (half) { fifth = 6; sev = 10; }
+    if (/b5/.test(core)) fifth = 6;
+    if (/#5|aug|\+(?!\d)|\+5/.test(core)) fifth = 8;
+    out.add(third); out.add(fifth);
+    if (sev != null) out.add(sev);
+    if (/9|11|13/.test(plain) || /add9|add2|6\/9|69/.test(s)) out.add(2);
+    if (/11/.test(plain) && third !== 5) out.add(5);
+    if (/13/.test(plain)) out.add(9);
+    if (/b9/.test(s)) { out.delete(2); out.add(1); }
+    if (/#9/.test(s)) { out.delete(2); out.add(3); }
+    if (/#11/.test(s)) out.add(6);
+    if (/b13/.test(s)) out.add(8);
+    if (/alt/.test(s)) [1, 3, 8].forEach(x => out.add(x));
+    return [...out].sort((a, b) => a - b);
+  }
+  // Tipo de un acorde según sus notas (desde la fundamental): { base, tens }. `base` es 'maj' (tríada o sexta),
+  // 'maj7', 'dom', 'min' (tríada o sexta menor), 'm7', 'mMaj7', 'm7b5', 'dim7', 'sus' o '' (otro: aumentado,
+  // dominante con quinta alterada sin la quinta justa…). `tens` son las tensiones: 'b9', '9', '#9', '11', '#11',
+  // 'b13', '13'. Sirve igual para un acorde escrito (con `tones`) que para una posición tocada en el piano.
+  function kindOf(list) {
+    const has = new Set(list.map(x => ((x % 12) + 12) % 12));
+    const maj = has.has(4), min = has.has(3) && !maj, b7 = has.has(10), M7 = has.has(11);
+    let base = '';
+    if (maj && b7) base = 'dom';
+    else if (maj && M7) base = 'maj7';
+    else if (maj && !has.has(8)) base = 'maj';
+    else if (min && has.has(6) && b7) base = 'm7b5';
+    else if (min && has.has(6) && !has.has(7)) base = 'dim7';
+    else if (min && b7) base = 'm7';
+    else if (min && M7) base = 'mMaj7';
+    else if (min && !has.has(6)) base = 'min';
+    else if (has.has(5) && !maj && !min) base = 'sus';
+    const tens = [];
+    if (has.has(1)) tens.push('b9');
+    if (has.has(2)) tens.push('9');
+    if (has.has(3) && maj) tens.push('#9');
+    if (has.has(5) && (maj || min)) tens.push('11');
+    if (has.has(6) && base !== 'm7b5' && base !== 'dim7') tens.push('#11');
+    if (has.has(8) && has.has(7) || (has.has(8) && base === 'dom')) tens.push('b13');
+    if (has.has(9) && base !== 'dim7' && (b7 || M7)) tens.push('13');
+    return { base, tens };
+  }
+
+  // De las posiciones escritas ([{ name, notes }], notas MIDI con la fundamental en Do), la que corresponde a un
+  // acorde (sus notas, como las da `tones`), o null si ninguna sirve. Tiene que ser del mismo tipo y no tener
+  // notas que choquen con el acorde: solo puede agregar una 9, una 13 (o sexta), una 11 en los menores y
+  // suspendidos, o la quinta, y siempre que el acorde no tenga ya esa nota alterada (una 9 donde se pidió b9, la
+  // quinta justa donde se pidió #5). De las que quedan, la que trae más de las tensiones pedidas y, entre iguales,
+  // la más completa.
+  function shapeFor(list, shapes) {
+    const want = kindOf(list), has = new Set(list.map(x => ((x % 12) + 12) % 12));
+    if (!want.base) return null;
+    const minorish = want.base !== 'maj' && want.base !== 'maj7' && want.base !== 'dom';
+    const ok = p => has.has(p)
+      || (p === 2 && !has.has(1) && !(has.has(3) && has.has(4)))
+      || (p === 9 && !has.has(8) && want.base !== 'm7b5')
+      || (p === 5 && minorish && want.base !== 'dim7')
+      || (p === 7 && !has.has(6) && !has.has(8));
+    let best = null, score = -Infinity;
+    for (const sh of shapes) {
+      const k = kindOf(sh.notes.map(n => n - 48));
+      if (k.base !== want.base || !sh.notes.every(n => ok(((n % 12) + 12) % 12))) continue;
+      const s = 2 * want.tens.filter(t => k.tens.includes(t)).length - want.tens.filter(t => !k.tens.includes(t)).length
+        + k.tens.length / 100;
+      if (s > score) { score = s; best = sh; }
+    }
+    return best;
+  }
+
   // Compases listos para sonar: en qué tiempo entra cada acorde.
   function resolve(bars, semis) {
     const out = [];
@@ -758,7 +844,7 @@ const Music = (() => {
     }
   }
 
-  return { fromBiab, fromIreal, fromText, endings, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
+  return { fromBiab, fromIreal, fromText, tones, kindOf, shapeFor, endings, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;
