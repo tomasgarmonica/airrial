@@ -74,9 +74,10 @@ grabaciones (ver `GRABACION.md`).
 - [x] Mezcla: percusión aparte de la batería, y "Volumen de cada instrumento" por ritmo en los ritmos con base (se guarda en el dispositivo)
 
 **Posiciones de piano (voicings) escritas en MIDI por un amigo del dueño**
-- [x] 0.1.25: Swing, Bossa y Balada tocan el teclado con sus posiciones (`Audios/Midi/Piano`, una por acorde sobre Do; `node herramientas/posiciones.js "<carpeta>"` arma `posiciones.js`). Cada acorde toma la de su tipo que trae lo pedido sin notas que choquen; las tríadas van con sexta y novena (decisión del dueño). Los acordes sin posición escrita (aumentado, 7#5, sus2, 5) siguen con la de antes
-- [ ] El archivo C7(b9b13) tiene Eb (#9), no b9: la herramienta lo avisa. Lo usan los 7alt
-- [ ] Faltan posiciones de aumentado, 7#5 y sus2. Las posiciones se mueven solo de octava (no hay conducción de voces entre una y otra)
+- [x] Herramienta y elección: `node herramientas/posiciones.js "<carpeta>"` arma `posiciones.js` (una por acorde, sobre Do), y `Music.shapeFor` elige para cada acorde la de su tipo que trae lo pedido sin notas que choquen; las tríadas van con sexta y novena (decisión del dueño). Solo para Swing, Bossa y Balada
+- [ ] Sonaron en la 0.1.25 y se sacaron en la 0.1.26: el dueño no quiere el piano nuevo hasta que haya conducción de voces (que no salte de un acorde al otro moviendo solo la octava). Falta definir cómo
+- [ ] El archivo C7(b9b13) tiene Eb (#9), no b9: la herramienta lo avisa
+- [ ] Faltan posiciones de aumentado, 7#5 y sus2
 - [ ] Grabar más notas de los teclados: un 22% de las notas de estas posiciones cae fuera de lo grabado (Fa3 a Sol4) y suena corriendo la grabación hasta 5 semitonos. Faltarían Re3, La4 y Do5 (piano suave y normal; Rhodes y CP-80 normal y fuerte)
 
 **Bases de percusión escritas en MIDI por el dueño**
