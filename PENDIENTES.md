@@ -73,6 +73,12 @@ grabaciones (ver `GRABACION.md`).
 - [x] Percusión: tambores de candombe, bombo legüero, surdo, pandeiro, tamborim, congas, bongó, campana, cáscara, clave, güiros, maracas, cajón
 - [x] Mezcla: percusión aparte de la batería, y "Volumen de cada instrumento" por ritmo en los ritmos con base (se guarda en el dispositivo)
 
+**Posiciones de piano (voicings) escritas en MIDI por un amigo del dueño**
+- [x] 0.1.25: Swing, Bossa y Balada tocan el teclado con sus posiciones (`Audios/Midi/Piano`, una por acorde sobre Do; `node herramientas/posiciones.js "<carpeta>"` arma `posiciones.js`). Cada acorde toma la de su tipo que trae lo pedido sin notas que choquen; las tríadas van con sexta y novena (decisión del dueño). Los acordes sin posición escrita (aumentado, 7#5, sus2, 5) siguen con la de antes
+- [ ] El archivo C7(b9b13) tiene Eb (#9), no b9: la herramienta lo avisa. Lo usan los 7alt
+- [ ] Faltan posiciones de aumentado, 7#5 y sus2. Las posiciones se mueven solo de octava (no hay conducción de voces entre una y otra)
+- [ ] Grabar más notas de los teclados: un 22% de las notas de estas posiciones cae fuera de lo grabado (Fa3 a Sol4) y suena corriendo la grabación hasta 5 semitonos. Faltarían Re3, La4 y Do5 (piano suave y normal; Rhodes y CP-80 normal y fuerte)
+
 **Bases de percusión escritas en MIDI por el dueño**
 - [x] Candombe (tambores y batería), chacarera y zamba (bombo legüero; la zamba alterna cuatro variantes), samba (surdo, pandeiro, tamborim), son en clave 2-3 y 3-2 (con versión de abajo y de arriba, que se elige por parte tocando el nombre de la parte) y festejo
 - [x] Cumbia, 0.1.24: base en 2/4 (güiro, conga, campana, bongó, jam block, cáscara y bombo), que en 4/4 suena dos veces por compás. Se sumaron dos sonidos: güiro metal seco abajo y jam block. Falta ajustar los niveles de oído
