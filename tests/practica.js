@@ -86,4 +86,11 @@ for (const [ts, pulses] of [[[6, 8], 2], [[12, 8], 4], [[3, 4], 3], [[7, 8], 3.5
   assert(Math.abs(dur - pulses * 0.5) < 0.03, `${ts.join('/')} a 120: el compás dura ${dur.toFixed(2)} s y debería durar ${pulses * 0.5}`);
 }
 
+// 7) la cuenta previa: tantos compases como se pidan antes del primero (a 120, cada uno dura 2 s)
+for (const [count, wait] of [[0, 0], [1, 2], [2, 4], [4, 8], [true, 2], [false, 0]]) {
+  const l = run({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 120, style: 'pop', choruses: 1, countIn: count });
+  const t0 = l.find(e => e.bar === 0).t;
+  assert(Math.abs(t0 - 0.1 - wait) < 0.05, `cuenta de ${count}: el primer compás entra a los ${t0.toFixed(2)} s`);
+}
+
 console.log('modo práctica: ok');

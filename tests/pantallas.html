@@ -120,6 +120,18 @@ const cases = {
     await until(() => a.$('#chart .bar'), 'que abra la canción');
     same(a.text('#chart .bar[data-i="1"] .end'), '1.2.', 'la casilla al ver la canción');
   },
+  'Cuenta previa: se elige cuántos compases, y lo que estaba como "no" sigue sin cuenta': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '| C | G7 |')], settings: { countIn: false } }, '#/s/s1');
+    same(a.$('#countin').value, '0', 'la cuenta guardada como "no"');
+    same([...a.$('#countin').options].map(o => o.text), ['Sin cuenta', '1 compás', '2 compases', '4 compases'], 'las opciones');
+    a.$('#countin').value = '2';
+    a.$('#countin').dispatchEvent(new Event('change', { bubbles: true }));
+    await wait(50);
+    same(a.saved('settings').countIn, 2, 'lo guardado');
+    a.fits('mezcla con la cuenta previa');
+    const b = await start({ songs: [song('s1', 'Uno', '| C | G7 |')], settings: { countIn: true } }, '#/s/s1');
+    same(b.$('#countin').value, '1', 'la cuenta guardada como "sí"');
+  },
   'Escribir una canción con los botones, guardarla y verla': async () => {
     const a = await start({ songs: [] }, '#/e/new');
     await a.type('#f-title', 'Mi tema');

@@ -67,6 +67,8 @@
   if (firstRun) songs = [];
   const settings = Object.assign({ theme: 'dark', choruses: 3, countIn: true }, load(SETTINGS, {}));
   if (typeof settings.choruses !== 'number') settings.choruses = 3;
+  // Compases de cuenta previa (antes era sí o no: sí es uno).
+  if (typeof settings.countIn !== 'number') settings.countIn = settings.countIn === false ? 0 : 1;
   // Desde la 0.59 el tempo de los compases compuestos (6/8, 9/8, 12/8) cuenta la negra con puntillo, que es el
   // pulso. Las canciones guardadas antes contaban la negra común: se les convierte el número una sola vez, para
   // que sigan sonando a la misma velocidad.
@@ -1197,7 +1199,7 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
           <div class="mixer">
             ${slider('bass', 'Bajo')}${slider('keys', 'Teclado')}${slider('drums', 'Batería')}<div class="subs" data-bus="drums"></div>${slider('perc', 'Percusión')}<div class="subs" data-bus="perc"></div>
             <div class="mxmore" id="mxmore"></div>${slider('click', 'Claqueta')}
-            <label class="chk"><input type="checkbox" id="countin"${settings.countIn ? ' checked' : ''}> Un compás de cuenta previa</label>
+            <label class="cnt">Cuenta previa<select id="countin" aria-label="Cuenta previa">${[0, 1, 2, 4].map(n => `<option value="${n}"${n === settings.countIn ? ' selected' : ''}>${n ? n + (n === 1 ? ' compás' : ' compases') : 'Sin cuenta'}</option>`).join('')}</select></label>
           </div>
         </div></div>
       </footer>`;
@@ -1533,7 +1535,7 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
       if (t.id === 'tempo') setTempo(+t.value);
       else if (t.id === 'style') { song.style = t.value; saveSongs(); drawSubs(); markParts(); partsHint(); restart(); }
       else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
-      else if (t.id === 'countin') { settings.countIn = t.checked; saveSettings(); }
+      else if (t.id === 'countin') { settings.countIn = +t.value; saveSettings(); }
       else if (t.id === 'size') { settings.size = t.value; saveSettings(); draw(); }
       else if (t.id === 'ptempo' || t.id === 'pkey') {
         settings.practice[t.id === 'ptempo' ? 'tempo' : 'key'] = +t.value;

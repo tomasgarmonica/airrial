@@ -958,7 +958,8 @@ const Engine = (() => {
       if (S !== mine) return;
       S.bank = bankFor(keys);
       S.t = ctx.currentTime + 0.1;
-      if (o.countIn) {
+      // countIn: cuántos compases de cuenta antes de empezar (true vale uno).
+      for (let n = 0; n < +o.countIn; n++) {
         const b = S.bars[o.seq[S.pos]];
         const bd = beatDur(o.getTempo(0), b);
         for (let i = 0; i < b.beats; i++) click(S.t + i * bd, i === 0, bus.fixed);

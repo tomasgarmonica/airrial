@@ -250,6 +250,8 @@ dialog::backdrop { background: rgba(0, 0, 0, .55); }
 .mxmore:empty { display: none; }
 .mxmore button { min-height: 40px; padding: 0 12px; border: 0; border-radius: 8px; background: var(--bg); color: var(--accent); font-size: .85rem; }
 .mixer input[type=range] { flex: 0 0 66%; accent-color: var(--accent); }
+.mixer .cnt { padding-left: 10px; }
+.mixer .cnt select { flex: 0 0 66%; min-width: 0; color: var(--text); font-size: 1rem; }
 .mixer .chk { justify-content: flex-start; }
 .mixer .chk input { width: 20px; height: 20px; accent-color: var(--accent); }
 .ctl {
