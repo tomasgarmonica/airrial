@@ -122,6 +122,10 @@ const ALTERNAR = ['zamba'];
 // Bases con una versión distinta para cada momento del tema: un compás por versión, en este orden. En la app se
 // elige cuál lleva cada parte de la canción (la primera es la que suena si no se elige nada).
 const PARTES = { son: ['Abajo (estrofa)', 'Arriba (montuno)'] };
+// Bases cuyas variaciones de bajo y teclado se combinan por tramos del compás: dónde empieza cada tramo después
+// del primero, en tiempos. Chacarera: el 1 por un lado (chasquido, muteado, octava; acorde en la tierra o en la
+// segunda corchea) y el 2 y el 3 por otro (fundamental o quinta; acordes o arpegio).
+const TRAMOS = { chacarera: [1] };
 
 // Golpes que en un MIDI exportado quedaron corridos y el dueño pidió acomodar mientras no lo vuelva a exportar:
 // { ritmo: [[sonido, dónde está, dónde va], ...] }, en tiempos desde el comienzo de la base. Hoy no hay ninguno.
@@ -167,9 +171,10 @@ function harmonyBars(every, per, beats, style, file) {
 }
 
 // Cada ritmo va en un archivo "Base <ritmo>.mid" suelto (si hay varios numerados, vale el de número más alto),
-// o en una carpeta con archivos numerados ("Chacarera/Base chacarera 01.mid", "... 02.mid"): ahí el 01 es la base
-// y los que siguen son variaciones de bajo y teclado para alternar. La carpeta manda sobre el archivo suelto.
-// Las carpetas con archivos sin número (Batería: "Base blues.mid") no se leen.
+// o en una carpeta con el nombre del ritmo y archivos que terminan en número ("Chacarera/Base chacarera 01.mid",
+// "... 02.mid"): ahí el de número más bajo es la base y los que siguen son variaciones de bajo y teclado para
+// alternar. La carpeta manda sobre el archivo suelto. Las carpetas con archivos sin número (Batería: "Base
+// blues.mid") no se leen.
 const numbered = f => plain(f.replace(/^base /i, '').replace(/\.mid$/i, '')).match(/^(.+?)(?:\s+(\d+))?$/);
 const chosen = new Map();
 for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).sort()) {
@@ -180,11 +185,10 @@ for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).so
   chosen.set(name, { file, num: +(num || 0), variaciones: [] });
 }
 for (const dir of fs.readdirSync(SRC).filter(d => fs.statSync(path.join(SRC, d)).isDirectory())) {
-  const files = fs.readdirSync(path.join(SRC, dir)).filter(f => /^base .+\s\d+\.mid$/i.test(f))
-    .map(f => [numbered(f), path.join(dir, f)]).sort((a, c) => a[0][2] - c[0][2]);
+  const files = fs.readdirSync(path.join(SRC, dir)).filter(f => /\s\d+\.mid$/i.test(f))
+    .map(f => [+f.match(/(\d+)\.mid$/i)[1], path.join(dir, f)]).sort((a, c) => a[0] - c[0]);
   if (!files.length) continue;
-  const name = files[0][0][1];
-  if (files.some(f => f[0][1] !== name)) throw new Error(`En la carpeta "${dir}" hay bases de más de un ritmo`);
+  const name = plain(dir);
   if (chosen.has(name)) console.log(`${name}: se usa la carpeta "${dir}" y no "${chosen.get(name).file}"`);
   chosen.set(name, { file: files[0][1], variaciones: files.slice(1).map(f => f[1]) });
 }
@@ -225,10 +229,21 @@ for (const [style, { file, variaciones }] of [...chosen].sort()) {
     ...(PARTES[style] ? { partes: PARTES[style] } : {}), instrumentos, golpes: hits, ...extra };
   console.log(`${style}: ${sig.join('/')}, ${bars} ${bars > 1 ? 'compases' : 'compás'}, ${hits.length} golpes` +
     Object.entries(extra).map(([tr, l]) => `, ${l.length} de ${tr}`).join(''));
-  // Variaciones: cada compás de bajo o de teclado que no sea igual a uno de la base ni a otro ya anotado.
+  // Variaciones: el compás se corta en tramos (TRAMOS) y queda como opción cada tramo de bajo o de teclado que no
+  // sea igual a uno de la base ni a otro ya anotado (sin mirar fuerza ni duración).
   if (!variaciones.length) continue;
-  const seen = {}, vars = {};
-  for (const [tr, list] of Object.entries(harmonyBars(every, per, beats, style, file))) seen[tr] = new Set(list.map(b => JSON.stringify(b)));
+  const cuts = [0, ...(TRAMOS[style] || []), beats], seen = {}, vars = {};
+  const add = (tr, bar, keep) => {
+    seen[tr] = seen[tr] || cuts.slice(1).map(() => new Set());
+    for (let i = 0; i < cuts.length - 1; i++) {
+      const seg = (bar || []).filter(n => n[0] >= cuts[i] - 1e-6 && n[0] < cuts[i + 1] - 1e-6);
+      const key = JSON.stringify(seg.map(n => [n[0], n[1], n[4] || '']));
+      if (seen[tr][i].has(key)) continue;
+      seen[tr][i].add(key);
+      if (keep) (vars[tr] = vars[tr] || cuts.slice(1).map(() => []))[i].push(seg);
+    }
+  };
+  for (const [tr, list] of Object.entries(harmonyBars(every, per, beats, style, file))) for (const b of list) add(tr, b, false);
   for (const v of variaciones) {
     const read = readMidi(path.join(SRC, v));
     if (read.sig.join('/') !== sig.join('/')) throw new Error(`${v} está en ${read.sig.join('/')} y la base en ${sig.join('/')}`);
@@ -236,15 +251,13 @@ for (const [style, { file, variaciones }] of [...chosen].sort()) {
     if (drums !== all.map(n => n.slice(0, 4).join()).sort().join('|')) console.log(`${v}: la percusión no es igual a la de la base, y sus variaciones todavía no se usan`);
     for (const [tr, list] of Object.entries(harmonyBars(read.notes, per, beats, style, v))) {
       if (!extra[tr]) throw new Error(`${v} tiene ${tr} y la base no`);
-      seen[tr] = seen[tr] || new Set();
-      for (const b of list) {
-        const key = JSON.stringify(b || []);
-        if (!seen[tr].has(key)) { seen[tr].add(key); (vars[tr] = vars[tr] || []).push(b || []); }
-      }
+      for (const b of list) add(tr, b, true);
     }
   }
+  bases[style].tramos = cuts.slice(1, -1);
   bases[style].variaciones = vars;
-  console.log(`${style}: variaciones de ` + (Object.entries(vars).map(([tr, l]) => `${tr}: ${l.length}`).join(', ') || 'nada (son iguales a la base)'));
+  console.log(`${style}: variaciones por tramo (${cuts.slice(0, -1).map(c => 'desde el ' + (c + 1)).join(', ')}): ` +
+    (Object.entries(vars).map(([tr, l]) => `${tr} ${l.map(s => s.length).join(' y ')}`).join('; ') || 'ninguna (son iguales a la base)'));
 }
 fs.writeFileSync(path.join(root, 'bases.js'),
   '// Bases de percusión de cada ritmo. Lo genera herramientas/bases.js a partir de los MIDI: no editar a mano.\n' +

@@ -200,8 +200,8 @@ const Engine = (() => {
   // séptima, a la altura escrita (Do3 es 48; hasta media octava arriba o abajo); las otras notas, a la misma
   // distancia de la fundamental. El bajo suena una octava más abajo de lo escrito, como en la partitura (el Do3
   // de la chacarera sonaba alto). Donde el teclado tiene un acorde, va el de la app. Devuelve false si no hay.
-  // Si la base tiene variaciones, en la mitad de los compases (nunca el primero) el bajo toca una al azar, sin
-  // repetir la anterior, y el teclado elige la suya por su lado.
+  // Si la base tiene variaciones, en la mitad de los compases (nunca el primero) el bajo varía, combinando al azar
+  // los tramos del compás (en la chacarera, el 1 por un lado y el 2 y el 3 por otro), y el teclado por su lado.
   function baseHarmony(style, t, bd, B, x) {
     const p = typeof BASES !== 'undefined' && BASES[style];
     if (!p || !(p.bajo || p.teclado)) return false;
@@ -217,13 +217,16 @@ const Engine = (() => {
       teclado: (c, at, n, d, v) => chordHit(at, n === 'acorde' ? voice(c) : [pitch(c, n)], d, v),
     };
     for (const part of ['bajo', 'teclado']) {
-      const vars = (p.variaciones || {})[part] || [];
+      const pools = (p.variaciones || {})[part] || [];
       let notes = (p[part] || []).filter(([at]) => at > from - 1e-3 && at < from + T - 1e-3).map(([at, ...rest]) => [at - from, ...rest]);
-      if (vars.length && S.barNo && Math.random() < 0.5) {
-        let k;
-        do k = Math.floor(Math.random() * vars.length); while (vars.length > 1 && k === S.vary[part]);
-        S.vary[part] = k;
-        notes = vars[k];
+      if (pools.some(l => l.length) && S.barNo && Math.random() < 0.5) {
+        // Tramo por tramo, la base o una de sus variaciones: al menos uno varía, y no se repite la combinación
+        // del compás anterior que varió (salvo que haya una sola).
+        const cuts = [0, ...(p.tramos || []), T], total = pools.reduce((a, l) => a * (l.length + 1), 1);
+        let pick;
+        do pick = pools.map(l => Math.floor(Math.random() * (l.length + 1))); while (pick.every(k => !k) || (total > 2 && pick.join() === S.vary[part]));
+        S.vary[part] = pick.join();
+        notes = pick.flatMap((k, i) => k ? pools[i][k - 1] : notes.filter(([at]) => at > cuts[i] - 1e-3 && at < cuts[i + 1] - 1e-3));
       }
       for (const [at, n, d, v, art] of notes) {
         const c = x.at(at * B / T);

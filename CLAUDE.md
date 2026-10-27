@@ -41,10 +41,12 @@ y explicarle los pasos que le toquen de a uno.
   salen de los patrones escritos en `audio.js`, salvo que la base traiga pistas "Bajo" y "Teclado"
   (`baseHarmony()`, hoy solo la chacarera): escritas sobre Do, se corren a cada acorde, y donde el teclado
   tiene varias notas juntas va el acorde de la app. El bajo suena una octava abajo de lo escrito.
-- **Carpeta por ritmo:** `Audios/Midi/Chacarera/Base chacarera 01.mid` es la base y los que siguen (02, 03…)
-  son variaciones de bajo y teclado para alternar: la mitad de los compases (nunca el primero) toca una al azar,
-  bajo y teclado cada uno por su lado. La carpeta manda sobre el archivo suelto; las carpetas sin archivos
-  numerados (`Batería`, con blues y funk) no se leen. En el bajo, las teclas de EZbass Re#0 y Mi0 son el
+- **Carpeta por ritmo:** en `Audios/Midi/Chacarera` (el ritmo es el nombre de la carpeta; vale cualquier archivo
+  que termine en número) el 01 es la base y los que siguen (02, 03…) son variaciones de bajo y teclado. No son
+  compases enteros sino tramos que se combinan (`TRAMOS` en la herramienta; en la chacarera, el 1 por un lado y
+  el 2 y el 3 por otro): la mitad de los compases (nunca el primero) suena la base entera y la otra mitad varía
+  al menos un tramo, bajo y teclado cada uno por su lado. La carpeta manda sobre el archivo suelto; las carpetas
+  sin archivos numerados (`Batería`, con blues y funk) no se leen. En el bajo, las teclas de EZbass Re#0 y Mi0 son el
   chasquido (sale el "ghost slap" grabado) y el muteado (la nota "fantasma").
 - **Circuito con el dueño:** él graba o exporta al Drive y avisa; se corre la herramienta que corresponda, se
   prueba, se publica y se le cuenta qué se leyó (en una grilla) para que confirme. Si una base usa un sonido que
