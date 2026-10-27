@@ -38,7 +38,10 @@ y explicarle los pasos que le toquen de a uno.
 - **En la app:** `audio.js` baja los sonidos al abrir una canción (de los teclados, solo el de esa canción) y
   toca cada golpe o nota por su nombre (`shot`, y las notas de bajo y teclado corridas de altura). Si un sonido
   no está, toca el sintetizado. Un ritmo con base la usa para toda su percusión (`base()`); bajo y teclado
-  siguen saliendo de los patrones escritos en `audio.js`.
+  salen de los patrones escritos en `audio.js`, salvo que la base traiga pistas "Bajo" y "Teclado"
+  (`baseHarmony()`, hoy solo la chacarera): escritas sobre Do, se corren a cada acorde, y donde el teclado
+  tiene varias notas juntas va el acorde de la app. Si hay "Base chacarera.mid" y "Base chacarera 01.mid",
+  vale el de número más alto.
 - **Circuito con el dueño:** él graba o exporta al Drive y avisa; se corre la herramienta que corresponda, se
   prueba, se publica y se le cuenta qué se leyó (en una grilla) para que confirme. Si una base usa un sonido que
   la app no tiene, `bases.js` avisa cuál falta.
@@ -98,8 +101,10 @@ y explicarle los pasos que le toquen de a uno.
 - **Editor por botones** como modo principal; el de texto es secundario.
 - **Orden de prioridades:** terminar la app, después el audio grabado, después la Comunidad, y recién
   entonces donaciones.
-- **Las bases las escribe el dueño en MIDI**, por ahora solo percusión y batería; bajo y teclado siguen con
-  patrones de la app. Bases estables primero; las variaciones (apoyos, frases) quedan para después.
+- **Las bases las escribe el dueño en MIDI**: percusión y batería, y desde la chacarera 01 (26/10/2026) también
+  bajo y teclado sobre Do. El teclado respeta su ritmo pero el acorde lo arma la app; el grave del teclado que
+  dobla al bajo es a propósito. Los ritmos sin esas pistas siguen con los patrones de la app. Bases estables
+  primero; las variaciones (apoyos, frases) quedan para después.
 - **Los niveles de cada base se definen de oído** a medida que se arma cada estilo, no todos juntos.
 - **Teclado por canción** (piano, Rhodes, CP-80), elegido desde su botón de la mezcla.
 - **Volumen de cada instrumento: por instrumento** (no por golpe) **y por ritmo** (no por canción), guardado

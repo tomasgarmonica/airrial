@@ -195,6 +195,32 @@ const Engine = (() => {
     }
     return true;
   }
+  // Bajo y teclado de la base escrita en MIDI (por ahora, la chacarera), que vienen escritos sobre Do: cada nota
+  // se corre al acorde que suena en ese momento. Do es la fundamental, Mi la tercera, Sol la quinta y Sib o Si la
+  // séptima, a la altura escrita (Do3 es 48; hasta media octava arriba o abajo); las otras notas, a la misma
+  // distancia de la fundamental. Donde el teclado tiene un acorde, va el de la app. Devuelve false si no hay.
+  function baseHarmony(style, t, bd, B, x) {
+    const p = typeof BASES !== 'undefined' && BASES[style];
+    if (!p || !(p.bajo || p.teclado)) return false;
+    const T = p.tiempos, from = ((S.barNo + (S.o.startPos || 0)) % p.compases) * T, step = bd * B / T;
+    const pitch = (c, semis) => {
+      const pc = ((semis % 12) + 12) % 12, deg = { 0: 0, 3: c.iv[0], 4: c.iv[0], 7: c.iv[1], 10: c.iv[2], 11: c.iv[2] }[pc];
+      const iv = deg == null ? pc : deg, aim = 48 + semis - pc + iv;
+      return near(iv ? (c.root + iv) % 12 : c.bass, aim, aim - 6, aim + 5);
+    };
+    const play = {
+      bajo: (c, at, n, d, v) => bass(at, pitch(c, n), d, v),
+      teclado: (c, at, n, d, v) => chordHit(at, n === 'acorde' ? voice(c) : [pitch(c, n)], d, v),
+    };
+    for (const part of ['bajo', 'teclado']) {
+      for (const [at, n, d, v] of p[part] || []) {
+        if (at < from - 1e-3 || at > from + T - 1e-3) continue;
+        const c = x.at((at - from) * B / T);
+        if (c) play[part](c, t + (at - from) * step, n, d * step * 0.95, v);
+      }
+    }
+    return true;
+  }
   // Ruido filtrado: platillos, aro, maracas. Va a la batería, salvo que se pida la pista de percusión.
   function nz(t, dur, type, freq, peak, q, perc) {
     if (silent(t)) return;
@@ -680,6 +706,8 @@ const Engine = (() => {
         for (const [i, v] of [[0, 0.4], [3, 0.3], [5, 0.3]]) rim(t + i * e, v, 'leguero_aro');
         tom(t + 2 * e, 85, 0.7, 0.25, 'leguero_medio'); tom(t + 4 * e, 80, 0.85, 0.3, 'leguero_fuerte');
       }
+      // Bajo y teclado también salen de la base (chacarera 01); sin ella, los de acá.
+      if (baseHarmony('chacarera', t, bd, B, x)) return;
       for (const i of [0, 2, 4]) {
         const c = at(i);
         if (c) bass(t + i * e, i === 2 && c === at(0) ? fifthOf(c) : rootOf(c), e * 1.8, i ? 0.8 : 1);
