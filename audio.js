@@ -198,7 +198,8 @@ const Engine = (() => {
   // Bajo y teclado de la base escrita en MIDI (por ahora, la chacarera), que vienen escritos sobre Do: cada nota
   // se corre al acorde que suena en ese momento. Do es la fundamental, Mi la tercera, Sol la quinta y Sib o Si la
   // séptima, a la altura escrita (Do3 es 48; hasta media octava arriba o abajo); las otras notas, a la misma
-  // distancia de la fundamental. Donde el teclado tiene un acorde, va el de la app. Devuelve false si no hay.
+  // distancia de la fundamental. El bajo suena una octava más abajo de lo escrito, como en la partitura (el Do3
+  // de la chacarera sonaba alto). Donde el teclado tiene un acorde, va el de la app. Devuelve false si no hay.
   function baseHarmony(style, t, bd, B, x) {
     const p = typeof BASES !== 'undefined' && BASES[style];
     if (!p || !(p.bajo || p.teclado)) return false;
@@ -209,7 +210,7 @@ const Engine = (() => {
       return near(iv ? (c.root + iv) % 12 : c.bass, aim, aim - 6, aim + 5);
     };
     const play = {
-      bajo: (c, at, n, d, v) => bass(at, pitch(c, n), d, v),
+      bajo: (c, at, n, d, v) => bass(at, pitch(c, n - 12), d, v),
       teclado: (c, at, n, d, v) => chordHit(at, n === 'acorde' ? voice(c) : [pitch(c, n)], d, v),
     };
     for (const part of ['bajo', 'teclado']) {
