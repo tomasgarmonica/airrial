@@ -130,33 +130,67 @@ const CORREGIR = {};
 // Bajo y teclado van escritos sobre Do (Do3 es la fundamental) y la app los corre a cada acorde: no necesitan
 // bloque en Notas bases.txt. Su intensidad se multiplica por AJUSTE[ritmo].bajo o .teclado, como los golpes.
 const ARMONIA = ['bajo', 'teclado'], DO3 = 48;
+// Teclas de EZbass que no suenan sino que cambian cómo se toca la nota del bajo que cae junto con ellas.
+const ARTICULACION = { 15: 'chasquido', 16: 'muteado' };
 // [tiempo, semitonos desde Do3, duración, fuerza]. En el teclado, las notas desde Sol3 que suenan juntas son un
-// acorde, que la app arma a su manera (con la séptima si la tiene): [tiempo, "acorde", duración, fuerza].
-function harmony(notes, per, chords, k) {
+// acorde, que la app arma a su manera (con la séptima si la tiene): [tiempo, "acorde", duración, fuerza]. En el
+// bajo, una nota con articulación la lleva al final: [tiempo, semitonos, duración, fuerza, "muteado"].
+function harmony(notes, per, chords, k, file) {
   const out = [], byTime = new Map();
   for (const n of notes) { const key = n[0].toFixed(4); if (!byTime.has(key)) byTime.set(key, []); byTime.get(key).push(n); }
   const force = list => +(list.reduce((a, n) => a + n[2], 0) / list.length / 127 * k).toFixed(2);
   for (const group of byTime.values()) {
     const high = chords ? group.filter(n => n[1] >= DO3 + 7) : [], chord = high.length >= 2 ? high : [];
     const at = +(group[0][0] / per).toFixed(4);
+    const keys = chords ? [] : group.filter(n => n[1] < 24);
+    for (const n of keys) if (!ARTICULACION[n[1]]) throw new Error(`${file}: en el bajo hay una nota muy grave (${n[1]}) que no sé qué articulación es`);
+    const art = keys.length ? [ARTICULACION[keys[0][1]]] : [];
     if (chord.length) out.push([at, 'acorde', +(Math.max(...chord.map(n => n[4])) / per).toFixed(4), force(chord)]);
-    for (const n of group) if (!chord.includes(n)) out.push([at, n[1] - DO3, +(n[4] / per).toFixed(4), force([n])]);
+    for (const n of group) if (!chord.includes(n) && !keys.includes(n)) out.push([at, n[1] - DO3, +(n[4] / per).toFixed(4), force([n]), ...art]);
   }
   return out.sort((a, c) => a[0] - c[0]);
 }
+// Bajo y teclado de un archivo, de a un compás: { bajo: [[notas del compás 1], [del 2]], teclado: ... }, con los
+// tiempos contados desde el principio de cada compás.
+function harmonyBars(every, per, beats, style, file) {
+  const out = {};
+  for (const tr of ARMONIA) {
+    const mine = every.filter(n => plain(n[3]) === tr);
+    if (!mine.length) continue;
+    out[tr] = [];
+    for (const h of harmony(mine, per, tr === 'teclado', (AJUSTE[style] || {})[tr] || 1, file)) {
+      const bar = Math.floor(h[0] / beats + 1e-6);
+      (out[tr][bar] = out[tr][bar] || []).push([+(h[0] - bar * beats).toFixed(4), ...h.slice(1)]);
+    }
+  }
+  return out;
+}
 
-// Varios archivos del mismo ritmo ("Base chacarera.mid", "Base chacarera 01.mid"): vale el de número más alto.
+// Cada ritmo va en un archivo "Base <ritmo>.mid" suelto (si hay varios numerados, vale el de número más alto),
+// o en una carpeta con archivos numerados ("Chacarera/Base chacarera 01.mid", "... 02.mid"): ahí el 01 es la base
+// y los que siguen son variaciones de bajo y teclado para alternar. La carpeta manda sobre el archivo suelto.
+// Las carpetas con archivos sin número (Batería: "Base blues.mid") no se leen.
+const numbered = f => plain(f.replace(/^base /i, '').replace(/\.mid$/i, '')).match(/^(.+?)(?:\s+(\d+))?$/);
 const chosen = new Map();
 for (const file of fs.readdirSync(SRC).filter(f => /^base .+\.mid$/i.test(f)).sort()) {
-  const [, name, num] = plain(file.replace(/^base /i, '').replace(/\.mid$/i, '')).match(/^(.+?)(?:\s+(\d+))?$/);
+  const [, name, num] = numbered(file);
   const prev = chosen.get(name);
   if (prev && prev.num >= +(num || 0)) { console.log(`${name}: se usa "${prev.file}" y no "${file}"`); continue; }
   if (prev) console.log(`${name}: se usa "${file}" y no "${prev.file}"`);
-  chosen.set(name, { file, num: +(num || 0) });
+  chosen.set(name, { file, num: +(num || 0), variaciones: [] });
+}
+for (const dir of fs.readdirSync(SRC).filter(d => fs.statSync(path.join(SRC, d)).isDirectory())) {
+  const files = fs.readdirSync(path.join(SRC, dir)).filter(f => /^base .+\s\d+\.mid$/i.test(f))
+    .map(f => [numbered(f), path.join(dir, f)]).sort((a, c) => a[0][2] - c[0][2]);
+  if (!files.length) continue;
+  const name = files[0][0][1];
+  if (files.some(f => f[0][1] !== name)) throw new Error(`En la carpeta "${dir}" hay bases de más de un ritmo`);
+  if (chosen.has(name)) console.log(`${name}: se usa la carpeta "${dir}" y no "${chosen.get(name).file}"`);
+  chosen.set(name, { file: files[0][1], variaciones: files.slice(1).map(f => f[1]) });
 }
 
 const bases = {};
-for (const [style, { file }] of [...chosen].sort()) {
+for (const [style, { file, variaciones }] of [...chosen].sort()) {
   const { notes: every, sig } = readMidi(path.join(SRC, file));
   const all = every.filter(n => !ARMONIA.includes(plain(n[3])));
   // Una pista cuyo bloque no existe o está vacío no se pasa, y se avisa.
@@ -180,7 +214,7 @@ for (const [style, { file }] of [...chosen].sort()) {
   const extra = {};
   for (const tr of ARMONIA) {
     const mine = every.filter(n => plain(n[3]) === tr);
-    if (mine.length) extra[tr] = harmony(mine, per, tr === 'teclado', (AJUSTE[style] || {})[tr] || 1);
+    if (mine.length) extra[tr] = harmony(mine, per, tr === 'teclado', (AJUSTE[style] || {})[tr] || 1, file);
   }
   const last = Math.max(hits[hits.length - 1][0], ...Object.values(extra).map(l => l[l.length - 1][0]));
   const bars = Math.max(1, Math.ceil((last + 1e-3) / beats));
@@ -191,10 +225,31 @@ for (const [style, { file }] of [...chosen].sort()) {
     ...(PARTES[style] ? { partes: PARTES[style] } : {}), instrumentos, golpes: hits, ...extra };
   console.log(`${style}: ${sig.join('/')}, ${bars} ${bars > 1 ? 'compases' : 'compás'}, ${hits.length} golpes` +
     Object.entries(extra).map(([tr, l]) => `, ${l.length} de ${tr}`).join(''));
+  // Variaciones: cada compás de bajo o de teclado que no sea igual a uno de la base ni a otro ya anotado.
+  if (!variaciones.length) continue;
+  const seen = {}, vars = {};
+  for (const [tr, list] of Object.entries(harmonyBars(every, per, beats, style, file))) seen[tr] = new Set(list.map(b => JSON.stringify(b)));
+  for (const v of variaciones) {
+    const read = readMidi(path.join(SRC, v));
+    if (read.sig.join('/') !== sig.join('/')) throw new Error(`${v} está en ${read.sig.join('/')} y la base en ${sig.join('/')}`);
+    const drums = read.notes.filter(n => !ARMONIA.includes(plain(n[3]))).map(n => n.slice(0, 4).join()).sort().join('|');
+    if (drums !== all.map(n => n.slice(0, 4).join()).sort().join('|')) console.log(`${v}: la percusión no es igual a la de la base, y sus variaciones todavía no se usan`);
+    for (const [tr, list] of Object.entries(harmonyBars(read.notes, per, beats, style, v))) {
+      if (!extra[tr]) throw new Error(`${v} tiene ${tr} y la base no`);
+      seen[tr] = seen[tr] || new Set();
+      for (const b of list) {
+        const key = JSON.stringify(b || []);
+        if (!seen[tr].has(key)) { seen[tr].add(key); (vars[tr] = vars[tr] || []).push(b || []); }
+      }
+    }
+  }
+  bases[style].variaciones = vars;
+  console.log(`${style}: variaciones de ` + (Object.entries(vars).map(([tr, l]) => `${tr}: ${l.length}`).join(', ') || 'nada (son iguales a la base)'));
 }
 fs.writeFileSync(path.join(root, 'bases.js'),
   '// Bases de percusión de cada ritmo. Lo genera herramientas/bases.js a partir de los MIDI: no editar a mano.\n' +
   '// Cada golpe: [tiempo dentro de la base, sonido grabado, fuerza]. "instrumentos" dice por qué renglón de la\n' +
   '// mezcla sale cada uno: drums (batería) o perc (percusión). Bajo y teclado, si los hay, escritos sobre Do:\n' +
-  '// [tiempo, semitonos desde Do3 (o "acorde"), duración, fuerza].\n' +
+  '// [tiempo, semitonos desde Do3 (o "acorde"), duración, fuerza, articulación del bajo si la tiene].\n' +
+  '// "variaciones": compases de bajo o de teclado para alternar con los de la base, con los tiempos desde el 1.\n' +
   'const BASES = ' + JSON.stringify(bases).replace(/("[a-z0-9_]+":\{)/g, '\n  $1').replace(/\}\}$/, '},\n}') + ';\n');

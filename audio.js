@@ -200,27 +200,50 @@ const Engine = (() => {
   // séptima, a la altura escrita (Do3 es 48; hasta media octava arriba o abajo); las otras notas, a la misma
   // distancia de la fundamental. El bajo suena una octava más abajo de lo escrito, como en la partitura (el Do3
   // de la chacarera sonaba alto). Donde el teclado tiene un acorde, va el de la app. Devuelve false si no hay.
+  // Si la base tiene variaciones, en la mitad de los compases (nunca el primero) el bajo toca una al azar, sin
+  // repetir la anterior, y el teclado elige la suya por su lado.
   function baseHarmony(style, t, bd, B, x) {
     const p = typeof BASES !== 'undefined' && BASES[style];
     if (!p || !(p.bajo || p.teclado)) return false;
     const T = p.tiempos, from = ((S.barNo + (S.o.startPos || 0)) % p.compases) * T, step = bd * B / T;
+    S.vary = S.vary || {};
     const pitch = (c, semis) => {
       const pc = ((semis % 12) + 12) % 12, deg = { 0: 0, 3: c.iv[0], 4: c.iv[0], 7: c.iv[1], 10: c.iv[2], 11: c.iv[2] }[pc];
       const iv = deg == null ? pc : deg, aim = 48 + semis - pc + iv;
       return near(iv ? (c.root + iv) % 12 : c.bass, aim, aim - 6, aim + 5);
     };
     const play = {
-      bajo: (c, at, n, d, v) => bass(at, pitch(c, n - 12), d, v),
+      bajo: (c, at, n, d, v, art) => art ? deadBass(at, pitch(c, n - 12), v, art === 'chasquido' ? 'g' : 'x') : bass(at, pitch(c, n - 12), d, v),
       teclado: (c, at, n, d, v) => chordHit(at, n === 'acorde' ? voice(c) : [pitch(c, n)], d, v),
     };
     for (const part of ['bajo', 'teclado']) {
-      for (const [at, n, d, v] of p[part] || []) {
-        if (at < from - 1e-3 || at > from + T - 1e-3) continue;
-        const c = x.at((at - from) * B / T);
-        if (c) play[part](c, t + (at - from) * step, n, d * step * 0.95, v);
+      const vars = (p.variaciones || {})[part] || [];
+      let notes = (p[part] || []).filter(([at]) => at > from - 1e-3 && at < from + T - 1e-3).map(([at, ...rest]) => [at - from, ...rest]);
+      if (vars.length && S.barNo && Math.random() < 0.5) {
+        let k;
+        do k = Math.floor(Math.random() * vars.length); while (vars.length > 1 && k === S.vary[part]);
+        S.vary[part] = k;
+        notes = vars[k];
+      }
+      for (const [at, n, d, v, art] of notes) {
+        const c = x.at(at * B / T);
+        if (c) play[part](c, t + at * step, n, d * step * 0.95, v, art);
       }
     }
     return true;
+  }
+  // Golpe de bajo sin nota: el muteado es la nota fantasma ("x") y el chasquido, el slap fantasma ("g"). Están
+  // grabados en varios lugares del diapasón: va el más cercano a la nota escrita. Sin grabaciones, una nota cortita.
+  function deadBass(t, m, v, kind) {
+    if (silent(t) || tied(t)) return;
+    const keys = S.bank ? Object.keys(S.bank).filter(k => /^b\d+[xg]$/.test(k) && k.endsWith(kind)) : [];
+    if (!keys.length) return bassNote(t, m, 0.06, v * 0.5);
+    const k = keys.reduce((a, c) => (Math.abs(parseInt(c.slice(1), 10) - m) < Math.abs(parseInt(a.slice(1), 10) - m) ? c : a));
+    const s = S.bank[k], src = ctx.createBufferSource(), g = ctx.createGain();
+    src.buffer = s.buf;
+    g.gain.setValueAtTime(v * 1.2, t);
+    src.connect(g); g.connect(bus.bass);
+    src.start(t, s.at, s.len);
   }
   // Ruido filtrado: platillos, aro, maracas. Va a la batería, salvo que se pida la pista de percusión.
   function nz(t, dur, type, freq, peak, q, perc) {
