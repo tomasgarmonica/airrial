@@ -164,6 +164,16 @@ const Engine = (() => {
   let trims = {};
   // "surdo_abierto" y "surdo_dedos" son el surdo; "tom1" y "tom2", los toms. (La misma regla está en herramientas/bases.js.)
   const instOf = name => name.split('_')[0].replace(/[0-9]+$/, '');
+  // Toque humano en las bases de folklore: cada golpe o nota sale con una fuerza apenas distinta (alrededor de un
+  // 7 %, así que los acentos siguen siendo acentos) y unos milisegundos antes o después de la grilla (unos 6 ms,
+  // nunca más de 15). Los golpes fuertes se corren menos, como los apoyos de quien toca.
+  const HUMANO = { chacarera: true, zamba: true };
+  const gauss = () => (Math.random() + Math.random() + Math.random() - 1.5) * 2;
+  function feel(style, t, v, loud) {
+    if (!HUMANO[style]) return [t, v];
+    const ms = Math.max(-15, Math.min(15, gauss() * (loud ? 4 : 6)));
+    return [t + ms / 1000, v * Math.max(0.85, Math.min(1.15, 1 + gauss() * 0.07))];
+  }
   // Opciones: `shift` corre la base esa cantidad de tiempos (el son 3-2 es el 2-3 empezado por la mitad) y
   // `split` reparte cada compás de la base en varios de la canción (el festejo, escrito en 12/8, en dos de 6/8).
   function base(style, t, bd, B, opt) {
@@ -191,7 +201,7 @@ const Engine = (() => {
     for (const [at, name, v] of p.golpes) {
       if (at < from - 1e-3 || at > from + T - 1e-3) continue;
       const pos = (((at - from - shift) % T) + T + 1e-3) % T - 1e-3 - first, k = trims[instOf(name)];
-      if (pos > -1e-3 && pos < len - 1e-3) shot(name, t + pos * step, v * 0.5 * (k == null ? 1 : k));
+      if (pos > -1e-3 && pos < len - 1e-3) shot(name, ...feel(style, t + pos * step, v * 0.5 * (k == null ? 1 : k), v > 1.2));
     }
     return true;
   }
@@ -230,7 +240,9 @@ const Engine = (() => {
       }
       for (const [at, n, d, v, art] of notes) {
         const c = x.at(at * B / T);
-        if (c) play[part](c, t + at * step, n, d * step * 0.95, v, art);
+        // Lo ligado o cortado queda en su lugar exacto, para que el bajo y el teclado lo reconozcan y no ataquen.
+        const on = t + at * step, [ht, hv] = silent(on) || tied(on) ? [on, v] : feel(style, on, v);
+        if (c) play[part](c, ht, n, d * step * 0.95, hv, art);
       }
     }
     return true;
