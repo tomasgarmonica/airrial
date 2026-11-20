@@ -157,6 +157,16 @@ const cases = {
     check(a.$('#chart .bar.rs') && a.$('#chart .bar.re') && /Fine/.test(a.text('#chart')), 'faltan la repetición o la anotación');
     a.fits('canción');
   },
+  'Ver una canción: elegir los compases por renglón reacomoda la hoja y queda guardado': async () => {
+    const a = await start({ songs: [song('s1', 'Uno', '[A] | C | D | E | F |\n| G |\n[B] | A | B |')] }, '#/s/s1');
+    same(a.$('#cols').value, '4', 'los compases por renglón guardados');
+    a.$('#cols').value = '3';
+    a.$('#cols').dispatchEvent(new Event('change', { bubbles: true }));
+    await wait(50);
+    same([a.mine()[0].cols, a.mine()[0].chart], [3, '| [A] C | D | E |\n| F | G |\n| [B] A | B |'], 'lo guardado');
+    same(a.$$('#chart .row').map(r => r.querySelectorAll('.bar').length), [3, 2, 2], 'los renglones de la hoja');
+    a.fits('canción con tres compases por renglón');
+  },
   'Compartir el archivo abre el menú del teléfono, y si el teléfono pide otro toque, lo pide': async () => {
     const a = await start({ songs: [song('s1', 'Uno', '| C | G7 |')] }, '#/s/s1');
     // a la primera el teléfono no deja (armar el archivo tardó), a la segunda sí

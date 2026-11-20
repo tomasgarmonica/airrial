@@ -25,6 +25,9 @@ for (const bad of ['[', '"', '[A', '{', '/x']) {
   M.parseChord('C' + bad.repeat(200000));
   assert.ok(Date.now() - t0 < 3000, 'la lectura tarda demasiado con: ' + bad);
 }
+// compases por renglón: se reparten de a tantos y cada parte empieza en renglón nuevo
+const flow = M.reflow(M.parseChart('[A] | C | D | E |\n| F | G |\n[B] | A | B | C | D | E |', [4, 4]), 3);
+assert.equal(M.serialize(flow), '| [A] C | D | E |\n| F | G |\n| [B] A | B | C |\n| D | E |');
 // y las partes se siguen leyendo igual
 assert.equal(M.parseChart('[Estribillo] | C | [B] D |', [4, 4]).map(b => b.section).join(), 'Estribillo,B');
 console.log('ok');

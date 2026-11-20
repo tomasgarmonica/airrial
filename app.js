@@ -1187,8 +1187,12 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
           <div class="r">
             <label class="fld">Ver los acordes como<select id="notation">${[['letras', 'Letras: C, Dm7, Gmaj7'], ['jazz', 'Jazz: C, D-7, G△7'], ['latino', 'Do, Re, Mi: Do, Rem7, Solmaj7'], ['grados', 'Grados: I, IIm7, Vmaj7']]
               .map(o => `<option value="${o[0]}"${o[0] === settings.notation ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
-            <label class="fld narrow">Tamaño de la hoja<select id="size">${[['chico', 'Chico'], ['normal', 'Normal'], ['grande', 'Grande']]
+          </div>
+          <div class="r">
+            <label class="fld">Tamaño de la hoja<select id="size">${[['chico', 'Chico'], ['normal', 'Normal'], ['grande', 'Grande']]
               .map(o => `<option value="${o[0]}"${o[0] === settings.size ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
+            <label class="fld">Compases por renglón<select id="cols">${[2, 3, 4, 5, 6]
+              .map(n => `<option value="${n}"${n === colsOf(song) ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
           </div>
           <div class="r">
             <label class="fld">Subir el tempo por vuelta<select id="ptempo">${[[0, 'No'], [4, '+4 bpm'], [8, '+8 bpm'], [12, '+12 bpm']]
@@ -1537,6 +1541,13 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
       else if (t.id === 'reps') { settings.choruses = +t.value; saveSettings(); restart(); }
       else if (t.id === 'countin') { settings.countIn = +t.value; saveSettings(); }
       else if (t.id === 'size') { settings.size = t.value; saveSettings(); draw(); }
+      // Compases por renglón: como en el editor, se reacomoda la hoja de la canción y queda guardada así.
+      else if (t.id === 'cols') {
+        song.cols = +t.value;
+        song.chart = Music.serialize(Music.reflow(Music.parseChart(song.chart, tsOf(song)), song.cols));
+        saveSongs();
+        draw();
+      }
       else if (t.id === 'ptempo' || t.id === 'pkey') {
         settings.practice[t.id === 'ptempo' ? 'tempo' : 'key'] = +t.value;
         saveSettings();
@@ -2638,12 +2649,7 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
       drawCols();
       if (mode !== 'grid') { preview(); return; }
       const before = JSON.stringify(bars), at = { ...cur };
-      let row = -1, n = 0;
-      for (const b of bars) {
-        if (n === 0 || n >= song.cols || b.section) { row++; n = 0; }
-        b.row = row;
-        n++;
-      }
+      Music.reflow(bars, song.cols);
       if (JSON.stringify(bars) !== before) { undo.push({ bars: before, cur: at }); redo = []; }
       draw();
     };

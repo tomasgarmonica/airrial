@@ -452,6 +452,17 @@ const Music = (() => {
     return bars;
   }
 
+  // Reparte los compases en renglones de `cols` compases; cada parte empieza en renglón nuevo.
+  function reflow(bars, cols) {
+    let row = -1, n = 0;
+    for (const b of bars) {
+      if (n === 0 || n >= cols || b.section) { row++; n = 0; }
+      b.row = row;
+      n++;
+    }
+    return bars;
+  }
+
   // Vuelve a escribir los compases como texto (el formato en que se guardan).
   function serialize(bars) {
     const lines = [];
@@ -844,7 +855,7 @@ const Music = (() => {
     }
   }
 
-  return { fromBiab, fromIreal, fromText, tones, kindOf, shapeFor, endings, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
+  return { fromBiab, fromIreal, fromText, tones, kindOf, shapeFor, endings, starts, grid, natural, split, join, guessKey, setView, markOf, normalize, reflow, serialize, parseChord, spell, transposeName, useFlats, firstChord, positions, parseChart, intervals, resolve, unfold, audible };
 })();
 
 if (typeof module !== 'undefined') module.exports = Music;

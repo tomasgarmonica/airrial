@@ -8,7 +8,7 @@ const run = (...args) => execFileSync(process.execPath, args, { stdio: 'inherit'
 for (const f of ['music.js', 'bases.js', 'posiciones.js', 'audio.js', 'export.js', 'comunidad.js', 'sincro.js', 'app.js', 'sw.js']) run('--check', path.join(root, f));
 // 2) que estén todas las funciones que la app usa de la lógica musical
 const Music = require(path.join(root, 'music.js'));
-for (const name of ['fromBiab', 'fromIreal', 'fromText', 'tones', 'kindOf', 'shapeFor', 'setView', 'markOf', 'normalize', 'serialize', 'parseChord', 'spell', 'transposeName', 'useFlats',
+for (const name of ['fromBiab', 'fromIreal', 'fromText', 'tones', 'kindOf', 'shapeFor', 'setView', 'markOf', 'normalize', 'reflow', 'serialize', 'parseChord', 'spell', 'transposeName', 'useFlats',
   'firstChord', 'positions', 'parseChart', 'intervals', 'resolve', 'unfold', 'guessKey', 'starts', 'grid', 'natural', 'split', 'join', 'audible']) {
   if (typeof Music[name] !== 'function') throw new Error('Falta la función Music.' + name);
 }
