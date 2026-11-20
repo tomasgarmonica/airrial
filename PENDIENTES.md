@@ -62,6 +62,9 @@ grabaciones (ver `GRABACION.md`).
 - [x] Comunidad, denuncias (etapa 4): enlace "Denunciar" en cada canción y lista, con motivo; con tres de cuentas distintas se esconde sola. El dueño las mira en Supabase → Table Editor → denuncias
 - [x] Comunidad: reglas y privacidad enteras en la app (Menú → Privacidad y reglas, y desde el resumen de las reglas), leídas de REGLAS.md y PRIVACIDAD.md
 - [ ] Comunidad: probar contra el servidor real borrar una cuenta y denunciar (necesita una cuenta de prueba, no la del dueño)
+- [ ] Comunidad: el dueño tiene que correr en Supabase → SQL Editor el cambio de tope de compases por renglón (de 6 a 8, publicado en la 0.1.33). Hasta entonces, subir una canción con 7 u 8 por renglón da error. Son estas dos líneas (también están en `servidor/comunidad.sql`):
+  `alter table public.canciones drop constraint if exists canciones_cols_check;`
+  `alter table public.canciones add constraint canciones_cols_check check (cols between 2 and 8);`
 
 ## 4. Audio y pistas
 
