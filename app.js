@@ -153,8 +153,8 @@
   // Le pide al navegador que no borre las canciones cuando el teléfono se queda sin espacio.
   if (navigator.storage && navigator.storage.persist) navigator.storage.persist().catch(() => {});
 
-  // Compases por renglón de una canción (entre 2 y 6; 4 si no se eligió).
-  const colsOf = s => Math.min(6, Math.max(2, Math.round(+s.cols) || 4));
+  // Compases por renglón de una canción (entre 2 y 8; 4 si no se eligió).
+  const colsOf = s => Math.min(8, Math.max(2, Math.round(+s.cols) || 4));
   // Etiquetas de una canción: textos cortos y libres, sin repetidos (hasta 8, de 24 caracteres como mucho).
   const cleanTag = t => String(t == null ? '' : t).replace(/[<>"|{}\[\]\\]/g, '').replace(/\s+/g, ' ').trim().slice(0, 24).trim();
   const tagsOf = s => [...new Set((Array.isArray(s.tags) ? s.tags : []).map(cleanTag).filter(Boolean))].slice(0, 8);
@@ -1191,7 +1191,7 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
           <div class="r">
             <label class="fld">Tamaño de la hoja<select id="size">${[['chico', 'Chico'], ['normal', 'Normal'], ['grande', 'Grande']]
               .map(o => `<option value="${o[0]}"${o[0] === settings.size ? ' selected' : ''}>${o[1]}</option>`).join('')}</select></label>
-            <label class="fld">Compases por renglón<select id="cols">${[2, 3, 4, 5, 6]
+            <label class="fld">Compases por renglón<select id="cols">${[2, 3, 4, 5, 6, 7, 8]
               .map(n => `<option value="${n}"${n === colsOf(song) ? ' selected' : ''}>${n}</option>`).join('')}</select></label>
           </div>
           <div class="r">
@@ -2197,7 +2197,7 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
           <label>Estilo<select id="f-style">${STYLES.map(s => `<option value="${s[0]}"${s[0] === song.style ? ' selected' : ''}>${s[1]}</option>`).join('')}</select></label>
           <label>Compás<select id="f-ts">${METERS.map(m => `<option${m === song.ts ? ' selected' : ''}>${m}</option>`).join('')}</select></label>
           <div class="w keypick"><span>Compases por renglón</span>
-            <div class="kb kcols">${[2, 3, 4, 5, 6].map(n => `<button type="button" data-a="cols" data-v="${n}">${n}</button>`).join('')}</div></div>
+            <div class="kb kcols">${[2, 3, 4, 5, 6, 7, 8].map(n => `<button type="button" data-a="cols" data-v="${n}">${n}</button>`).join('')}</div></div>
           <div class="w keypick"><span>Etiquetas</span><div class="chips" id="tagrow"></div></div>
           <label class="w">Tempo<input id="f-tempo" type="number" inputmode="numeric" min="30" max="360" value="${song.tempo}"></label>
           <div class="w keypick"><span>Tonalidad</span><input type="hidden" id="f-key" value="${esc(song.key)}">

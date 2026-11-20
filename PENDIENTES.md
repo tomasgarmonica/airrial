@@ -132,7 +132,7 @@ grabaciones (ver `GRABACION.md`).
 - [x] Reordenar la lista arrastrando
 - [x] Buscador al elegir los temas de una lista
 - [x] Los acordes se agrandan hasta ocupar el lugar que tienen en el compás (en pantalla, PDF e imagen)
-- [x] Compases por renglón ajustables por canción (2 a 6), también en PDF e imagen; se eligen en el editor o al ver la canción (entre las opciones de abajo), y en los dos casos se reacomoda la hoja
+- [x] Compases por renglón ajustables por canción (2 a 8), también en PDF e imagen; se eligen en el editor o al ver la canción (entre las opciones de abajo), y en los dos casos se reacomoda la hoja
 - [x] El % (repetir compás) está con los acordes y avanza solo al compás siguiente
 - [x] Tamaño de la hoja ajustable (chico, normal, grande) al ver una canción: alto de los compases y tope de la letra
 - [x] Otras formas de ver el cifrado: símbolos de jazz (△7, -7, ø), Do-Re-Mi y grados (I, IV, V), también en PDF e imagen

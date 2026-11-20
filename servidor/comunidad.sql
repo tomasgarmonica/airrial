@@ -28,7 +28,7 @@ create table if not exists public.canciones (
   tonalidad text not null default '' check (char_length(tonalidad) <= 12),
   tempo int not null check (tempo between 30 and 360),
   cifrado text not null check (char_length(cifrado) between 1 and 40000),
-  cols int not null default 4 check (cols between 2 and 6),
+  cols int not null default 4 check (cols between 2 and 8),
   visibilidad text not null default 'publica' check (visibilidad in ('publica', 'enlace')),
   codigo text unique check (codigo ~ '^[A-Za-z0-9]{6,16}$'),
   oculta boolean not null default false,
@@ -38,6 +38,9 @@ create table if not exists public.canciones (
   actualizado timestamptz not null default now(),
   busqueda text generated always as (public.plano(titulo || ' ' || compositor)) stored
 );
+-- Compases por renglón: el tope pasó de 6 a 8 (19/11/2026). Va aparte para cambiarlo en la tabla ya creada.
+alter table public.canciones drop constraint if exists canciones_cols_check;
+alter table public.canciones add constraint canciones_cols_check check (cols between 2 and 8);
 -- El artista sin acentos ni mayúsculas, para juntar "Jobim" y "jobim" al recorrer por artista (agregado después:
 -- por eso va aparte, así se suma a la tabla si ya estaba creada).
 alter table public.canciones add column if not exists artista text generated always as (public.plano(compositor)) stored;

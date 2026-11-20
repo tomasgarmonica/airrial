@@ -22,7 +22,7 @@ assert.equal(s.transpose, 0);
 assert.equal(s.ts, '4/4');
 assert.equal(s.style, 'swing');
 assert.equal(s.chart.length, 40000);
-assert.equal(s.cols, 6);
+assert.equal(s.cols, 8);
 assert.equal(s.builtin, undefined);
 assert.deepEqual(s.tags, ['script', '7']);
 assert.equal(s.keys, 'piano');

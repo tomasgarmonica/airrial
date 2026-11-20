@@ -166,6 +166,13 @@ const cases = {
     same([a.mine()[0].cols, a.mine()[0].chart], [3, '| [A] C | D | E |\n| F | G |\n| [B] A | B |'], 'lo guardado');
     same(a.$$('#chart .row').map(r => r.querySelectorAll('.bar').length), [3, 2, 2], 'los renglones de la hoja');
     a.fits('canción con tres compases por renglón');
+    // hasta 8, para los temas en 2/4
+    same([...a.$('#cols').options].map(o => o.value), ['2', '3', '4', '5', '6', '7', '8'], 'las opciones');
+    a.$('#cols').value = '8';
+    a.$('#cols').dispatchEvent(new Event('change', { bubbles: true }));
+    await wait(50);
+    same([a.mine()[0].cols, a.$$('#chart .row').map(r => r.querySelectorAll('.bar').length)], [8, [5, 2]], 'con ocho por renglón');
+    a.fits('canción con ocho compases por renglón');
   },
   'Compartir el archivo abre el menú del teléfono, y si el teléfono pide otro toque, lo pide': async () => {
     const a = await start({ songs: [song('s1', 'Uno', '| C | G7 |')] }, '#/s/s1');

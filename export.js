@@ -163,7 +163,7 @@ const Exporter = (() => {
     const flats = Music.useFlats(song.key || Music.firstChord(bars), semis);
     const key = song.key ? 'Tono: ' + Music.transposeName(song.key, semis, flats) : '';
     const meta = [...(info.before || []), key, ...(info.after || [])].filter(Boolean).join('  ·  ');
-    const cols = Math.min(6, Math.max(2, Math.round(+song.cols) || 4));
+    const cols = Math.min(8, Math.max(2, Math.round(+song.cols) || 4));
     const rows = rowsOf(bars, cols), bw = (W - 2 * M) / cols;
 
     const pages = [];
