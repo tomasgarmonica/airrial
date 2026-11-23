@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.1.0 → 0.1.1): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. Desde la 0.1.0 la app se comparte con gente que la prueba.
-  const VERSION = '0.1.33';
+  const VERSION = '0.1.34';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -738,6 +738,15 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
     });
     return html + '</div>';
   }
+  // Mientras suena, la hoja sigue al compás. Si dos compases más adelante se pasa al renglón de abajo (sin
+  // repeticiones ni saltos en el medio), lo muestra desde el anteúltimo compás del renglón, para leer lo que viene.
+  function follow(root, i, ahead) {
+    const el = root.querySelector(`.bar[data-i="${i}"]`);
+    if (!el) return;
+    const two = ahead && ahead[1] != null ? root.querySelector(`.bar[data-i="${ahead[1]}"]`) : null;
+    const row = el.closest('.row'), next = two && two.closest('.row');
+    (row && next && next === row.nextElementSibling ? next : el).scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
   function chartHtml(bars, semis, flats, cols) {
     if (!bars.length) return '<p class="empty">Todavía no hay compases escritos.</p>';
     return rowsHtml(bars, cols || 4, (b, i) => barHtml(b, i, semis, flats));
@@ -1364,10 +1373,11 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
           $('#live').textContent = parts.join(' · ');
           $('#live').hidden = false;
         },
-        onBar: i => {
+        onBar: (i, ahead) => {
           chart.querySelectorAll('.bar.on').forEach(el => el.classList.remove('on'));
           const el = chart.querySelector(`.bar[data-i="${i}"]`);
-          if (el) { el.classList.add('on'); el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+          if (el) el.classList.add('on');
+          follow(chart, i, ahead);
         },
         onEnd: () => setPlaying(false),
       });
@@ -1786,7 +1796,7 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
           Engine.setTrims(trimsFor(song.style));
           const ok = Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => song.tempo, style: song.style,
             keys: keysOf(song), choruses: settings.choruses, countIn: settings.countIn,
-            onBar: i => { lit(i); const el = app.querySelector(`.bar[data-i="${i}"]`); if (el) el.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); },
+            onBar: (i, ahead) => { lit(i); follow(app, i, ahead); },
             onEnd: () => shown(false) });
           shown(ok);
         },
