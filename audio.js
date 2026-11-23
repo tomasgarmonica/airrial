@@ -179,6 +179,8 @@ const Engine = (() => {
     let bar = place % p.compases;
     // Una versión por momento del tema (abajo y arriba en el son): la canción dice cuál lleva cada compás.
     if (p.partes) bar = Math.min(p.compases - 1, (S.o.partAt && S.o.partAt(S.idx)) || 0);
+    // Variaciones que van en ciertos lugares de la frase (candombe): ver phraseBar.
+    else if (p.variantes) bar = phraseBar(p.variantes);
     else if (p.alternar && p.compases > 1) {
       bar = 0;
       if (S.barNo && Math.random() < 0.5) {
@@ -195,6 +197,27 @@ const Engine = (() => {
     }
     return true;
   }
+  // Qué compás de la base suena según el lugar de la frase. Las frases se cuentan de a cuatro compases desde el
+  // principio de cada parte, en el orden en que se tocan; también empieza una donde la canción vuelve o salta
+  // (repetición, coda, vuelta nueva). `v` dice qué compás de la base es cada variación:
+  // - "cierre" (en el candombe, del 3 al 4): siempre en el último compás antes de una parte nueva o de un salto, y
+  //   si no, al final de cada grupo de cuatro la mitad de las veces y al final de cada grupo de dos una de cada cuatro.
+  // - "entrada" (en el 1): en el primer compás de cada grupo de cuatro, una de cada tres veces, salvo en el primero
+  //   de la canción o de la parte.
+  // Se elige una vez por compás (`S.phrase` lo recuerda).
+  function phraseBar(v) {
+    if (S.phrase && S.phrase.no === S.barNo) return S.phrase.bar;
+    const seq = S.o.seq, idx = S.idx, prev = S.phrase && S.phrase.no === S.barNo - 1 ? S.phrase : null;
+    // de `a` se pasa a `b` sin saltar (los compases en blanco del medio no cuentan) y sin empezar parte
+    const goesOn = (a, b) => b > a && S.bars.slice(a + 1, b).every(x => !x.slots.length) && !S.bars[b].part;
+    const k = prev && goesOn(prev.idx, idx) ? prev.k + 1 : 0;
+    const end = S.pos + 1 >= seq.length || !goesOn(idx, seq[S.pos + 1]);
+    let bar = 0;
+    if (v.cierre != null && (end || (k % 4 === 3 && Math.random() < 0.5) || (k % 4 === 1 && Math.random() < 0.25))) bar = v.cierre;
+    else if (v.entrada != null && k && k % 4 === 0 && Math.random() < 1 / 3) bar = v.entrada;
+    S.phrase = { no: S.barNo, idx, k, bar };
+    return bar;
+  }
   // Bajo y teclado de la base escrita en MIDI (por ahora, la chacarera), que vienen escritos sobre Do: cada nota
   // se corre al acorde que suena en ese momento. Do es la fundamental, Mi la tercera, Sol la quinta y Sib o Si la
   // séptima, a la altura escrita (Do3 es 48; hasta media octava arriba o abajo); las otras notas, a la misma
@@ -205,7 +228,8 @@ const Engine = (() => {
   function baseHarmony(style, t, bd, B, x) {
     const p = typeof BASES !== 'undefined' && BASES[style];
     if (!p || !(p.bajo || p.teclado)) return false;
-    const T = p.tiempos, from = ((S.barNo + (S.o.startPos || 0)) % p.compases) * T, step = bd * B / T;
+    // Con variaciones de percusión por lugar de la frase (candombe), bajo y teclado salen siempre del primer compás.
+    const T = p.tiempos, from = p.variantes ? 0 : ((S.barNo + (S.o.startPos || 0)) % p.compases) * T, step = bd * B / T;
     S.vary = S.vary || {};
     const pitch = (c, semis) => {
       const pc = ((semis % 12) + 12) % 12, deg = { 0: 0, 3: c.iv[0], 4: c.iv[0], 7: c.iv[1], 10: c.iv[2], 11: c.iv[2] }[pc];
@@ -606,12 +630,17 @@ const Engine = (() => {
         for (const i of [0, 3, 6, 8, 11, 14]) tom(t + i * s, 95, i % 8 ? 0.5 : 0.75, 0.22);
         if (x.barNo % 2) for (const i of [10, 13, 15]) tom(t + i * s, 190, 0.4, 0.12);
       }
-      for (const [i, fifth, d] of [[0, 0, 3], [3, 1, 3], [6, 0, 2], [8, 0, 3], [11, 1, 3], [14, 0, 2]]) {
-        const c = x.at(i / 4);
-        if (c) bass(t + i * s, fifth ? fifthOf(c) : rootOf(c), s * d * 0.9, fifth ? 0.75 : 0.95);
+      // El bajo sale de la base escrita en MIDI si lo trae; si no, el de acá.
+      if (!baseHarmony('candombe', t, bd, 4, x)) {
+        for (const [i, fifth, d] of [[0, 0, 3], [3, 1, 3], [6, 0, 2], [8, 0, 3], [11, 1, 3], [14, 0, 2]]) {
+          const c = x.at(i / 4);
+          if (c) bass(t + i * s, fifth ? fifthOf(c) : rootOf(c), s * d * 0.9, fifth ? 0.75 : 0.95);
+        }
       }
       // Teclado planchado: el acorde entra en el 1 (o donde cambie) y queda sonando. A contratiempo sonaba a cumbia.
-      for (const g of x.segs) if (g.chord) chordHit(t + g.beat * bd, voice(g.chord), g.len * bd * 0.95, 0.85);
+      // (Si un día la base trae teclado, suena ese.)
+      const p = typeof BASES !== 'undefined' && BASES.candombe;
+      if (!(p && p.teclado)) for (const g of x.segs) if (g.chord) chordHit(t + g.beat * bd, voice(g.chord), g.len * bd * 0.95, 0.85);
     },
     // Güiro en "chiqui-chiqui", bombo en 1 y 3 y acordes a contratiempo. En 4/4 o en 2/4: en 2/4 cada compás
     // toca una mitad, alternando (la segunda mitad lleva un golpe más de conga).

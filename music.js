@@ -353,7 +353,8 @@ const Music = (() => {
           });
         });
       }
-      out.push({ beats, den: b.ts[1], slots });
+      // `part`: acá empieza una parte ([A], [B]…); la percusión cierra la frase antes (candombe)
+      out.push({ beats, den: b.ts[1], slots, ...(b.section ? { part: true } : {}) });
     });
     return out;
   }

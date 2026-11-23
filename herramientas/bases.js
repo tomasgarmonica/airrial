@@ -114,7 +114,8 @@ const AJUSTE = {
   // que es relleno. El pandeiro tapado toca tres de cada cuatro semicorcheas: se baja.
   samba: { surdo_abierto: 2, surdo_cerrado: 2, surdo_dedos: 0.9, pandeiro_tono_tapado: 0.6 },
   zamba: { leguero_fuerte: 1.76, leguero_medio: 1.07, leguero_suave: 0.46, leguero_aro: 0.77 },
-  candombe: { chico_mano: 0.2, chico_palo: 0.2, repique_madera: 0.76, bombo: 2.7, redo: 2.7, hh_cerrado: 0.55 },
+  // El bajo del candombe (Bases y variaciones, 23/11/2026) vino con 94: se sube como el de la chacarera.
+  candombe: { chico_mano: 0.2, chico_palo: 0.2, repique_madera: 0.76, bombo: 2.7, redo: 2.7, hh_cerrado: 0.55, bajo: 1.3 },
 };
 
 // Bases cuyos compases no van en fila sino que son variantes para alternar (la primera es la básica).
@@ -122,6 +123,10 @@ const ALTERNAR = ['zamba'];
 // Bases con una versión distinta para cada momento del tema: un compás por versión, en este orden. En la app se
 // elige cuál lleva cada parte de la canción (la primera es la que suena si no se elige nada).
 const PARTES = { son: ['Abajo (estrofa)', 'Arriba (montuno)'] };
+// Bases cuyo primer compás es la base y los que siguen son variaciones de la percusión que van en ciertos lugares
+// de la frase, en este orden (cuándo suena cada una lo decide audio.js, en phraseBar). Candombe: el 2 cambia el
+// piano en el 1 ("entrada", al empezar un grupo de cuatro) y el 3 del 3 al 4 ("cierre", antes de una parte nueva).
+const VARIANTES = { candombe: ['entrada', 'cierre'] };
 // Bases cuyas variaciones de bajo y teclado se combinan por tramos del compás: dónde empieza cada tramo después
 // del primero, en tiempos. Chacarera: el 1 por un lado (chasquido, muteado, octava; acorde en la tierra o en la
 // segunda corchea) y el 2 y el 3 por otro (fundamental o quinta; acordes o arpegio).
@@ -224,9 +229,11 @@ for (const [style, { file, variaciones }] of [...chosen].sort()) {
   const bars = Math.max(1, Math.ceil((last + 1e-3) / beats));
   const instrumentos = {};
   for (const h of hits) instrumentos[instOf(h[1])] = known.get(h[1]);
+  if (VARIANTES[style] && VARIANTES[style].length + 1 !== bars) throw new Error(file + ': tiene ' + bars + ' compases y se esperaba la base y ' + VARIANTES[style].length + ' variaciones (' + VARIANTES[style].join(', ') + ')');
   if (PARTES[style] && PARTES[style].length !== bars) throw new Error(file + ': tiene ' + bars + ' compases y se esperaba uno por versión (' + PARTES[style].join(', ') + ')');
   bases[style] = { tiempos: beats, compases: bars, ...(ALTERNAR.includes(style) ? { alternar: true } : {}),
-    ...(PARTES[style] ? { partes: PARTES[style] } : {}), instrumentos, golpes: hits, ...extra };
+    ...(PARTES[style] ? { partes: PARTES[style] } : {}),
+    ...(VARIANTES[style] ? { variantes: Object.fromEntries(VARIANTES[style].map((v, k) => [v, k + 1])) } : {}), instrumentos, golpes: hits, ...extra };
   console.log(`${style}: ${sig.join('/')}, ${bars} ${bars > 1 ? 'compases' : 'compás'}, ${hits.length} golpes` +
     Object.entries(extra).map(([tr, l]) => `, ${l.length} de ${tr}`).join(''));
   // Variaciones: el compás se corta en tramos (TRAMOS) y queda como opción cada tramo de bajo o de teclado que no

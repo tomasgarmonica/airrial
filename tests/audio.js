@@ -153,6 +153,32 @@ for (const keys of others) {
   else if (show(perc(late)) !== show(tail)) { fail++; console.log('FALLA: cumbia en 2/4 desde el segundo compás, queda corrida', late.length, tail.length); }
   else console.log('cumbia 2/4 = 4/4:', four.length, 'sonidos,', perc(four).length, 'de percusión y batería');
 }
+// Candombe: las variaciones del piano van en su lugar de la frase. Se reconoce cuál sonó en cada compás por
+// cuántos "piano palo abierto" tiene (la base 2, la entrada 4 y el cierre 6). Con el azar en contra solo queda el
+// cierre obligado (antes de una parte nueva, de una repetición y al final); con el azar a favor, todas.
+if (sandbox.BASES.candombe && sandbox.BASES.candombe.variantes) {
+  const palo = index.percusion.archivo + '@' + index.percusion.sonidos.piano_palo_abierto[0].toFixed(4);
+  const run = async (chart, luck) => {
+    const bars = Music.parseChart(chart, [4, 4]), random = Math.random;
+    events = []; now = 0; lastKeys = null;
+    Math.random = () => luck;
+    Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 100, style: 'candombe', choruses: 1, countIn: false,
+      finalChord: null, onBar() {}, onEnd() {} });
+    for (let k = 0; k < 20 && !tickFn; k++) await pause();
+    for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
+    Math.random = random;
+    const t0 = Math.min(...events.map(e => e[1])), per = [];
+    for (const e of events) if (e[2] === palo) { const n = Math.floor((e[1] - t0) / 2.4 + 1e-6); per[n] = (per[n] || 0) + 1; }
+    return [...per].map(n => ({ 2: '-', 4: 'E', 6: 'C' })[n] || '?').join('');
+  };
+  // [A] de 10 compases y [B] de 4 que se repite: 18 compases. Con el azar a favor, en la [A]: cierre al final de
+  // cada grupo de dos y de cuatro, entrada al empezar cada grupo de cuatro (no el primero) y cierre antes de la [B].
+  const chart = '[A] | C | C | C | C |\n| C | C | C | C |\n| C | C |\n[B] |: F | F | F | F :|';
+  const never = await run(chart, 0.99), always = await run(chart, 0);
+  if (never !== '---------C---C---C') { fail++; console.log('FALLA: candombe, cierres obligados', never); }
+  else if (always !== '-C-CEC-CEC-C-C-C-C') { fail++; console.log('FALLA: candombe, variaciones a favor', always); }
+  else console.log('candombe: variaciones en su lugar', never, always);
+}
 // En iPhone: pide sonar aunque el teléfono esté en silencio.
 {
   const session = { type: 'auto' };
