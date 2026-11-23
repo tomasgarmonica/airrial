@@ -29,7 +29,9 @@ y explicarle los pasos que le toquen de a uno.
   `node herramientas/bases.js "<carpeta Audios>/Midi"` las pasa a `bases.js`. Arriba de esa herramienta están las
   tablas que hay que tocar a mano: `OTRO_NOMBRE` (sonidos que en la app se llaman distinto), `AJUSTE` (volúmenes
   pedidos de oído, por ritmo), `ALTERNAR` (bases cuyos compases son variantes), `PARTES` (bases con una versión
-  por momento del tema, como el son) y `CORREGIR`.
+  por momento del tema, como el son), `VARIANTES` (compases de percusión que van en ciertos lugares de la frase,
+  como la entrada y el cierre del candombe; cuándo suenan lo decide `phraseBar()` en `audio.js`), `SOBRE_ACORDES`
+  (bajo y teclado escritos sobre una vuelta de acordes reales y no sobre Do, como el son) y `CORREGIR`.
 - **La carpeta `Audios` cambia de ruta según la PC** (`G:/Mi unidad/Audios` o `G:/My Drive/Audios`).
 - **Fuera de git:** `grabaciones/` y `pruebas/` (archivos de prueba generados).
 
@@ -39,8 +41,12 @@ y explicarle los pasos que le toquen de a uno.
   toca cada golpe o nota por su nombre (`shot`, y las notas de bajo y teclado corridas de altura). Si un sonido
   no está, toca el sintetizado. Un ritmo con base la usa para toda su percusión (`base()`); bajo y teclado
   salen de los patrones escritos en `audio.js`, salvo que la base traiga pistas "Bajo" y "Teclado"
-  (`baseHarmony()`, hoy solo la chacarera): escritas sobre Do, se corren a cada acorde, y donde el teclado
-  tiene varias notas juntas va el acorde de la app. El bajo suena una octava abajo de lo escrito.
+  (`baseHarmony()`: la chacarera, y el bajo del candombe): escritas sobre Do, se corren a cada acorde, y donde el
+  teclado tiene varias notas juntas va el acorde de la app. El bajo suena una octava abajo de lo escrito.
+  El son es distinto (`baseMontuno()`): el dueño escribió bajo y montuno sobre C Am Dm G (`Son/Son 01.mid`), y la
+  herramienta guarda qué papel cumple cada nota en su acorde; la nota doblada del montuno es la más cercana a la
+  del acorde anterior (`montunoOf()`), y lo del final del compás anticipa el acorde que viene. La percusión del son
+  sigue saliendo de `Base Son.mid`.
 - **Carpeta por ritmo:** en `Audios/Midi/Chacarera` (el ritmo es el nombre de la carpeta; vale cualquier archivo
   que termine en número) el 01 es la base y los que siguen (02, 03…) son variaciones de bajo y teclado. No son
   compases enteros sino tramos que se combinan (`TRAMOS` en la herramienta; en la chacarera, el 1 por un lado y
