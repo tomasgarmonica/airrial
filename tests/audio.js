@@ -87,7 +87,7 @@ for (const style of styles) for (const ts of Object.keys(charts)) {
     if (!ended || seen !== bars.length * 2 + 1) throw new Error(`fin=${ended} compases=${seen}`);
     if (sounds && style !== 'click' && !(recorded > piano && piano)) throw new Error(`grabados: ${recorded}, de piano: ${piano}`);
     // El piano va siempre entre Do3 y Si5 (48 a 83, con el Do central en Do4): el bajo queda abajo, separado.
-    // Menos la chacarera, cuyo teclado dobla al bajo en el grave a propósito (pendiente de que el dueño lo revise).
+    // Menos la chacarera, cuyo teclado dobla al bajo en el grave a propósito (el dueño lo confirmó el 23/11/2026).
     const keysAt = Object.fromEntries(Object.entries(index.piano.sonidos).map(([k, [at]]) => [index.piano.archivo + '@' + at.toFixed(4), parseInt(k, 10)]));
     const played = events.filter(e => keysAt[e[2]] != null).map(e => keysAt[e[2]] + Math.round(12 * Math.log2(e[3])));
     const lo = Math.min(...played), hi = Math.max(...played);

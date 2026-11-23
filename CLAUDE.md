@@ -125,8 +125,8 @@ y explicarle los pasos que le toquen de a uno.
 - **Bases con versión de abajo y de arriba (son): se elige por parte**, tocando el nombre de la parte.
 - **Un compás en blanco no se toca** (sirve para acomodar la hoja), salvo después de un corte.
 - **El piano va siempre entre Do3 y Si5** (con el Do central en Do4), en todos los estilos, eligiendo la
-  inversión para quedarse ahí: así bajo y piano quedan separados. `tests/audio.js` lo controla. Pendiente: la
-  chacarera baja a Sol2 por la nota del teclado que dobla al bajo; el dueño tiene que decir si se sube.
+  inversión para quedarse ahí: así bajo y piano quedan separados. `tests/audio.js` lo controla. La excepción es la
+  chacarera, que baja a Sol2 por la nota del teclado que dobla al bajo: queda así, a propósito.
 - **El tempo cuenta el pulso:** la negra, o la negra con puntillo en 6/8, 9/8 y 12/8.
 
 ## Formato del cifrado (lo que se guarda)
