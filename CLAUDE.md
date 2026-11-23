@@ -43,7 +43,8 @@ y explicarle los pasos que le toquen de a uno.
   salen de los patrones escritos en `audio.js`, salvo que la base traiga pistas "Bajo" y "Teclado"
   (`baseHarmony()`: la chacarera, y el bajo del candombe): escritas sobre Do, se corren a cada acorde, y donde el
   teclado tiene varias notas juntas va el acorde de la app. El bajo suena una octava abajo de lo escrito.
-  El son es distinto (`baseMontuno()`): el dueño escribió bajo y montuno sobre C Am Dm G (`Son/Son 01.mid`), y la
+  El son es distinto (`baseMontuno()`): el dueño escribió bajo y montuno sobre C Am Dm G (`Son/Son 01.mid`, un
+  acorde por compás; `Son 02.mid`, dos por compás, para cambios rápidos: la app usa el que coincida), y la
   herramienta guarda qué papel cumple cada nota en su acorde; la nota doblada del montuno es la más cercana a la
   del acorde anterior (`montunoOf()`), y lo del final del compás anticipa el acorde que viene. La percusión del son
   sigue saliendo de `Base Son.mid`.
@@ -123,6 +124,9 @@ y explicarle los pasos que le toquen de a uno.
   en el dispositivo de cada usuario.
 - **Bases con versión de abajo y de arriba (son): se elige por parte**, tocando el nombre de la parte.
 - **Un compás en blanco no se toca** (sirve para acomodar la hoja), salvo después de un corte.
+- **El piano va siempre entre Do3 y Si5** (con el Do central en Do4), en todos los estilos, eligiendo la
+  inversión para quedarse ahí: así bajo y piano quedan separados. `tests/audio.js` lo controla. Pendiente: la
+  chacarera baja a Sol2 por la nota del teclado que dobla al bajo; el dueño tiene que decir si se sube.
 - **El tempo cuenta el pulso:** la negra, o la negra con puntillo en 6/8, 9/8 y 12/8.
 
 ## Formato del cifrado (lo que se guarda)
