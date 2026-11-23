@@ -3,7 +3,7 @@
 
   // Sumar 1 al último número en cada publicación (0.1.0 → 0.1.1): se muestra en la biblioteca para saber qué
   // versión corre el teléfono. Desde la 0.1.0 la app se comparte con gente que la prueba.
-  const VERSION = '0.1.34';
+  const VERSION = '0.1.35';
   const app = document.getElementById('app');
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c =>
@@ -738,13 +738,14 @@ Si algo no se lee bien, poné tu mejor interpretación y anotalo al final, fuera
     });
     return html + '</div>';
   }
-  // Mientras suena, la hoja sigue al compás. Si dos compases más adelante se pasa al renglón de abajo (sin
-  // repeticiones ni saltos en el medio), lo muestra desde el anteúltimo compás del renglón, para leer lo que viene.
+  // Mientras suena, la hoja sigue al compás. Si al terminar este renglón se pasa al de abajo (y no vuelve atrás por
+  // una repetición ni salta a otro lado), lo muestra desde que empieza este, para leer lo que viene.
   function follow(root, i, ahead) {
     const el = root.querySelector(`.bar[data-i="${i}"]`);
     if (!el) return;
-    const two = ahead && ahead[1] != null ? root.querySelector(`.bar[data-i="${ahead[1]}"]`) : null;
-    const row = el.closest('.row'), next = two && two.closest('.row');
+    const row = el.closest('.row');
+    const out = (ahead || []).map(j => root.querySelector(`.bar[data-i="${j}"]`)).find(b => b && b.closest('.row') !== row);
+    const next = out && out.closest('.row');
     (row && next && next === row.nextElementSibling ? next : el).scrollIntoView({ block: 'nearest', behavior: 'smooth' });
   }
   function chartHtml(bars, semis, flats, cols) {

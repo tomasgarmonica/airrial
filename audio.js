@@ -964,8 +964,8 @@ const Engine = (() => {
         ? { ...ns, hold: (nb.slots[1] ? nb.slots[1].beat : nb.beats) * beatDur(o.getTempo(S.chorus), nb) } : null;
       S.idx = idx;
       schedBar(bar, S.t, bd, ns && ns.beat === 0 ? ns.chord : null, ahead);
-      // `ahead`: los dos compases que vienen en el orden en que se tocan, para que la hoja se adelante
-      S.q.push({ t: S.t, i: idx, ahead: [o.seq[S.pos + 1], o.seq[S.pos + 2]] });
+      // `ahead`: los compases que vienen (hasta 8, lo más largo de un renglón) en el orden en que se tocan, para que la hoja se adelante
+      S.q.push({ t: S.t, i: idx, ahead: o.seq.slice(S.pos + 1, S.pos + 9) });
       S.t += bar.beats * bd;
       S.pos++;
       S.barNo++;
