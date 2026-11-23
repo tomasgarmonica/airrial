@@ -86,7 +86,13 @@ for (const style of styles) for (const ts of Object.keys(charts)) {
     for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
     if (!ended || seen !== bars.length * 2 + 1) throw new Error(`fin=${ended} compases=${seen}`);
     if (sounds && style !== 'click' && !(recorded > piano && piano)) throw new Error(`grabados: ${recorded}, de piano: ${piano}`);
-    console.log(style.padEnd(10), ts, String(events.length).padStart(5), 'sonidos' + (sounds ? `, ${recorded} grabados (${piano} de piano)` : ''));
+    // El piano va siempre entre Do3 y Si5 (48 a 83, con el Do central en Do4): el bajo queda abajo, separado.
+    // Menos la chacarera, cuyo teclado dobla al bajo en el grave a propósito (pendiente de que el dueño lo revise).
+    const keysAt = Object.fromEntries(Object.entries(index.piano.sonidos).map(([k, [at]]) => [index.piano.archivo + '@' + at.toFixed(4), parseInt(k, 10)]));
+    const played = events.filter(e => keysAt[e[2]] != null).map(e => keysAt[e[2]] + Math.round(12 * Math.log2(e[3])));
+    const lo = Math.min(...played), hi = Math.max(...played);
+    if (played.length && style !== 'chacarera' && (lo < 48 || hi > 83)) throw new Error(`el piano se sale de Do3 a Si5: va de ${lo} a ${hi}`);
+    console.log(style.padEnd(10), ts, String(events.length).padStart(5), 'sonidos' + (sounds ? `, ${recorded} grabados (${piano} de piano` + (played.length ? `, de ${lo} a ${hi})` : ')') : ''));
   } catch (e) { fail++; console.log('FALLA', style, ts, e.message); }
 }
 }
@@ -180,37 +186,38 @@ if (sandbox.BASES.candombe && sandbox.BASES.candombe.variantes) {
   else if (always !== '-C-CEC-CEC-C-C-C-C') { fail++; console.log('FALLA: candombe, variaciones a favor', always); }
   else console.log('candombe: variaciones en su lugar', never, always);
 }
-// Son con bajo y montuno escritos (Son 01): sobre la misma vuelta que escribió el dueño (C Am Dm G) suenan tantas
-// notas de bajo como en su archivo (17: el 1 solo en el primer compás), y el piano toca las mismas notas que él:
-// la doblada Sol, La, La, Sol, con las otras dos del acorde abajo, y al final de cada compás la del que viene.
+// Son con bajo y montuno escritos: sobre las mismas vueltas que escribió el dueño suenan tantas notas de bajo como
+// en sus archivos, y el piano toca las mismas notas que él: la doblada Sol, La, La, Sol, con las otras dos del acorde
+// abajo, y antes de cada cambio la del acorde que viene. Son 01: C Am Dm G, uno por compás (17 de bajo: el 1 solo
+// en el primero). Son 02: C Am | Dm G, dos por compás (12 de bajo).
 if (sandbox.BASES.son && sandbox.BASES.son.montuno) {
-  const bars = Music.parseChart('| C | Am | Dm | G |', [4, 4]);
-  events = []; now = 0; lastKeys = null;
-  Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 100, style: 'son', keys: 'piano', choruses: 1, countIn: false,
-    finalChord: null, onBar() {}, onEnd() {} });
-  for (let k = 0; k < 20 && !tickFn; k++) await pause();
-  for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
-  const of = file => events.filter(e => e[2].startsWith(file + '@')).length;
-  const bajo = of(index.bajo.archivo);
-  // qué nota suena: la de la grabación, corrida de altura
+  // lo que escribió el dueño: [doblada, las otras dos] en cada acorde
+  const own = { C: [67, 60, 64], Am: [69, 60, 64], Dm: [69, 62, 65], G: [67, 59, 62] };
   const sample = Object.fromEntries(Object.entries(index.piano.sonidos).map(([k, [at]]) => [index.piano.archivo + '@' + at.toFixed(4), parseInt(k, 10)]));
-  const t0 = Math.min(...events.map(e => e[1])), heard = new Map();
-  for (const e of events) if (sample[e[2]] != null) {
-    const key = ((e[1] - t0) / 0.6).toFixed(2);
-    heard.set(key, [...(heard.get(key) || []), sample[e[2]] + Math.round(12 * Math.log2(e[3]))]);
-  }
-  // lo que escribió el dueño: [doblada, las otras dos] en C, Am, Dm y G
-  const own = [[67, 60, 64], [69, 60, 64], [69, 62, 65], [67, 59, 62]], want = new Map();
-  own.forEach((_, bar) => {
-    for (const [at, role, , , mark] of sandbox.BASES.son.montuno.teclado) {
-      const [d, a, b] = own[mark === 'anticipa' ? Math.min(bar + 1, 3) : bar];
-      want.set((bar * 4 + at).toFixed(2), { o: [d - 12, d, d + 12], a: [a, a + 12], b: [b, b + 12], ab: [a, b, a + 12, b + 12] }[role]);
+  for (const [chart, n, len, bajos] of [['| C | Am | Dm | G |', 0, 4, 17], ['| C Am | Dm G |', 1, 2, 12]]) {
+    const bars = Music.parseChart(chart, [4, 4]), names = chart.split(/[\s|]+/).filter(Boolean);
+    events = []; now = 0; lastKeys = null;
+    Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 100, style: 'son', keys: 'piano', choruses: 1, countIn: false,
+      finalChord: null, onBar() {}, onEnd() {} });
+    for (let k = 0; k < 20 && !tickFn; k++) await pause();
+    for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
+    const bajo = events.filter(e => e[2].startsWith(index.bajo.archivo + '@')).length;
+    // qué nota suena: la de la grabación, corrida de altura (a 100 por minuto, un tiempo dura 0,6 segundos)
+    const t0 = Math.min(...events.map(e => e[1])), heard = new Map(), want = new Map();
+    for (const e of events) if (sample[e[2]] != null) {
+      const key = ((e[1] - t0) / 0.6).toFixed(2);
+      heard.set(key, [...(heard.get(key) || []), sample[e[2]] + Math.round(12 * Math.log2(e[3]))]);
     }
-  });
-  const show = m => [...m].map(([k, v]) => k + ':' + v.sort((x, y) => x - y).join(',')).sort().join(' ');
-  if (bajo !== 17) { fail++; console.log('FALLA: son con montuno, notas de bajo', bajo); }
-  else if (show(heard) !== show(want)) { fail++; console.log('FALLA: son con montuno, el piano no toca lo escrito'); console.log(show(heard)); console.log(show(want)); }
-  else console.log('son con montuno:', bajo, 'notas de bajo y', [...heard.values()].flat().length, 'de piano, las escritas');
+    for (let bar = 0; bar < bars.length; bar++) for (const [at, role, , , mark] of sandbox.BASES.son.montuno[n].teclado) {
+      const when = bar * 4 + at, slot = Math.min(Math.floor((when + (mark === 'anticipa' ? 0.5 : 0)) / len), names.length - 1);
+      const [d, a, b] = own[names[slot]];
+      want.set(when.toFixed(2), { o: [d - 12, d, d + 12], a: [a, a + 12], b: [b, b + 12], ab: [a, b, a + 12, b + 12] }[role]);
+    }
+    const show = m => [...m].map(([k, v]) => k + ':' + v.sort((x, y) => x - y).join(',')).sort().join(' ');
+    if (bajo !== bajos) { fail++; console.log('FALLA: son con montuno', chart, 'notas de bajo', bajo); }
+    else if (show(heard) !== show(want)) { fail++; console.log('FALLA: son con montuno', chart, 'el piano no toca lo escrito'); console.log(show(heard)); console.log(show(want)); }
+    else console.log('son con montuno', chart + ':', bajo, 'notas de bajo y', [...heard.values()].flat().length, 'de piano, las escritas');
+  }
 }
 // En iPhone: pide sonar aunque el teléfono esté en silencio.
 {

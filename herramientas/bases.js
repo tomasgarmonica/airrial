@@ -129,11 +129,20 @@ const PARTES = { son: ['Abajo (estrofa)', 'Arriba (montuno)'] };
 // de la frase, en este orden (cuándo suena cada una lo decide audio.js, en phraseBar). Candombe: el 2 cambia el
 // piano en el 1 ("entrada", al empezar un grupo de cuatro) y el 3 del 3 al 4 ("cierre", antes de una parte nueva).
 const VARIANTES = { candombe: ['entrada', 'cierre'] };
-// Bases cuyo bajo y teclado vienen escritos sobre una vuelta de acordes de verdad, un acorde por compás, y no sobre
-// Do. La percusión sigue saliendo del archivo suelto ("Base Son.mid", con abajo y arriba): de la carpeta se toman
-// solo bajo y teclado. Desde el tiempo `anticipa` (contado desde 0) las notas ya son del acorde que viene.
-// El teclado es un montuno: ver overChords().
-const SOBRE_ACORDES = { son: { acordes: ['C', 'Am', 'Dm', 'G'], anticipa: 3.5 } };
+// Bases cuyo bajo y teclado vienen escritos sobre una vuelta de acordes de verdad, y no sobre Do. La percusión
+// sigue saliendo del archivo suelto ("Base Son.mid", con abajo y arriba): de la carpeta se toman solo bajo y
+// teclado, y cada archivo numerado dice sobre qué acordes está escrito (de a uno o de a dos por compás). Lo que
+// cae a `anticipa` tiempos o menos de un cambio de acorde ya es del acorde que viene. El teclado es un montuno:
+// ver overChords(). Son: el 01 con un acorde por compás (el bajo anticipa una corchea; el piano, una semicorchea);
+// el 02 con dos, para los cambios rápidos (el bajo no anticipa ni alarga la tercera nota).
+const SOBRE_ACORDES = { son: {
+  1: { acordes: [['C'], ['Am'], ['Dm'], ['G']], anticipa: 0.5 },
+  2: { acordes: [['C', 'Am'], ['Dm', 'G']], anticipa: 0.25 },
+} };
+// Notas de bajo o teclado que el dueño confirmó que están mal escritas, mientras no vuelva a exportar el archivo:
+// { archivo: [[pista, dónde está (en tiempos desde el comienzo), nota escrita, nota que va]] }.
+// Son 02 (23/11/2026): en el G el bajo tiene Sol#2 y es Sol2.
+const CORREGIR_NOTAS = { 'Son 02.mid': [['bajo', 6, 44, 43]] };
 // Bases cuyas variaciones de bajo y teclado se combinan por tramos del compás: dónde empieza cada tramo después
 // del primero, en tiempos. Chacarera: el 1 por un lado (chasquido, muteado, octava; acorde en la tierra o en la
 // segunda corchea) y el 2 y el 3 por otro (fundamental o quinta; acordes o arpegio).
@@ -184,13 +193,15 @@ function harmonyBars(every, per, beats, style, file) {
 
 // Bajo y teclado escritos sobre una vuelta de acordes (SOBRE_ACORDES): queda un compás que vale para cualquier
 // acorde, con lo que cumple cada nota dentro de su acorde. Todos los compases tienen que decir lo mismo; lo que
-// solo está en el primero (el bajo en el 1, que después llega anticipado) se marca "inicio", y lo que va desde
-// `anticipa`, "anticipa" (es del acorde que viene; el último compás anticipa el primero).
+// solo está en el primero (el bajo en el 1, que después llega anticipado) se marca "inicio", y lo que cae a
+// `anticipa` tiempos o menos de un cambio de acorde, "anticipa" (es del acorde que viene; el último compás
+// anticipa el primero). La duración de cada nota es la más larga con que aparece en los compases.
 // - Bajo: [tiempo, semitonos desde la fundamental, duración, fuerza, marca].
 // - Teclado (montuno): [tiempo, papel, duración, fuerza, marca]. "o" es la nota doblada en tres octavas, "a" y
 //   "b" las otras dos notas del acorde, de abajo para arriba, en dos octavas, y "ab" las dos juntas. La nota doblada
-//   es la del acorde más cercana a la del acorde anterior (en el primero, la quinta); la misma regla está en
-//   audio.js (montunoOf), y acá se controla que dé lo que está escrito.
+//   es la del acorde más cercana a la del acorde anterior (en el primero, la quinta), entre Do4 y Si4, así el
+//   piano queda entre Do3 y Si5; la misma regla está en audio.js (montunoOf), y acá se controla que dé lo escrito.
+// Devuelve también `cambios`: en qué tiempos del compás empieza cada acorde (la app elige el que coincida).
 const PCS = { c: 0, d: 2, e: 4, f: 5, g: 7, a: 9, b: 11 };
 function chordPcs(name) {
   const m = name.match(/^([A-G])([#b]?)(m?)$/);
@@ -199,27 +210,34 @@ function chordPcs(name) {
   return [r, (r + (m[3] ? 3 : 4)) % 12, (r + 7) % 12];
 }
 function montunoVoices(pcs, prev) {
-  const inWin = pc => 62 + ((pc - 62) % 12 + 12) % 12;
+  const inWin = pc => 60 + ((pc - 60) % 12 + 12) % 12;
   const d = prev == null ? inWin(pcs[2]) : pcs.map(inWin).sort((a, c) => Math.abs(a - prev) - Math.abs(c - prev) || a - c)[0];
   const [a, b] = pcs.filter(pc => pc !== d % 12).map(pc => d - ((d - pc) % 12 + 12) % 12).sort((x, y) => x - y);
   return { d, o: [d - 12, d, d + 12], a: [a, a + 12], b: [b, b + 12], ab: [a, b, a + 12, b + 12] };
 }
-function overChords(notes, per, beats, style, file) {
-  const { acordes, anticipa } = SOBRE_ACORDES[style], k = AJUSTE[style] || {};
-  const chords = acordes.map(chordPcs);
-  const voices = [];
+function overChords(notes, per, beats, style, file, { acordes, anticipa }) {
+  const k = AJUSTE[style] || {}, each = acordes[0].length, len = beats / each;
+  if (acordes.some(b => b.length !== each)) throw new Error(`${file}: todos los compases tienen que tener la misma cantidad de acordes`);
+  const names = acordes.flat(), chords = names.map(chordPcs), voices = [];
   for (let i = 0, prev = null; i < chords.length; i++) prev = (voices[i] = montunoVoices(chords[i], prev)).d;
-  // el último compás anticipa el primero: la regla tiene que volver a dar la nota doblada del primero
+  // el último acorde anticipa el primero: la regla tiene que volver a dar la nota doblada del primero
   if (montunoVoices(chords[0], voices[voices.length - 1].d).d !== voices[0].d) throw new Error(`${file}: el montuno no vuelve a empezar igual`);
-  const out = {};
+  for (const [tr, at, was, goes] of CORREGIR_NOTAS[path.basename(file)] || []) {
+    const n = notes.find(m => plain(m[3]) === tr && Math.abs(m[0] / per - at) < 1e-3 && m[1] === was);
+    if (!n) throw new Error(`${file}: no encuentro la nota que había que corregir (${tr}, ${was} en el tiempo ${at})`);
+    n[1] = goes;
+    console.log(`${file}: en el ${tr}, la nota ${was} del tiempo ${at} se toma como ${goes}`);
+  }
+  const out = { cambios: acordes[0].map((_, i) => i * len) };
   for (const tr of ['bajo', 'teclado']) {
     const mine = notes.filter(n => plain(n[3]) === tr), bars = [];
     const groups = new Map();
     for (const n of mine) { const key = n[0].toFixed(4); if (!groups.has(key)) groups.set(key, []); groups.get(key).push(n); }
     for (const g of groups.values()) {
       const at = g[0][0] / per, bar = Math.floor(at / beats + 1e-6), pos = +(at - bar * beats).toFixed(4);
-      if (bar >= chords.length) throw new Error(`${file}: tiene más compases que acordes (${acordes.join(' ')})`);
-      const late = pos >= anticipa - 1e-6, own = (bar + (late ? 1 : 0)) % chords.length;
+      if (bar >= acordes.length) throw new Error(`${file}: tiene más compases que la vuelta de acordes`);
+      const slot = Math.floor(at / len + 1e-6), late = (slot + 1) * len - at <= anticipa + 1e-6;
+      const own = (slot + (late ? 1 : 0)) % chords.length;
       const dur = +(Math.max(...g.map(n => n[4])) / per).toFixed(4), force = +(g.reduce((s, n) => s + n[2], 0) / g.length / 127 * (k[tr] || 1)).toFixed(2);
       let what;
       if (tr === 'bajo') {
@@ -228,17 +246,19 @@ function overChords(notes, per, beats, style, file) {
       } else {
         const keys = g.map(n => n[1]).sort((x, y) => x - y).join(), v = voices[own];
         what = ['o', 'a', 'b', 'ab'].find(r => v[r].join() === keys);
-        if (!what) throw new Error(`${file}: en el montuno, compás ${bar + 1}, tiempo ${pos + 1}, las notas (${keys}) no son las que da la regla para ${acordes[own]}`);
+        if (!what) throw new Error(`${file}: en el montuno, compás ${bar + 1}, tiempo ${pos + 1}, las notas (${keys}) no son las que da la regla para ${names[own]}`);
       }
       (bars[bar] = bars[bar] || []).push([pos, what, dur, force, ...(late ? ['anticipa'] : [])]);
     }
-    if (bars.length !== chords.length) throw new Error(`${file}: el ${tr} tiene ${bars.length} compases y hay ${chords.length} acordes`);
+    if (bars.length !== acordes.length) throw new Error(`${file}: el ${tr} tiene ${bars.length} compases y la vuelta ${acordes.length}`);
     // todos los compases dicen lo mismo (sin mirar duración ni fuerza); lo que sobra en el primero es "inicio"
     const sig = n => n[0] + ' ' + n[1], ref = bars[1] || bars[0], refs = ref.map(sig).sort().join('|');
     for (let i = 1; i < bars.length; i++) if (bars[i].map(sig).sort().join('|') !== refs) throw new Error(`${file}: el ${tr} del compás ${i + 1} no dice lo mismo que el del 2`);
     const extra = bars[0].filter(n => !ref.some(r => sig(r) === sig(n)));
     if (bars[0].length - extra.length !== ref.length) throw new Error(`${file}: al ${tr} del primer compás le falta algo de lo que tienen los demás`);
-    out[tr] = [...ref, ...extra.map(n => [...n.slice(0, 4), 'inicio'])].sort((a, c) => a[0] - c[0]);
+    // la duración, la más larga con que aparece (una nota cortada al final del archivo queda en cero)
+    const longest = n => Math.max(...bars.flat().filter(m => sig(m) === sig(n)).map(m => m[2]));
+    out[tr] = [...ref.map(n => [n[0], n[1], longest(n), ...n.slice(3)]), ...extra.map(n => [...n.slice(0, 4), 'inicio'])].sort((a, c) => a[0] - c[0]);
   }
   return out;
 }
@@ -263,8 +283,8 @@ for (const dir of fs.readdirSync(SRC).filter(d => fs.statSync(path.join(SRC, d))
   if (!files.length) continue;
   const name = plain(dir);
   if (SOBRE_ACORDES[name] && chosen.has(name)) {
-    console.log(`${name}: la percusión sale de "${chosen.get(name).file}" y el bajo y el teclado de "${files[0][1]}"`);
-    chosen.get(name).armonia = files[0][1];
+    console.log(`${name}: la percusión sale de "${chosen.get(name).file}" y el bajo y el teclado de ${files.map(f => '"' + f[1] + '"').join(', ')}`);
+    chosen.get(name).armonia = files;
     continue;
   }
   if (chosen.has(name)) console.log(`${name}: se usa la carpeta "${dir}" y no "${chosen.get(name).file}"`);
@@ -310,10 +330,14 @@ for (const [style, { file, variaciones, armonia }] of [...chosen].sort()) {
   console.log(`${style}: ${sig.join('/')}, ${bars} ${bars > 1 ? 'compases' : 'compás'}, ${hits.length} golpes` +
     Object.entries(extra).map(([tr, l]) => `, ${l.length} de ${tr}`).join(''));
   if (armonia) {
-    const read = readMidi(path.join(SRC, armonia));
-    if (read.sig.join('/') !== sig.join('/')) throw new Error(`${armonia} está en ${read.sig.join('/')} y la base en ${sig.join('/')}`);
-    bases[style].montuno = overChords(read.notes, per, beats, style, armonia);
-    console.log(`${style}: de "${armonia}", ${bases[style].montuno.bajo.length} notas de bajo y ${bases[style].montuno.teclado.length} golpes de montuno por compás`);
+    bases[style].montuno = armonia.map(([num, f]) => {
+      if (!SOBRE_ACORDES[style][num]) throw new Error(`${f}: falta decir en SOBRE_ACORDES sobre qué acordes está escrito`);
+      const read = readMidi(path.join(SRC, f));
+      if (read.sig.join('/') !== sig.join('/')) throw new Error(`${f} está en ${read.sig.join('/')} y la base en ${sig.join('/')}`);
+      const m = overChords(read.notes, per, beats, style, f, SOBRE_ACORDES[style][num]);
+      console.log(`${style}: de "${f}" (acordes en ${m.cambios.map(c => c + 1).join(' y ')}), ${m.bajo.length} notas de bajo y ${m.teclado.length} golpes de montuno por compás`);
+      return m;
+    });
   }
   // Variaciones: el compás se corta en tramos (TRAMOS) y queda como opción cada tramo de bajo o de teclado que no
   // sea igual a uno de la base ni a otro ya anotado (sin mirar fuerza ni duración).

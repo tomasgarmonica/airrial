@@ -260,14 +260,20 @@ const Engine = (() => {
     return true;
   }
   // Bajo y montuno de piano escritos en MIDI sobre una vuelta de acordes (son; ver overChords en
-  // herramientas/bases.js). El bajo dice qué nota del acorde toca, en semitonos desde la fundamental; el montuno,
-  // qué papel cumple cada golpe (ver montunoOf). Lo marcado "anticipa" ya es del acorde que viene, y lo marcado
-  // "inicio" suena solo en el primer compás: después llega anticipado desde el compás anterior.
+  // herramientas/bases.js). Hay uno por manera de repartir los acordes en el compás (`cambios`: en el son, uno
+  // por compás o dos, en el 1 y en el 3); va el que coincida con el compás, y si ninguno coincide, el primero.
+  // El bajo dice qué nota del acorde toca, en semitonos desde la fundamental; el montuno, qué papel cumple cada
+  // golpe (ver montunoOf). Lo marcado "anticipa" ya es del acorde que viene (el que suena media negra después), y lo
+  // marcado "inicio" suena solo en el primer compás: después llega anticipado desde el compás anterior.
   function baseMontuno(style, t, bd, B, x) {
-    const p = typeof BASES !== 'undefined' && BASES[style], m = p && p.montuno;
-    if (!m) return false;
-    const step = bd * B / p.tiempos;
-    const chordOf = (at, mark) => (mark === 'anticipa' ? x.next || x.at(at * B / p.tiempos) : x.at(at * B / p.tiempos));
+    const p = typeof BASES !== 'undefined' && BASES[style];
+    if (!p || !p.montuno) return false;
+    const T = p.tiempos, step = bd * B / T, here = x.segs.filter(g => g.chord).map(g => g.beat * T / B).join();
+    const m = p.montuno.find(v => v.cambios.join() === here) || p.montuno[0];
+    const chordOf = (at, mark) => {
+      const when = mark === 'anticipa' ? at + 0.5 : at;
+      return when >= T - 1e-6 ? x.next || x.at(at * B / T) : x.at(when * B / T);
+    };
     for (const [at, semis, d, v, mark] of m.bajo || []) {
       const c = chordOf(at, mark);
       if (!c || (mark === 'inicio' && x.barNo)) continue;
@@ -284,14 +290,15 @@ const Engine = (() => {
   }
   // Notas del montuno para un acorde: "o" es una nota del acorde doblada en tres octavas, "a" y "b" las otras dos,
   // de abajo para arriba, en la octava de abajo de la doblada y repetidas una arriba, y "ab" las dos juntas. La
-  // doblada es la nota del acorde más cercana a la del acorde anterior (en el primero, la quinta), entre Re4 y
-  // Do#5, y si empatan, la más grave: así la mano se mueve lo menos posible. (La misma regla está en la herramienta.)
+  // doblada es la nota del acorde más cercana a la del acorde anterior (en el primero, la quinta), entre Do4 y
+  // Si4, y si empatan, la más grave: así la mano se mueve lo menos posible y el piano queda entre Do3 y Si5.
+  // (La misma regla está en la herramienta.)
   function montunoOf(c) {
     const key = c.root + ':' + c.iv.join(','), was = S.montuno;
     if (was && was.key === key) return was.notes;
     const third = c.iv[0] == null ? 4 : c.iv[0], fifth = c.iv[1] == null ? 7 : c.iv[1];
     const pcs = [...new Set([c.root, (c.root + third) % 12, (c.root + fifth) % 12])];
-    const inWin = pc => 62 + ((pc - 62) % 12 + 12) % 12;
+    const inWin = pc => 60 + ((pc - 60) % 12 + 12) % 12;
     const d = was ? pcs.map(inWin).sort((a, b) => Math.abs(a - was.d) - Math.abs(b - was.d) || a - b)[0] : inWin((c.root + fifth) % 12);
     const rest = pcs.filter(pc => pc !== d % 12).map(pc => d - ((d - pc) % 12 + 12) % 12).sort((a, b) => a - b);
     const a = rest[0] == null ? d - 12 : rest[0], b = rest[1] == null ? a : rest[1];
