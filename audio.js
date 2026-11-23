@@ -259,6 +259,46 @@ const Engine = (() => {
     }
     return true;
   }
+  // Bajo y montuno de piano escritos en MIDI sobre una vuelta de acordes (son; ver overChords en
+  // herramientas/bases.js). El bajo dice qué nota del acorde toca, en semitonos desde la fundamental; el montuno,
+  // qué papel cumple cada golpe (ver montunoOf). Lo marcado "anticipa" ya es del acorde que viene, y lo marcado
+  // "inicio" suena solo en el primer compás: después llega anticipado desde el compás anterior.
+  function baseMontuno(style, t, bd, B, x) {
+    const p = typeof BASES !== 'undefined' && BASES[style], m = p && p.montuno;
+    if (!m) return false;
+    const step = bd * B / p.tiempos;
+    const chordOf = (at, mark) => (mark === 'anticipa' ? x.next || x.at(at * B / p.tiempos) : x.at(at * B / p.tiempos));
+    for (const [at, semis, d, v, mark] of m.bajo || []) {
+      const c = chordOf(at, mark);
+      if (!c || (mark === 'inicio' && x.barNo)) continue;
+      const deg = { 3: c.iv[0], 4: c.iv[0], 7: c.iv[1], 10: c.iv[2], 11: c.iv[2] }[semis];
+      const iv = deg == null ? semis : deg;
+      bass(t + at * step, iv ? near((c.root + iv) % 12, S.lb) : rootOf(c), d * step * 0.95, v);
+    }
+    for (const [at, role, d, v, mark] of m.teclado || []) {
+      const c = chordOf(at, mark);
+      if (!c || (mark === 'inicio' && x.barNo)) continue;
+      chordHit(t + at * step, montunoOf(c)[role], d * step * 0.95, v);
+    }
+    return true;
+  }
+  // Notas del montuno para un acorde: "o" es una nota del acorde doblada en tres octavas, "a" y "b" las otras dos,
+  // de abajo para arriba, en la octava de abajo de la doblada y repetidas una arriba, y "ab" las dos juntas. La
+  // doblada es la nota del acorde más cercana a la del acorde anterior (en el primero, la quinta), entre Re4 y
+  // Do#5, y si empatan, la más grave: así la mano se mueve lo menos posible. (La misma regla está en la herramienta.)
+  function montunoOf(c) {
+    const key = c.root + ':' + c.iv.join(','), was = S.montuno;
+    if (was && was.key === key) return was.notes;
+    const third = c.iv[0] == null ? 4 : c.iv[0], fifth = c.iv[1] == null ? 7 : c.iv[1];
+    const pcs = [...new Set([c.root, (c.root + third) % 12, (c.root + fifth) % 12])];
+    const inWin = pc => 62 + ((pc - 62) % 12 + 12) % 12;
+    const d = was ? pcs.map(inWin).sort((a, b) => Math.abs(a - was.d) - Math.abs(b - was.d) || a - b)[0] : inWin((c.root + fifth) % 12);
+    const rest = pcs.filter(pc => pc !== d % 12).map(pc => d - ((d - pc) % 12 + 12) % 12).sort((a, b) => a - b);
+    const a = rest[0] == null ? d - 12 : rest[0], b = rest[1] == null ? a : rest[1];
+    const notes = { o: [d - 12, d, d + 12], a: [a, a + 12], b: [b, b + 12], ab: [a, b, a + 12, b + 12] };
+    S.montuno = { key, d, notes };
+    return notes;
+  }
   // Golpe de bajo sin nota: el muteado es la nota fantasma ("x") y el chasquido, el slap fantasma ("g"). Están
   // grabados en varios lugares del diapasón: va el más cercano a la nota escrita. Sin grabaciones, una nota cortita.
   function deadBass(t, m, v, kind) {
@@ -801,6 +841,8 @@ const Engine = (() => {
         for (const i of clave32 ? [0, 3, 6, 10, 12] : [2, 4, 8, 11, 14]) wood(t + i * s, 0.4);
         for (let i = 0; i < 16; i += 2) shaker(t + i * s, i % 4 ? 0.12 : 0.2, 0.04);
       }
+      // Bajo y montuno de piano escritos en MIDI (Son 01); sin ellos, el tumbao y los acordes de acá.
+      if (baseMontuno('son', t, bd, 4, x)) return;
       const c0 = x.at(0), c2 = x.at(2), up = x.next || c0;
       // [semicorchea, acorde, duración en semicorcheas, ¿fundamental?]
       const plan = [[3, c0, 2, false], [6, c2, 4.5, true], [11, c2, 2, false], [14, up, 4.5, true]];

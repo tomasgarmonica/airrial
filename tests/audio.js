@@ -15,7 +15,8 @@ const node = kind => ({ kind, gain: param(), frequency: param(), Q: param(), pla
       if (this.buffer.grabado === index.piano.archivo) piano++;
       if (this.buffer.grabado === lastKeys) inKeys++;
     }
-    events.push([kind, t, this.buffer && this.buffer.grabado ? this.buffer.grabado + '@' + at.toFixed(4) : '']);
+    // el cuarto dato es cuánto se corre de altura la grabación (para saber qué nota suena)
+    events.push([kind, t, this.buffer && this.buffer.grabado ? this.buffer.grabado + '@' + at.toFixed(4) : '', this.playbackRate.value || 1]);
   }, stop() {} });
 // Sonidos grabados de mentira: el índice es el verdadero, y el audio solo trae la marca del principio.
 const RATE = 8000, index = JSON.parse(fs.readFileSync(path.join(dir, 'sonidos', 'indice.json'), 'utf8'));
@@ -178,6 +179,38 @@ if (sandbox.BASES.candombe && sandbox.BASES.candombe.variantes) {
   if (never !== '---------C---C---C') { fail++; console.log('FALLA: candombe, cierres obligados', never); }
   else if (always !== '-C-CEC-CEC-C-C-C-C') { fail++; console.log('FALLA: candombe, variaciones a favor', always); }
   else console.log('candombe: variaciones en su lugar', never, always);
+}
+// Son con bajo y montuno escritos (Son 01): sobre la misma vuelta que escribió el dueño (C Am Dm G) suenan tantas
+// notas de bajo como en su archivo (17: el 1 solo en el primer compás), y el piano toca las mismas notas que él:
+// la doblada Sol, La, La, Sol, con las otras dos del acorde abajo, y al final de cada compás la del que viene.
+if (sandbox.BASES.son && sandbox.BASES.son.montuno) {
+  const bars = Music.parseChart('| C | Am | Dm | G |', [4, 4]);
+  events = []; now = 0; lastKeys = null;
+  Engine.play({ seq: Music.unfold(bars), bars: Music.resolve(bars, 0), getTempo: () => 100, style: 'son', keys: 'piano', choruses: 1, countIn: false,
+    finalChord: null, onBar() {}, onEnd() {} });
+  for (let k = 0; k < 20 && !tickFn; k++) await pause();
+  for (let k = 0; k < 3000 && tickFn; k++) { now += 0.05; tickFn(); }
+  const of = file => events.filter(e => e[2].startsWith(file + '@')).length;
+  const bajo = of(index.bajo.archivo);
+  // qué nota suena: la de la grabación, corrida de altura
+  const sample = Object.fromEntries(Object.entries(index.piano.sonidos).map(([k, [at]]) => [index.piano.archivo + '@' + at.toFixed(4), parseInt(k, 10)]));
+  const t0 = Math.min(...events.map(e => e[1])), heard = new Map();
+  for (const e of events) if (sample[e[2]] != null) {
+    const key = ((e[1] - t0) / 0.6).toFixed(2);
+    heard.set(key, [...(heard.get(key) || []), sample[e[2]] + Math.round(12 * Math.log2(e[3]))]);
+  }
+  // lo que escribió el dueño: [doblada, las otras dos] en C, Am, Dm y G
+  const own = [[67, 60, 64], [69, 60, 64], [69, 62, 65], [67, 59, 62]], want = new Map();
+  own.forEach((_, bar) => {
+    for (const [at, role, , , mark] of sandbox.BASES.son.montuno.teclado) {
+      const [d, a, b] = own[mark === 'anticipa' ? Math.min(bar + 1, 3) : bar];
+      want.set((bar * 4 + at).toFixed(2), { o: [d - 12, d, d + 12], a: [a, a + 12], b: [b, b + 12], ab: [a, b, a + 12, b + 12] }[role]);
+    }
+  });
+  const show = m => [...m].map(([k, v]) => k + ':' + v.sort((x, y) => x - y).join(',')).sort().join(' ');
+  if (bajo !== 17) { fail++; console.log('FALLA: son con montuno, notas de bajo', bajo); }
+  else if (show(heard) !== show(want)) { fail++; console.log('FALLA: son con montuno, el piano no toca lo escrito'); console.log(show(heard)); console.log(show(want)); }
+  else console.log('son con montuno:', bajo, 'notas de bajo y', [...heard.values()].flat().length, 'de piano, las escritas');
 }
 // En iPhone: pide sonar aunque el teléfono esté en silencio.
 {
